@@ -1,13 +1,13 @@
 ============================================================================================================================
 LATEST RELEASE
 ============================================================================================================================
-v. 2.0.3; 1/6/2020
+v. 2.0.4; 8/10/2020
 See the CHANGE LOG below for the latest bug fixes and feature updates.
 
 ============================================================================================================================
 COMPATIBILITY AND LICENSING:
 ============================================================================================================================
-Version 2.x: Compatible with ArcGIS 10.5 through ArcGIS 10.7.
+Version 2.x: Compatible with ArcGIS 10.5.x through ArcGIS 10.8.x.
 All tools function at the "Standard" (formerly ArcEditor) license level of ArcGIS.
 Spatial Analyst extension is required. The tool will check out this extension if you are online within the USDA network.
 
@@ -25,10 +25,11 @@ UPDATES
 ============================================================================================================================
 It is generally recommended to update to the latest version whenever possible.
 
-**Note: The version 2.0.3 release includes a major update to the format of the NRCS_FSA_Address.mdb file!**
-Backup your existing file prior to updating with the new version so that you can transfer address records to the new
-database! See the administrative guide PDF document for more details on the standard process to backup and transfer
-addresses using Excel tables for more detailed instructions.
+**Note: Backup your existing NRCS_FSA_Address.mdb file prior to updating with the new version so that you can transfer address
+records without erasing your existing database! See the administrative guide PDF document for more details on the standard
+procedures to backup and transfer addresses using Excel tables for more detailed instructions. If your version of the tools
+is from any version that precedes version 2.0.3 or later, you may need to transfer your addresses to the 2.0.3 or later
+version of the NRCS_FSA_Address.mdb file and review the results to make sure all needed data columns are complete.
 
 A state's tool administrator is recommended to review updates prior to releasing them within their states. Once a state's
 tool administrator configures any updates to the NRCS_FSA_Address.mdb file and/or map templates, they can deploy an updated
@@ -53,6 +54,28 @@ performing HEL Tool support duties in an acting role.
 ============================================================================================================================
 CHANGE LOG
 ============================================================================================================================
+----------------------------------------------------------------------------------------------------------------------------
+Version 2.0.4 (August 10th, 2020)
+
+-- Updated the 026e form to the new 026e-HELC form and updated related tool components to use this form.
+-- Updated all acres outputs on maps and forms to use 2 decimal places. If 0 or 1 decimal are ever shown, assume padded zeroes.
+-- Updated layer files for elevation data services to use current URLs.
+-- Added a 3-meter web service URL.
+-- Updated the "HEL Present on Farm" checkbox to not be checked by default.
+-- Updated the tool to lookup and send county names to the form based on FIPS codes in the field determination layer.
+-- Updated the text of the default letter based on feedback and requests from users.
+-- Made slight updates and corrections to the "Help" pop-out panel in the tool.
+-- Changed files:
+	-- HEL.mdb
+	-- fielddetermination.lyr
+	-- initialhelsummary.lyr
+	-- NRCS HEL Determination.tbx
+	-- NRCS_HEL_Determination.py
+	-- Release Notes.txt
+	-- ../Documents/NRCS HEL Tool Admin Guide.pdf
+	-- ../Documents/NRCS HEL Tool User Guide.pdf
+	-- ../Documents/NRCS HEL Tool Troubleshooting Guide.pdf
+
 ----------------------------------------------------------------------------------------------------------------------------
 Version 2.0.3 (January 6th, 2020)
 

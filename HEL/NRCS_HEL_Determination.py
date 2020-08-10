@@ -1067,7 +1067,8 @@ def AddLayersToArcMap():
 
         # Unselect CLU polygons; Looks goofy after processed layers have been added to ArcMap
         # Turn it off as well
-        for lyr in arcpy.mapping.ListLayers(mxd, arcpy.Describe(cluLayer).nameString, df):
+        #for lyr in arcpy.mapping.ListLayers(mxd, arcpy.Describe(cluLayer).nameString, df):
+        for lyr in arcpy.mapping.ListLayers(mxd, "*" + str(arcpy.Describe(cluLayer).nameString).split("\\")[-1], df):
             arcpy.SelectLayerByAttribute_management(lyr, "CLEAR_SELECTION")
             lyr.visible = False
 
@@ -1125,13 +1126,58 @@ def populateForm():
         except:
             state = getpass.getuser().replace('.',' ').replace('\'','')
 
-        # Add 18 Fields to the fieldDetermination feature class
+        # Get the geographic and admin counties
+        stFIPS = ''
+        coFIPS = ''
+        astFIPS = ''
+        acoFIPS = ''
+
+        # check that lookup table exists and search it for geographic and admin state and county codes
+        if arcpy.Exists(lu_table):
+            with arcpy.da.SearchCursor(fieldDetermination, ['statecd','countycd','admnstate','admncounty']) as cursor:
+                for row in cursor:
+                    stFIPS = row[0]
+                    coFIPS = row[1]
+                    astFIPS = row[2]
+                    acoFIPS = row[3]
+                    break
+            
+            # Lookup state and county names from recovered fips codes
+            GeoCode = str(stFIPS) + str(coFIPS)
+            expression1 = (u"{} = '" + GeoCode + "'").format(arcpy.AddFieldDelimiters(lu_table, 'GEOID'))
+            with arcpy.da.SearchCursor(lu_table, ['GEOID','NAME','STPOSTAL'], where_clause=expression1) as cursor:
+                for row in cursor:
+                    GeoCounty = row[1]
+                    GeoState = row[2]
+                    # We should only get one result if using installed lookup table from US Census Tiger table, so break
+                    break
+
+            AdminCode = str(astFIPS) + str(acoFIPS)
+            expression2 = (u"{} = '" + AdminCode + "'").format(arcpy.AddFieldDelimiters(lu_table, 'GEOID'))
+            with arcpy.da.SearchCursor(lu_table, ['GEOID','NAME','STPOSTAL'], where_clause=expression2) as cursor:
+                for row in cursor:
+                    AdminCounty = row[1]
+                    AdminState = row[2]
+                    # We should only get one result if using installed lookup table from US Census Tiger table, so break
+                    break
+
+            del expression1, expression2
+
+            GeoLocation = GeoCounty + ", " + GeoState
+            AdminLocation = AdminCounty + ", " + AdminState
+
+        else:
+            GeoLocation = "Not Found"
+            AdminLocation = "Not Found"
+            
+        # Add 20 Fields to the fieldDetermination feature class
         remarks_txt = r'This Highly Erodible Land determination was conducted offsite using the soil survey. If PHEL soil map units were present, they may have been evaluated using elevation data.'
         fieldDict = {"Signature":("TEXT",dcSignature,50),"SoilAvailable":("TEXT","Yes",5),"Completion":("TEXT","Office",10),
                         "SodbustField":("TEXT","No",5),"Delivery":("TEXT","Mail",10),"Remarks":("TEXT",remarks_txt,255),
                         "RequestDate":("DATE",""),"LastName":("TEXT","",50),"FirstName":("TEXT",input_cust,50),"Address":("TEXT","",50),
-                        "City":("TEXT","",25),"ZipCode":("TEXT","",10),"Request_from":("TEXT","FSA",15),"HELFarm":("TEXT","Yes",5),
-                        "Determination_Date":("DATE",today),"state":("TEXT",state,2),"SodbustTract":("TEXT","No",5),"Lidar":("TEXT","Yes",5)}
+                        "City":("TEXT","",25),"ZipCode":("TEXT","",10),"Request_from":("TEXT","FSA",15),"HELFarm":("TEXT","0",5),
+                        "Determination_Date":("DATE",today),"state":("TEXT",state,2),"SodbustTract":("TEXT","No",5),"Lidar":("TEXT","Yes",5),
+                        "Location_County":("TEXT",GeoLocation,50),"Admin_County":("TEXT",AdminLocation,50)}
 
         arcpy.SetProgressor("step", "Preparing and Populating NRCS-CPA-026e Form", 0, len(fieldDict), 1)
 
@@ -1174,7 +1220,7 @@ def populateForm():
     except:
         return False
         errorMsg()
-
+    
 ## ================================================================================================================
 def configLayout():
     # This function will gather and update information for elements of the map layout
@@ -1196,7 +1242,7 @@ def configLayout():
             
         # Get CLU information from first row of the cluLayer.
         # All CLU records should have this info, so break after one record.
-        with arcpy.da.SearchCursor(cluLayer, ['statecd','countycd','farmnbr','tractnbr']) as cursor:
+        with arcpy.da.SearchCursor(fieldDetermination, ['statecd','countycd','farmnbr','tractnbr']) as cursor:
             for row in cursor:
                 stCD = row[0]
                 coCD = row[1]
@@ -1397,7 +1443,7 @@ if __name__ == '__main__':
         else:
             fieldDetermination = arcpy.CopyFeatures_management(cluLayer,fieldDetermination)
 
-        # -------------------------------------------- Make sure TRACTNBR and FARMNBR  are uniqe; exit otherwise
+        # -------------------------------------------- Make sure TRACTNBR and FARMNBR  are unique; exit otherwise
         uniqueTracts = list(set([row[0] for row in arcpy.da.SearchCursor(fieldDetermination,("TRACTNBR"))]))
         uniqueFarm   = list(set([row[0] for row in arcpy.da.SearchCursor(fieldDetermination,("FARMNBR"))]))
         uniqueFields = list(set([row[0] for row in arcpy.da.SearchCursor(fieldDetermination,("CLUNBR"))]))
