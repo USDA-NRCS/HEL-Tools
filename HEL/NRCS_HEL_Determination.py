@@ -291,6 +291,15 @@
 # -Fixed a crash in the extractDEMfromImageService function related to variables and returns.
 #  The direct use of NRCS Web Service DEMs is working again without need for the download utility.
 
+# Updated 8/10/2020, C.M.
+# -Updated county lookups to pass county names to the table for use in Access and on a new 026 form.
+# -Added workaround to handle DEMs that generate slightly larger than 3m but slightly increasing
+#  tolerance values.
+# -Updated populateForm to set the HEL on Farm value to not always populate, in case results are
+#  all NHEL.
+# -Incorporated a code snippet from Kentucky to handle input CLU layers if the layer is a member
+#  of a group layer in ArcMap.
+
 #-------------------------------------------------------------------------------
 
 ## ===================================================================================
@@ -817,11 +826,14 @@ def extractDEM(inputDEM,zUnits):
             return False,False
 
         if linearUnits == "Meter":
-            tolerance = 3
+            #tolerance = 3
+            tolerance = 3.1
         elif linearUnits == "Foot":
-            tolerance = 9.84252
+            #tolerance = 9.84252
+            tolerance = 10.1706
         elif linearUnits == "Foot_US":
-            tolerance = 9.84252
+            #tolerance = 9.84252
+            tolerance = 10.1706
         else:
             AddMsgAndPrint("\n\tHorizontal units of " + str(desc.baseName) + " must be in feet or meters... Exiting!")
             AddMsgAndPrint("\tContact your State GIS Coordinator to resolve this issue",2)
