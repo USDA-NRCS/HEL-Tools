@@ -744,6 +744,8 @@ def extractDEMfromImageService(demSource,zUnits):
         demProject = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("demProjectIS",data_type="RasterDataset",workspace=scratchWS))
         arcpy.ProjectRaster_management(demClip, demProject, outputCS, "BILINEAR", outputCellsize)
 
+##        testing_raster = r'C:\Temp\Temp2.gdb\dem_testing'
+##        arcpy.CopyRaster_management(demClip, testing_raster)
         arcpy.Delete_management(demClip)
 
         # ------------------------------------------------------------------------------------ Report new DEM properties
@@ -1113,7 +1115,7 @@ def populateForm():
 
     try:
 
-        AddMsgAndPrint("\nPreparing and Populating NRCS-CPA-026e Form", 0)
+        AddMsgAndPrint("\nPreparing and Populating NRCS-CPA-026 Form", 0)
 
         # ---------------------------------------------------------------------  Collect Time information
         today = datetime.date.today()
@@ -1187,11 +1189,11 @@ def populateForm():
         fieldDict = {"Signature":("TEXT",dcSignature,50),"SoilAvailable":("TEXT","Yes",5),"Completion":("TEXT","Office",10),
                         "SodbustField":("TEXT","No",5),"Delivery":("TEXT","Mail",10),"Remarks":("TEXT",remarks_txt,255),
                         "RequestDate":("DATE",""),"LastName":("TEXT","",50),"FirstName":("TEXT",input_cust,50),"Address":("TEXT","",50),
-                        "City":("TEXT","",25),"ZipCode":("TEXT","",10),"Request_from":("TEXT","FSA",15),"HELFarm":("TEXT","0",5),
+                        "City":("TEXT","",25),"ZipCode":("TEXT","",10),"Request_from":("TEXT","AD-1026",15),"HELFarm":("TEXT","0",5),
                         "Determination_Date":("DATE",today),"state":("TEXT",state,2),"SodbustTract":("TEXT","No",5),"Lidar":("TEXT","Yes",5),
                         "Location_County":("TEXT",GeoLocation,50),"Admin_County":("TEXT",AdminLocation,50)}
 
-        arcpy.SetProgressor("step", "Preparing and Populating NRCS-CPA-026e Form", 0, len(fieldDict), 1)
+        arcpy.SetProgressor("step", "Preparing and Populating NRCS-CPA-026 Form", 0, len(fieldDict), 1)
 
         for field,params in fieldDict.iteritems():
             arcpy.SetProgressorLabel("Adding Field: " + field + r' to "Field Determination" layer')
@@ -1208,7 +1210,7 @@ def populateForm():
                 arcpy.CalculateField_management(fieldDetermination,field,expression,"VB")
 
         if bAccess:
-            AddMsgAndPrint("\tOpening NRCS-CPA-026e Form",0)
+            AddMsgAndPrint("\tOpening NRCS-CPA-026 Form",0)
             try:
                 subprocess.Popen([msAccessPath,helDatabase])
             except:
@@ -1216,15 +1218,15 @@ def populateForm():
                     os.startfile(helDatabase)
                 except:
                     AddMsgAndPrint("\tCould not locate the Microsoft Access Software",1)
-                    AddMsgAndPrint("\tOpen Microsoft Access manually to access the NRCS-CPA-026e Form",1)
+                    AddMsgAndPrint("\tOpen Microsoft Access manually to access the NRCS-CPA-026 Form",1)
                     arcpy.SetProgressorLabel("Could not locate the Microsoft Access Software")
         else:
-            AddMsgAndPrint("\tOpening NRCS-CPA-026e Form",0)
+            AddMsgAndPrint("\tOpening NRCS-CPA-026 Form",0)
             try:
                 os.startfile(helDatabase)
             except:
                 AddMsgAndPrint("\tCould not locate the Microsoft Access Software",1)
-                AddMsgAndPrint("\tOpen Microsoft Access manually to access the NRCS-CPA-026e Form",1)
+                AddMsgAndPrint("\tOpen Microsoft Access manually to access the NRCS-CPA-026 Form",1)
                 arcpy.SetProgressorLabel("Could not locate the Microsoft Access Software")
 
         return True
@@ -1760,7 +1762,7 @@ if __name__ == '__main__':
             AddLayersToArcMap()
 
             if not populateForm():
-                AddMsgAndPrint("\nFailed to correclty populate NRCS-CPA-026e form",2)
+                AddMsgAndPrint("\nFailed to correclty populate NRCS-CPA-026 form",2)
 
             # Clean up time
             arcpy.SetProgressorLabel("")
@@ -1787,6 +1789,47 @@ if __name__ == '__main__':
         # Disabled for now due to shifting soils results.
         # Investigating change so that soil derived rasters exist first and are the snap rasters (9/16/2019)
         #arcpy.env.snapRaster = dem
+
+        ### ------------------------------------------------------------------------------------ Check DEM for NoData overlaps with input CLU fields
+        AddMsgAndPrint("\nChecking input DEM for site coverage...")
+        vectorNull = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("vectorNull",data_type="FeatureClass",workspace=scratchWS))
+        demCheck = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("demCheck",data_type="FeatureClass",workspace=scratchWS))
+
+        # Use Set Null statement to change things with value of 0 to NoData
+        whereClause = "VALUE = 0"
+        setNull = SetNull(dem, dem, whereClause)
+        scratchLayers.append(SetNull)
+
+        # Use IsNull to convert NoData values in the DEM to 1 and all other values to 0
+        demNull = IsNull(setNull)
+        scratchLayers.append(demNull)
+
+        # Convert the IsNull raster to a vector layer
+        arcpy.RasterToPolygon_conversion(demNull, vectorNull, "SIMPLIFY", "Value", "MULTIPLE_OUTER_PART")
+        scratchLayers.append(vectorNull)
+
+        # Clip the IsNull vector layer by the field determination layer
+        arcpy.Clip_analysis(vectorNull, fieldDetermination, demCheck)
+        scratchLayers.append(demCheck)
+
+        # Search for any values of 1 in the demCheck layer and issue a warning to the user if present
+        fields = ['gridcode']
+        cursor = arcpy.da.SearchCursor(demCheck, fields)
+        nd_warning = False
+        for row in cursor:
+            if row[0] == 1:
+                nd_warning = True
+
+        # If no data warning is True, show error messages
+        if nd_warning == True:
+            AddMsgAndPrint("\nInput DEM problem detected! The input DEM may have null data areas covering the input CLU fields!",2)
+            AddMsgAndPrint("\nPHEL map unit and slope analysis is likely to be invalid!",2)
+            AddMsgAndPrint("\nPlease review input DEM data for actual coverage over the site.",2)
+            AddMsgAndPrint("\nIf input DEM does not cover the site, the determination must be made with traditional methods.",2)
+        else:
+            AddMsgAndPrint("\nDEM values in site extent are not null. Continuing...")
+
+        del fields, cursor, nd_warning
 
         ### -------------------------------------------------------------------------------------------------------------------------- Create Slope Layer
         # Perform a minor fill to reduce LiDAR data noise and minor irregularities.
@@ -2198,7 +2241,7 @@ if __name__ == '__main__':
         AddLayersToArcMap()
 
         if not populateForm():
-            AddMsgAndPrint("\nFailed to correclty populate NRCS-CPA-026e form",2)
+            AddMsgAndPrint("\nFailed to correclty populate NRCS-CPA-026 form",2)
 
         # Clean up time
         removeScratchLayers()
