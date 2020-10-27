@@ -1320,6 +1320,9 @@ import sys, string, os, traceback, re
 import arcpy, subprocess, getpass, time
 from arcpy import env
 from arcpy.sa import *
+reload(sys)             
+sys.setdefaultencoding('utf-8')
+
 
 if __name__ == '__main__':
 
@@ -1805,7 +1808,10 @@ if __name__ == '__main__':
         scratchLayers.append(demNull)
 
         # Convert the IsNull raster to a vector layer
-        arcpy.RasterToPolygon_conversion(demNull, vectorNull, "SIMPLIFY", "Value", "MULTIPLE_OUTER_PART")
+        try:
+            arcpy.RasterToPolygon_conversion(demNull, vectorNull, "SIMPLIFY", "Value", "MULTIPLE_OUTER_PART")
+        except:
+            arcpy.RasterToPolygon_conversion(demNull, vectorNull, "SIMPLIFY", "MULTIPLE_OUTER_PART")
         scratchLayers.append(vectorNull)
 
         # Clip the IsNull vector layer by the field determination layer
