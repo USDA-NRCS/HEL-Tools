@@ -1811,7 +1811,7 @@ if __name__ == '__main__':
         try:
             arcpy.RasterToPolygon_conversion(demNull, vectorNull, "SIMPLIFY", "Value", "MULTIPLE_OUTER_PART")
         except:
-            arcpy.RasterToPolygon_conversion(demNull, vectorNull, "SIMPLIFY", "MULTIPLE_OUTER_PART")
+            arcpy.RasterToPolygon_conversion(demNull, vectorNull, "SIMPLIFY", "Value")
         scratchLayers.append(vectorNull)
 
         # Clip the IsNull vector layer by the field determination layer
