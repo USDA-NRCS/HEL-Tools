@@ -1759,7 +1759,7 @@ if __name__ == '__main__':
             # Only Print this if there are PHEL values but they don't need
             # to be processed; Otherwise it should be captured by above statement.
             if bSkipGeoprocessing and not bNoPHELvalues:
-               AddMsgAndPrint("\n\tHEL values are >= 33.33% or NHEL values > 66.67%",1)
+               AddMsgAndPrint("\n\tHEL values are >= 33.33% or more than 50 acres, or NHEL values are > 66.67%",1)
                AddMsgAndPrint("\tNo Geoprocessing is required.\n")
 
             AddLayersToArcMap()
