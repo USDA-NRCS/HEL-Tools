@@ -6,10 +6,15 @@ any changes to the contents of the folder or new version releases of the NRCS HE
 
 ----------------------------------------------------------------------------------------------------------------------------
 Latest Tools Release:
-v. 2.0.4
-August 10th, 2020
+v. 2.0.5
+2022-09-09
+
 If  your tools predate this release, then see Release Notes text file for information about what changed as well as any
 special instructions for updating the tools.
+
+----------------------------------------------------------------------------------------------------------------------------
+2022-09-09
+- Update files for HEL.mdb, -- Folder Updates --.txt, and -- Release Notes --.txt
 
 ----------------------------------------------------------------------------------------------------------------------------
 2020-08-10

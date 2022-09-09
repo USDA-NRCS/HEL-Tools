@@ -1,7 +1,7 @@
 ============================================================================================================================
 LATEST RELEASE
 ============================================================================================================================
-v. 2.0.4; 8/10/2020
+v. 2.0.5; 09/09/2022
 See the CHANGE LOG below for the latest bug fixes and feature updates.
 
 ============================================================================================================================
@@ -46,14 +46,18 @@ tool's Documents folder
 ============================================================================================================================
 SUPPORT
 ============================================================================================================================
-This tool is ad-hoc supported by the Central National Technology Support Center. Please direct questions to Dwain Daniels,
-dwain.daniels@usda.gov, who will in turn route questions to the NRCS of the Future HEL Tool Team and/or any designated staff
-performing HEL Tool support duties in an acting role.
-
+This tool is ad-hoc supported by the Central National Technology Support Center. Please direct questions to Bethany L. Munoz 
+Delgado, bethany.l.munoz@usda.gov, who will in turn route questions to the NRCS of the Future HEL Tool Team and/or any
+designated staffperforming HEL Tool support duties.
 
 ============================================================================================================================
 CHANGE LOG
 ============================================================================================================================
+----------------------------------------------------------------------------------------------------------------------------
+Version 2.0.5 (August 10th, 2020)
+
+-- Updated the Western NAD office mailing address and FAX number.
+
 ----------------------------------------------------------------------------------------------------------------------------
 Version 2.0.4 (August 10th, 2020)
 
