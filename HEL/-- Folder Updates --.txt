@@ -1,0 +1,47 @@
+============================================================================================================================
+UPDATES TO 2019 HEL FOLDER
+============================================================================================================================
+This file documents updates to the 2019 HEL Folder to provide information to users subscribed to the SharePoint folder about
+any changes to the contents of the folder or new version releases of the NRCS HEL Tools.
+
+----------------------------------------------------------------------------------------------------------------------------
+Latest Tools Release:
+v. 2.0.5
+2022-09-09
+
+If  your tools predate this release, then see Release Notes text file for information about what changed as well as any
+special instructions for updating the tools.
+
+----------------------------------------------------------------------------------------------------------------------------
+2022-09-09
+- Update files for HEL.mdb, -- Folder Updates --.txt, and -- Release Notes --.txt
+
+----------------------------------------------------------------------------------------------------------------------------
+2020-08-10
+
+- Updated files for HEL.mdb, fielddeterimation.lyr, initialhelsummary.lyr, NRCS HEL Determination.tbx, NRCS_HEL_Determination.py,
+  -- Release Notes --.txt, -- Folder Updates --.txt and documentation PDFs within the Documents folder.
+
+----------------------------------------------------------------------------------------------------------------------------
+2020-01-06
+
+- Updated files for HEL.mdb, Relese Notes, Folder Notes, NRCS_FSA_Address.mdb, NRCS_HEL_Determination.py,
+  Addin_NRCSHEL.esriaddin, and documenation within the Documents folder.
+
+----------------------------------------------------------------------------------------------------------------------------
+2019-11-07
+
+- Updated the HEL.mdb file and the Release Notes file.
+
+
+----------------------------------------------------------------------------------------------------------------------------
+2019-11-04
+
+- Loaded the Release Notes file to the SharePoint
+- Loaded the Folder Updates file to the SharePoint
+
+
+----------------------------------------------------------------------------------------------------------------------------
+2019-10-28
+
+- Updated the HEL Tools to version 2.0.2. See Release Notes text file for details.

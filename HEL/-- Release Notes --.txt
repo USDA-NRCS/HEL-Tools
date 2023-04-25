@@ -1,0 +1,164 @@
+============================================================================================================================
+LATEST RELEASE
+============================================================================================================================
+v. 2.0.5; 09/09/2022
+See the CHANGE LOG below for the latest bug fixes and feature updates.
+
+============================================================================================================================
+COMPATIBILITY AND LICENSING:
+============================================================================================================================
+Version 2.x: Compatible with ArcGIS 10.5.x through ArcGIS 10.8.x.
+All tools function at the "Standard" (formerly ArcEditor) license level of ArcGIS.
+Spatial Analyst extension is required. The tool will check out this extension if you are online within the USDA network.
+
+============================================================================================================================
+INSTALLATION
+============================================================================================================================
+No special or admin privileges are required, simply unzip the HEL.zip file so that the "HEL" folder is directly on the C: 
+drive. An "HEL" folder directly on the C: drive (C:\HEL) will be the result.
+Within the HEL folder, there will be an "Addin_NRCSHEL" file to double click to add the toolbar to ArcMap (restart Arcmap)
+or there will be a "--NRCS HEL Determination.tbx" file to add to ArcToolbox within ArcMap. The documents folder contains 
+administrator and user guides with more details on installation and required data configuration to distribute in your state.
+
+============================================================================================================================
+UPDATES
+============================================================================================================================
+It is generally recommended to update to the latest version whenever possible.
+
+**Note: Backup your existing NRCS_FSA_Address.mdb file prior to updating with the new version so that you can transfer address
+records without erasing your existing database! See the administrative guide PDF document for more details on the standard
+procedures to backup and transfer addresses using Excel tables for more detailed instructions. If your version of the tools
+is from any version that precedes version 2.0.3 or later, you may need to transfer your addresses to the 2.0.3 or later
+version of the NRCS_FSA_Address.mdb file and review the results to make sure all needed data columns are complete.
+
+A state's tool administrator is recommended to review updates prior to releasing them within their states. Once a state's
+tool administrator configures any updates to the NRCS_FSA_Address.mdb file and/or map templates, they can deploy an updated
+zip file for the tools in their state.
+
+Tool administrators may want to export the address tables from an existing NRCS_FSA_Address.mdb file in C:\HEL prior to
+overwriting the C:\HEL folder with a newly unzipped update. They can then copy/paste the records from previously created
+tables back into the new NRCS_FSA_Address.mdb file after an update.
+
+Specific changes to data schema or administration that would require update steps beyond those described above will be
+called out in the CHANGE LOG below, if any, and may be accompanied by updates to the Administrator's Guide included in the 
+tool's Documents folder
+
+============================================================================================================================
+SUPPORT
+============================================================================================================================
+This tool is ad-hoc supported by the Central National Technology Support Center. Please direct questions to Bethany L. Munoz 
+Delgado, bethany.l.munoz@usda.gov, who will in turn route questions to the NRCS of the Future HEL Tool Team and/or any
+designated staffperforming HEL Tool support duties.
+
+============================================================================================================================
+CHANGE LOG
+============================================================================================================================
+----------------------------------------------------------------------------------------------------------------------------
+Version 2.0.5 (August 10th, 2020)
+
+-- Updated the Western NAD office mailing address and FAX number.
+
+----------------------------------------------------------------------------------------------------------------------------
+Version 2.0.4 (August 10th, 2020)
+
+-- Updated the 026e form to the new 026e-HELC form and updated related tool components to use this form.
+-- Updated all acres outputs on maps and forms to use 2 decimal places. If 0 or 1 decimal are ever shown, assume padded zeroes.
+-- Updated layer files for elevation data services to use current URLs.
+-- Added a 3-meter web service URL.
+-- Updated the "HEL Present on Farm" checkbox to not be checked by default.
+-- Updated the tool to lookup and send county names to the form based on FIPS codes in the field determination layer.
+-- Updated the text of the default letter based on feedback and requests from users.
+-- Made slight updates and corrections to the "Help" pop-out panel in the tool.
+-- Changed files:
+	-- HEL.mdb
+	-- fielddetermination.lyr
+	-- initialhelsummary.lyr
+	-- NRCS HEL Determination.tbx
+	-- NRCS_HEL_Determination.py
+	-- Release Notes.txt
+	-- ../Documents/NRCS HEL Tool Admin Guide.pdf
+	-- ../Documents/NRCS HEL Tool User Guide.pdf
+	-- ../Documents/NRCS HEL Tool Troubleshooting Guide.pdf
+
+----------------------------------------------------------------------------------------------------------------------------
+Version 2.0.3 (January 6th, 2020)
+
+-- Rebuilt the NRCS HEL Toolbar add-in file and updated the version number to 2.0.3.
+-- Corrected a typo in the REQ equation variables in the NRCS_HEL_Determination.py file.
+-- Made further refinements to the HEL.mdb file, including:
+	-- Expanded the length of the County text box on the 026e Form.
+	-- Moved the return address for the NRCS office to the header of the letter.
+	-- Removed the "County" text box that followed the "Designated Conservationist" title in the letter signature area.
+	-- Added language to Certified Mail note on the letter to indicate Certified Mail is only applicable when HEL is present.
+-- Updated the NRCS_FSA_Address.mdb file
+	-- Recommend exporting your old address tables before applying this update and then copy/paste your records into new
+	   NRCS_FSA_Address.mdb table.
+	-- Increased the length of the County column to fit counties with longer names.
+-- New support document created in the Documents folder - "NRCS HEL Tool Troubleshooting Guide.pdf".
+-- Support documentation updated to account for the changes in this update.
+-- Changed files:
+	-- HEL.mdb
+	-- NRCS_FSA_Address.mdb
+	-- NRCS_HEL_Determination.py
+	-- Addin_NRCS_HEL.esriaddin
+	-- Release Notes.txt
+	-- ../Documents/NRCS HEL Tool Admin Guide.pdf
+	-- ../Documents/NRCS HEL Tool User Guide.pdf
+	-- ../Documents/NRCS HEL Tool Troubleshooting Guide.pdf (new)
+
+----------------------------------------------------------------------------------------------------------------------------
+Version 2.0.2 (November 7th, 2019)
+
+-- Released a fix for the HEL.mdb file in the C:\HEL folder. Fixed an issue with client address populating.
+-- Deleted testing raster data from the HEL.mdb file.
+-- Changed files:
+	-- HEL.mdb
+
+
+----------------------------------------------------------------------------------------------------------------------------
+Version 2.0.1 (September 16th, 2019)
+
+-- Released a fix for the HEL.mdb file in the C:\HEL folder. Fixed an issue with the Save PDF functions on the 026e form.
+-- Added an "REQ" parameter to the tool for use in the Pacific Northwest states which need to run frozen ground runoff formula.
+-- Changed files:
+	-- HEL.mdb
+	-- NRCS HEL Determination.tbx
+	-- NRCS_HEL_Determination.py
+
+
+----------------------------------------------------------------------------------------------------------------------------
+Version 2.0.0 (September 5th, 2019)
+
+-- Official release of the NRCS HEL Tool.
+-- Provided Admin, User, and Quick Guides in the Documents folder.
+-- Clarified data schema in Admin Guide.
+-- Updated guidance to include new automated layout features.
+-- Provided 1m and 2m DEM web service layer files in the install directory to add to maps, as needed.
+-- Integrated DEM download directly into tool if the 1m or 2m DEM web service layer is selected as the DEM parameter.
+-- Blank Map Template created for additional automation with the tool. States can build templates from the blank template.
+-- Customer Name added as a parameter.
+-- Adjusted symbology of layers based on tester feedback.
+-- Made final corrections to internal formulas to match AH537.
+-- Made DEM parameter optional and tool will now run if PHEL is not present and if DEM is not populated or needed.
+-- Changed Focal Stats Mean to run prior to generating slope (best practice for DEM/Slope processing).
+-- Added a Fill Sinks function with a maximum fill depth of 1-foot to remove minor DEM data irregularities.
+-- Corrected critical operation bugs reported by testers.
+
+
+----------------------------------------------------------------------------------------------------------------------------
+Version 2.0.0 beta (multiple Tests for 2.0.0 Release)
+
+-- Converted entire toolset to Python (switched from Model Builder).
+-- Formalized folder structure and data schema.
+-- Compiled Python Add-In Toolbar/Buttons in an Add-In file for installation of toolbar and buttons in ArcMap.
+-- Backup access to the tools provided through an ArcToolbox included in C:\HEL.
+-- Created Access database dashboard for creating forms, reports, and letters related to the current determination.
+-- National drafted a standard letter to include with the tools.
+-- Created a Utility Toolset to help with merging DEM data and Soil Data as well as downloading DEM data from web services.
+
+
+----------------------------------------------------------------------------------------------------------------------------
+Version 1.x
+
+-- Various tools based on methodology introduced by Kevin Godsey and Missouri, adopted in many states. Based in model builder.
+
