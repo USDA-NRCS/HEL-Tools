@@ -90,7 +90,7 @@ def setScratchWorkspace():
             envVariables = os.environ
 
             # get the root system drive
-            if envVariables.has_key('SYSTEMDRIVE'):
+            if 'SYSTEMDRIVE' in envVariables:
                 sysDrive = envVariables['SYSTEMDRIVE']
             else:
                 sysDrive = None
@@ -101,18 +101,18 @@ def setScratchWorkspace():
 
             """ This is a printout of my system environmmental variables - Windows 7
             -----------------------------------------------------------------------------------------
-            ESRI_OS_DATADIR_LOCAL_DONOTUSE C:\Users\adolfo.diaz\AppData\Local\
-            ESRI_OS_DIR_DONOTUSE C:\Users\ADOLFO~1.DIA\AppData\Local\Temp\6\arc3765\
-            ESRI_OS_DATADIR_MYDOCUMENTS_DONOTUSE C:\Users\adolfo.diaz\Documents\
+            ESRI_OS_DATADIR_LOCAL_DONOTUSE C:\\Users\adolfo.diaz\AppData\Local\
+            ESRI_OS_DIR_DONOTUSE C:\\Users\ADOLFO~1.DIA\AppData\Local\Temp\6\arc3765\
+            ESRI_OS_DATADIR_MYDOCUMENTS_DONOTUSE C:\\Users\adolfo.diaz\Documents\
             ESRI_OS_DATADIR_COMMON_DONOTUSE C:\ProgramData\
-            ESRI_OS_DATADIR_ROAMING_DONOTUSE C:\Users\adolfo.diaz\AppData\Roaming\
-            TEMP C:\Users\ADOLFO~1.DIA\AppData\Local\Temp\6\arc3765\
-            LOCALAPPDATA C:\Users\adolfo.diaz\AppData\Local
+            ESRI_OS_DATADIR_ROAMING_DONOTUSE C:\\Users\adolfo.diaz\AppData\Roaming\
+            TEMP C:\\Users\ADOLFO~1.DIA\AppData\Local\Temp\6\arc3765\
+            LOCALAPPDATA C:\\Users\adolfo.diaz\AppData\Local
             PROGRAMW6432 C:\Program Files
             COMMONPROGRAMFILES :  C:\Program Files (x86)\Common Files
-            APPDATA C:\Users\adolfo.diaz\AppData\Roaming
-            USERPROFILE C:\Users\adolfo.diaz
-            PUBLIC C:\Users\Public
+            APPDATA C:\\Users\adolfo.diaz\AppData\Roaming
+            USERPROFILE C:\\Users\adolfo.diaz
+            PUBLIC C:\\Users\Public
             SYSTEMROOT :  C:\Windows
             PROGRAMFILES :  C:\Program Files (x86)
             COMMONPROGRAMFILES(X86) :  C:\Program Files (x86)\Common Files

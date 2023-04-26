@@ -449,7 +449,7 @@ def setScratchWorkspace():
             envVariables = os.environ
 
             # get the root system drive
-            if envVariables.has_key('SYSTEMDRIVE'):
+            if 'SYSTEMDRIVE' in envVariables:
                 sysDrive = envVariables['SYSTEMDRIVE']
             else:
                 sysDrive = None
@@ -460,18 +460,18 @@ def setScratchWorkspace():
 
             """ This is a printout of my system environmmental variables - Windows 7
             -----------------------------------------------------------------------------------------
-            ESRI_OS_DATADIR_LOCAL_DONOTUSE C:\Users\adolfo.diaz\AppData\Local\
-            ESRI_OS_DIR_DONOTUSE C:\Users\ADOLFO~1.DIA\AppData\Local\Temp\6\arc3765\
-            ESRI_OS_DATADIR_MYDOCUMENTS_DONOTUSE C:\Users\adolfo.diaz\Documents\
+            ESRI_OS_DATADIR_LOCAL_DONOTUSE C:\\Users\adolfo.diaz\AppData\Local\
+            ESRI_OS_DIR_DONOTUSE C:\\Users\ADOLFO~1.DIA\AppData\Local\Temp\6\arc3765\
+            ESRI_OS_DATADIR_MYDOCUMENTS_DONOTUSE C:\\Users\adolfo.diaz\Documents\
             ESRI_OS_DATADIR_COMMON_DONOTUSE C:\ProgramData\
-            ESRI_OS_DATADIR_ROAMING_DONOTUSE C:\Users\adolfo.diaz\AppData\Roaming\
-            TEMP C:\Users\ADOLFO~1.DIA\AppData\Local\Temp\6\arc3765\
-            LOCALAPPDATA C:\Users\adolfo.diaz\AppData\Local
+            ESRI_OS_DATADIR_ROAMING_DONOTUSE C:\\Users\adolfo.diaz\AppData\Roaming\
+            TEMP C:\\Users\ADOLFO~1.DIA\AppData\Local\Temp\6\arc3765\
+            LOCALAPPDATA C:\\Users\adolfo.diaz\AppData\Local
             PROGRAMW6432 C:\Program Files
             COMMONPROGRAMFILES :  C:\Program Files (x86)\Common Files
-            APPDATA C:\Users\adolfo.diaz\AppData\Roaming
-            USERPROFILE C:\Users\adolfo.diaz
-            PUBLIC C:\Users\Public
+            APPDATA C:\\Users\adolfo.diaz\AppData\Roaming
+            USERPROFILE C:\\Users\adolfo.diaz
+            PUBLIC C:\\Users\Public
             SYSTEMROOT :  C:\Windows
             PROGRAMFILES :  C:\Program Files (x86)
             COMMONPROGRAMFILES(X86) :  C:\Program Files (x86)\Common Files
@@ -1135,7 +1135,7 @@ def populateForm():
         # Try to get the state using the field determination layer
         try:
             stateCode = ([row[0] for row in arcpy.da.SearchCursor(fieldDetermination,"STATECD")])
-            state = [stAbbrev for (stAbbrev, code) in stateCodeDict.items() if code == stateCode[0]][0]
+            state = [stAbbrev for (stAbbrev, code) in list(stateCodeDict.items()) if code == stateCode[0]][0]
         # Otherwise get the state from the computer user name
         except:
             state = getpass.getuser().replace('.',' ').replace('\'','')
@@ -1158,7 +1158,7 @@ def populateForm():
 
             # Lookup state and county names from recovered fips codes
             GeoCode = str(stFIPS) + str(coFIPS)
-            expression1 = (u"{} = '" + GeoCode + "'").format(arcpy.AddFieldDelimiters(lu_table, 'GEOID'))
+            expression1 = ("{} = '" + GeoCode + "'").format(arcpy.AddFieldDelimiters(lu_table, 'GEOID'))
             with arcpy.da.SearchCursor(lu_table, ['GEOID','NAME','STPOSTAL'], where_clause=expression1) as cursor:
                 for row in cursor:
                     GeoCounty = row[1]
@@ -1167,7 +1167,7 @@ def populateForm():
                     break
 
             AdminCode = str(astFIPS) + str(acoFIPS)
-            expression2 = (u"{} = '" + AdminCode + "'").format(arcpy.AddFieldDelimiters(lu_table, 'GEOID'))
+            expression2 = ("{} = '" + AdminCode + "'").format(arcpy.AddFieldDelimiters(lu_table, 'GEOID'))
             with arcpy.da.SearchCursor(lu_table, ['GEOID','NAME','STPOSTAL'], where_clause=expression2) as cursor:
                 for row in cursor:
                     AdminCounty = row[1]
@@ -1195,7 +1195,7 @@ def populateForm():
 
         arcpy.SetProgressor("step", "Preparing and Populating NRCS-CPA-026 Form", 0, len(fieldDict), 1)
 
-        for field,params in fieldDict.iteritems():
+        for field,params in fieldDict.items():
             arcpy.SetProgressorLabel("Adding Field: " + field + r' to "Field Determination" layer')
             try:
                 fldLength = params[2]
@@ -1267,7 +1267,7 @@ def configLayout():
         # Lookup state and county name
         stco_code = str(stCD) + str(coCD)
         #expression = (u'{} = ' + stco_code).format(arcpy.AddFieldDelimiters(lu_table, 'GEOID'))
-        expression = (u"{} = '" + stco_code + "'").format(arcpy.AddFieldDelimiters(lu_table, 'GEOID'))
+        expression = ("{} = '" + stco_code + "'").format(arcpy.AddFieldDelimiters(lu_table, 'GEOID'))
         with arcpy.da.SearchCursor(lu_table, ['GEOID','NAME','STPOSTAL'], where_clause=expression) as cursor:
             for row in cursor:
                 county = row[1]
@@ -1320,7 +1320,8 @@ import sys, string, os, traceback, re
 import arcpy, subprocess, getpass, time
 from arcpy import env
 from arcpy.sa import *
-reload(sys)
+import importlib
+importlib.reload(sys)
 sys.setdefaultencoding('utf-8')
 
 
@@ -1610,7 +1611,7 @@ if __name__ == '__main__':
                 row[3] = pct
 
                 # Add hel value to dictionary to summarize by total project
-                if not helSummaryDict.has_key(row[0]):
+                if row[0] not in helSummaryDict:
                     helSummaryDict[row[0]] = acres
                 else:
                     helSummaryDict[row[0]] += acres
@@ -1619,7 +1620,7 @@ if __name__ == '__main__':
                 del acres
 
         # No PHEL values were found; Bypass geoprocessing and populate form
-        if not helSummaryDict.has_key('PHEL'):
+        if 'PHEL' not in helSummaryDict:
             #AddMsgAndPrint("\n\tWARNING: There are no PHEL values in HEL layer",1)
             bNoPHELvalues = True
 
@@ -2228,8 +2229,8 @@ if __name__ == '__main__':
         del cursor
 
         # Strictly for formatting and printing
-        maxHelAcreLength = sorted([cluinfo[1] for clu,cluinfo in cluDict.iteritems()],reverse=True)[0]
-        maxNHelAcreLength = sorted([cluinfo[4] for clu,cluinfo in cluDict.iteritems()],reverse=True)[0]
+        maxHelAcreLength = sorted([cluinfo[1] for clu,cluinfo in cluDict.items()],reverse=True)[0]
+        maxNHelAcreLength = sorted([cluinfo[4] for clu,cluinfo in cluDict.items()],reverse=True)[0]
         #maxPercentLength = sorted([cluinfo[4] for clu,cluinfo in cluDict.iteritems()],reverse=True)[0]
 
         for clu in sorted(cluDict.keys()):
