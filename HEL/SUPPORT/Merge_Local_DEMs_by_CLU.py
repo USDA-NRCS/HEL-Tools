@@ -20,7 +20,7 @@ source_clu = GetParameter(0)
 source_dems = GetParameterAsText(1).split(';')
 
 # Geoprocessing Environment Settings
-scratch_gdb = path.join(path.dirname(argv[0]), 'scratch.gdb')
+scratch_gdb = path.join(path.dirname(path.dirname(argv[0])), 'scratch.gdb')
 env.workspace = scratch_gdb
 env.overwriteOutput = True
 env.geographicTransformations = 'WGS_1984_(ITRF00)_To_NAD_1983'

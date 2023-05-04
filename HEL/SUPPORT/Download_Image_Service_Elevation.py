@@ -15,7 +15,7 @@ else:
     exit()
 
 # Geoprocessing Environment Settings
-scratch_gdb = path.join(path.dirname(argv[0]), 'scratch.gdb')
+scratch_gdb = path.join(path.dirname(path.dirname(argv[0])), 'scratch.gdb')
 env.scratchWorkspace = scratch_gdb
 env.overwriteOutput = True
 env.geographicTransformations = 'WGS_1984_(ITRF00)_To_NAD_1983'
