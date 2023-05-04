@@ -1,5 +1,7 @@
 __pycache__/
 Index/
+GpMessages/
+scratch.gdb/
 venv/
 .vscode/
 *.lock
