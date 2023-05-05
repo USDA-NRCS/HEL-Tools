@@ -1,26 +1,23 @@
-from arcpy import AddError, AddMessage, CheckExtension, CheckOutExtension, CreateScratchName, \
-    Describe, env, Exists, GetParameter, GetParameterAsText, SetParameterAsText
+from arcpy import AddError, AddMessage, Describe, env, Exists, GetParameterAsText, SetParameterAsText
 from arcpy.analysis import Buffer
-from arcpy.management import CopyFeatures, Delete, GetRasterProperties, MosaicToNewRaster
+from arcpy.management import Delete, GetRasterProperties, MosaicToNewRaster
 from arcpy.sa import ExtractByMask
 
 from os import path
 from sys import argv, exit
 
 
-# Check out Spatial Analyst License
-if CheckExtension('Spatial') == 'Available':
-    CheckOutExtension('Spatial')
-else:
-    AddError('Spatial Analyst Extension must be enabled to use this tool... Exiting')
-    exit()
-
 # Tool Inputs
-source_clu = GetParameter(0)
-source_dems = GetParameterAsText(1).split(';')
+source_clu = GetParameterAsText(0)
+source_DEMs = GetParameterAsText(1).split(';')
+number_of_DEMs = len(source_DEMs)
+
+# Paths to SCRATCH.gdb features
+scratch_gdb = path.join(path.dirname(argv[0]), 'SCRATCH.gdb')
+clu_buffer = path.join(scratch_gdb, 'CLU_Buffer')
+merged_DEM = path.join(scratch_gdb, 'Merged_DEM')
 
 # Geoprocessing Environment Settings
-scratch_gdb = path.join(path.dirname(argv[0]), 'SCRATCH.gdb')
 env.workspace = scratch_gdb
 env.overwriteOutput = True
 env.geographicTransformations = 'WGS_1984_(ITRF00)_To_NAD_1983'
@@ -28,26 +25,11 @@ env.resamplingMethod = 'BILINEAR'
 env.pyramid = 'PYRAMIDS -1 BILINEAR DEFAULT 75 NO_SKIP'
 env.outputCoordinateSystem = Describe(source_clu).SpatialReference
 
-# Make sure at least 2 datasets to be merged were entered
-datasets = len(source_dems)
-if datasets < 2:
-    AddError('Only one input DEM layer selected. If you need multiple layers, please run again and select multiple DEM files... Exiting')
-    exit()
-
-temp_dem = CreateScratchName('temp_dem', data_type='RasterDataset')
-merged_dem = CreateScratchName('merged_dem', data_type='RasterDataset')
-clu_selected = path.join('in_memory', path.basename(CreateScratchName('clu_selected', data_type='FeatureClass')))
-clu_buffer = path.join('in_memory', path.basename(CreateScratchName('clu_buffer', data_type='FeatureClass')))
-
-# Make sure CLU fields are selected
-cluDesc = Describe(source_clu)
-if cluDesc.FIDset == '':
-    AddError('Please select fields from the CLU Layer. Exiting')
-    exit()
-else:
-    source_clu = CopyFeatures(source_clu, clu_selected)
-
-AddMessage(f"Number of CLU fields selected: {str(len(cluDesc.FIDset.split(';')))}")
+# Clear SCRATCH.gdb
+scratch_features = [clu_buffer, merged_DEM]
+for feature in scratch_features:
+    if Exists(feature):
+        Delete(feature)
 
 # Dictionary for code values returned by the getRasterProperties tool (keys)
 # Values represent the pixel_type inputs for the mosaic to new raster tool
@@ -56,10 +38,10 @@ numOfBands = ''
 pixelType = ''
 
 # Evaluate every input raster to be merged
-AddMessage(f"Checking {str(datasets)} input raster layers")
+AddMessage(f"Checking {str(number_of_DEMs)} input raster layers")
 x = 0
-while x < datasets:
-    raster = source_dems[x].replace("'", '')
+while x < number_of_DEMs:
+    raster = source_DEMs[x].replace("'", '')
     desc = Describe(raster)
     sr = desc.SpatialReference
     units = sr.LinearUnitName
@@ -87,7 +69,7 @@ while x < datasets:
         exit()
 
     # Check for consistent bit depth
-    cellValueCode =  int(GetRasterProperties(raster, 'VALUETYPE').getOutput(0))
+    cellValueCode = int(GetRasterProperties(raster, 'VALUETYPE').getOutput(0))
     bitDepth = pixelTypeDict[cellValueCode]  # Convert the code to pixel depth using dictionary
 
     if pixelType == '':
@@ -110,10 +92,8 @@ while x < datasets:
             exit()
     x += 1
 
-# Buffer the selected CLUs by 400m
+# Buffer the selected CLUs
 AddMessage('Buffering input CLU fields...')
-# Use 410 meter radius so that you have a bit of extra area for the HEL Determination tool to clip against
-# This distance is designed to minimize problems of no data crashes if the HEL Determiation tool's resampled 3-meter DEM doesn't perfectly snap with results from this tool.
 Buffer(source_clu, clu_buffer, '410 Meters', 'FULL', '', 'ALL', '')
 
 # Clip out the DEMs that were entered
@@ -121,12 +101,12 @@ AddMessage('Clipping Raster Layers...')
 del_list = [] # Start an empty list that will be used to clean up the temporary clips after merge is done
 mergeRasters = ''
 x = 0
-while x < datasets:
-    current_dem = source_dems[x].replace("'", '')
-    out_clip = f"{temp_dem}_{str(x)}"
+while x < number_of_DEMs:
+    current_dem = source_DEMs[x].replace("'", '')
+    out_clip = f"temp_dem_{str(x)}"
 
     try:
-        AddMessage(f"Clipping {current_dem} {str(x+1)} of {str(datasets)}")
+        AddMessage(f"Clipping {current_dem} {str(x+1)} of {str(number_of_DEMs)}")
         extractedDEM = ExtractByMask(current_dem, clu_buffer)
         extractedDEM.save(out_clip)
     except:
@@ -146,17 +126,13 @@ while x < datasets:
     x += 1
 
 # Merge Clipped Datasets
-AddMessage('Merging inputs...')
-
-if Exists(merged_dem):
-    Delete(merged_dem)
-
-MosaicToNewRaster(mergeRasters, scratch_gdb, path.basename(merged_dem), '#', pixelType, 3, numOfBands, 'MEAN', '#')
+AddMessage('Merging clipped DEMs...')
+MosaicToNewRaster(mergeRasters, scratch_gdb, path.basename(merged_DEM), '#', pixelType, 3, numOfBands, 'MEAN', '#')
 
 for lyr in del_list:
     Delete(lyr)
 Delete(clu_buffer)
 
-# Add resulting data to map
-AddMessage(f"Adding {path.basename(merged_dem)} to map...")
-SetParameterAsText(2, merged_dem)
+# Add final DEM layer to derived output parameter
+AddMessage('Adding DEM layer to map...')
+SetParameterAsText(2, merged_DEM)
