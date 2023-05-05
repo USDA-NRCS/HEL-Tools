@@ -1,6 +1,6 @@
 from arcpy import AddError, AddMessage, Describe, env, Exists, GetParameterAsText, SetParameterAsText, SpatialReference
 from arcpy.analysis import Buffer
-from arcpy.management import Clip, Delete, Project, ProjectRaster
+from arcpy.management import Clip, CreateFileGDB, Delete, Project, ProjectRaster
 
 from os import path
 from sys import argv
@@ -17,18 +17,25 @@ wgs84_clu_buffer = path.join(scratch_gdb, 'WGS84_CLU_Buffer')
 wgs84_DEM = path.join(scratch_gdb, 'WGS84_DEM')
 final_DEM = path.join(scratch_gdb, 'Downloaded_DEM')
 
+# Create SCRATCH.gdb if needed, clear any existing features otherwise
+if not Exists(scratch_gdb):
+    try:
+        CreateFileGDB(path.dirname(argv[0]), 'SCRATCH.gdb')
+    except Exception:
+        AddError('Failed to create SCRATCH.gdb in install location... Exiting')
+        exit()
+else:
+    scratch_features = [clu_buffer, wgs84_clu_buffer, wgs84_DEM, final_DEM]
+    for feature in scratch_features:
+        if Exists(feature):
+            Delete(feature)
+
 # Geoprocessing Environment Settings
 env.workspace = scratch_gdb
 env.overwriteOutput = True
 env.geographicTransformations = 'WGS_1984_(ITRF00)_To_NAD_1983'
 env.resamplingMethod = 'BILINEAR'
 env.pyramid = 'PYRAMIDS -1 BILINEAR DEFAULT 75 NO_SKIP'
-
-# Clear SCRATCH.gdb
-scratch_features = [clu_buffer, wgs84_clu_buffer, wgs84_DEM, final_DEM]
-for feature in scratch_features:
-    if Exists(feature):
-        Delete(feature)
 
 # Buffer the selected CLUs
 AddMessage('Buffering input CLU fields...')

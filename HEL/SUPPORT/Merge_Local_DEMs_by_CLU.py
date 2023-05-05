@@ -1,6 +1,6 @@
 from arcpy import AddError, AddMessage, Describe, env, Exists, GetParameterAsText, SetParameterAsText
 from arcpy.analysis import Buffer
-from arcpy.management import Delete, GetRasterProperties, MosaicToNewRaster
+from arcpy.management import CreateFileGDB, Delete, GetRasterProperties, MosaicToNewRaster
 from arcpy.sa import ExtractByMask
 
 from os import path
@@ -17,6 +17,19 @@ scratch_gdb = path.join(path.dirname(argv[0]), 'SCRATCH.gdb')
 clu_buffer = path.join(scratch_gdb, 'CLU_Buffer')
 merged_DEM = path.join(scratch_gdb, 'Merged_DEM')
 
+# Create SCRATCH.gdb if needed, clear any existing features otherwise
+if not Exists(scratch_gdb):
+    try:
+        CreateFileGDB(path.dirname(argv[0]), 'SCRATCH.gdb')
+    except Exception:
+        AddError('Failed to create SCRATCH.gdb in install location... Exiting')
+        exit()
+else:
+    scratch_features = [clu_buffer, merged_DEM]
+    for feature in scratch_features:
+        if Exists(feature):
+            Delete(feature)
+
 # Geoprocessing Environment Settings
 env.workspace = scratch_gdb
 env.overwriteOutput = True
@@ -24,12 +37,6 @@ env.geographicTransformations = 'WGS_1984_(ITRF00)_To_NAD_1983'
 env.resamplingMethod = 'BILINEAR'
 env.pyramid = 'PYRAMIDS -1 BILINEAR DEFAULT 75 NO_SKIP'
 env.outputCoordinateSystem = Describe(source_clu).SpatialReference
-
-# Clear SCRATCH.gdb
-scratch_features = [clu_buffer, merged_DEM]
-for feature in scratch_features:
-    if Exists(feature):
-        Delete(feature)
 
 # Dictionary for code values returned by the getRasterProperties tool (keys)
 # Values represent the pixel_type inputs for the mosaic to new raster tool
