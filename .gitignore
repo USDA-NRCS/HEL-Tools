@@ -3,5 +3,6 @@ Index/
 GpMessages/
 SCRATCH.gdb/
 venv/
+.backups/
 .vscode/
 *.lock
