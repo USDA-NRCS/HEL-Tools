@@ -1,418 +1,66 @@
-# ==========================================================================================
-# Name:   HEL Determination by AOI
-#
-# Author: Adolfo.Diaz
-#         GIS Specialist
-#         National Soil Survey Center
-#         USDA - NRCS
-# e-mail: adolfo.diaz@usda.gov
-# phone: 608.662.4422 ext. 216
+import datetime
+import sys, os, traceback, math
+import arcpy, subprocess, getpass, time
+from arcpy import env
+from arcpy.sa import *
+import importlib
+importlib.reload(sys)
+sys.setdefaultencoding('utf-8')
 
-# Contributor: Kevin Godsey
-#              Soil Scientist
-# e-mail: kevin.godsey@usda.gov
-# phone: 608.662.4422 ext. 190
 
-# Contributor: Christiane Roy
-#              MN Area GIS Specialist
-# e-mail: christian.roy@usda.gov
-# phone: 507.405.3580
-
-# Contributor: Chris Morse
-#              IN State GIS Specialist
-# e-mail: chris.morse@usda.gov
-# phone: 317-295-5849
-
-# Contributor: Edwin Muniz
-#               NJ Assistant State Soil Scientist
-# e-mail: edwin.muniz@usda.gov
-# phone: 732-537-6062
-
-# ==========================================================================================
-# Modified 10/24/2016
-# Line 705; outflowLengthFT was added to the scratchLayers to be deleted.  It should've
-# been flowLengthFT
-#
-# The acreConversion variable was updated to reference a dictionary instead.  The original
-# acreConversion variable was being determined from the DEM.  If input DEM was in FT then
-# the wrong acre conversion was applied to layers that were in Meters.
-
-# ==========================================================================================
-# Modified 11/19/2018
-# Tim Prescott was having acre disrepancies.  He had a wide variety of coordinate systems
-# in his arcmap project.  I couldn't isolate the problem but I wound up changine
-# the way the z-factor is assigned.  I was assuming a meter and/or feet combination but
-# there could be other combinations like centimeters. Created a matrix of XY and Z
-# unit combinations to be used as a look up table.
-
-# ==========================================================================================
-# Modified 11/15/2018
-# Christiane reported duplicate labeling in the HEL Summary feature class.  The duplicate
-# labels go away when the corresponding .lyr file is added instead of the feature class.
-# Modified the code to add the .lyr to Arcmap only for the HEL Summary layer.
-
-# ==========================================================================================
-# Modified 3/1/2019
-# - Error Encountered:
-#      Related to optional parameter of zUnits
-#	   File "C:\python_scripts\GitHub\HEL\HEL_Determination_by_AOI.py", line 517, in <module>
-#      zFactor = zFactorList[unitLookUpDict.get(zUnits)][unitLookUpDict.get(linearUnits)]
-#	   TypeError: list indices must be integers, not NoneType
-#
-# - Add Focal Statistics (MAXIMUM) to Flow Length output to smooth it out
-# - switched method to exit python interpreter from exit() to sys.exit() and SystemExit Exception
-#   to catch errors.
-# - Switched ALL output layers to in-memory layers to optimize performance; Performance increased
-#   by at least 25%
-# - Updated the Determination Date to include the date the script was executed: mm/dd/yyyy
-# - In the 'Compute Summary of NEW HEL values' section the total CLU Acres were re-computed from the
-#   outTabulate table vs. looking them up from the 'fieldDetermination' fc b/c they wouldn't add up to 100%
-#   The outTabulate represents sums from raster cells vs. polygons.
-# - Wrapped main body into 'main' function and executed from if __name__ == '__main__':
-# - sys.exit() was throwing an exception and forcing a traceback to be printed.  Ignore traceback
-#   message if thrown by sys.exit()
-
-# ==========================================================================================
-# Modified 3/14/2019
-# - The tool was updated so that it no longer exits when there is no PHEL present or final results
-#   are all HEL or NHEL.  The 'outTabulate' table had to be updated to add either 'VALUE_1' or
-#   'VALUE_2' field and calc'ed to 0 so that the script could finish.
-#
-# - Created 'ogCLUinfoDict' to capture cluNumber and cluAcres during the original summary process.
-#   This dictionary is only used if final results are ALL HEL or ALL NHEL since acres don't need
-#   to be recalculated, especially from the tabulate areas results where the acreages may slightly
-#   differ b/c of pixel tabulation.  This way the acreages will always match the original figures.
-#
-# - 2 booleans (bOnlyHEL & bOnlyNHEL) were added to determine if final results are ALL HEL or NHEL
-
-# ==========================================================================================
-# Modified 2/4/2019
-# - Seperated the scratch layers by individual task vs adding several layers at a time.
-#   This will ensure all scratch layers are deleted when a failure occurs.
-# - Run Focal Statistics (MEAN) to Slope output to smooth it out
-# - Changed Focal Statistics on Flow Length from MAXIMUM to MEAN
-
-# ==========================================================================================
-# Modified 4/12/2019
-# - Report summary of CLU HEL values regardless of no PHEL Values found.  If no PHEL values
-#   are found then geoprocessing will be entirely skipped however the 1026 form will still
-#   be populated and brought up.  The populateForm function was added to be able to skip
-#   geoprocessing and still open the 1026 form.  If no PHEL values are found then HEL will
-#   be determined by the 33.33% or 50 acre rule.  If a CLU's acreage is greater or equal to 50
-#   or a CLU's acre percentage is greater or equal to 33.3% then it is "HEL" otherwise the
-#   rating is determined by its dominant acre HEL value.
-# - Set the 33.3% or 50 acre HEL rule when computing new HEL values after geoprocessing.
-# - Autopopulated 11th parameter of tool, DC Signature, to computer user name.  Assumption
-#   is made that the user is the DC. User could be the technician.
-# - Autopopulate 10th Parameter, State, by isolating state namne from user computer name.
-
-# ==========================================================================================
-# Modified 4/30/2019
-# - Arcmap was throwing drawing error when ading the 'HEL YES NO' layer only when no
-#   PHEL values were present.  This happened b/c geoprocessing was entirely skipped and
-#   some necessary fields were missing.  Added the following fields: HEL_YES,HEL_Acres,HEL_Pct
-#   to the 'HEL YES NO' layer.  These fields are being populated from the ogCLUinfoDict dict.
-# - Due to rounding in acres and percentages, some percentages were coming out at slightly
-#   above 100%.  If percentages are over 100%, then set to 100%.
-# - Added code to kill the MSACCESS.EXE process if it is open.  Having access open will
-#   cause fieldDetermination, helSummary, finalHELmap from being deleted properly.
-#   User will be prompt if Access was open and closed.
-# - Absolute path for HELLayer was used instead of the parameter object b/c there could
-#   be selected polygons within the HELLayer which could cause an incorrect intersection
-#   with the CLUs.
-# - Removed validation code to autopopulate the DC Signature.  It was decided that more than
-#   likely the user would not be the DC and therefore autopopulated incorrect.
-
-# ==========================================================================================
-# Updated 5/15/2019
-# A meeting was held in St.Paul, MN to discuss updates and additions to the functionality
-# of this tool.  The following updates were integrated between 5/15 and 6/4:
-#
-#  1) Final field HEL Determination is determined by 2 factors:
-#     a) Determine HEL value for each delineation.  A delineation is HEL if 50% of its
-#        acres are HEL
-#     b) Determine HEL value for each field.  A field is HEL if it's HEL acres are greater
-#        or equal to 33.33 percent OR the HEL acres are greater than 50.
-#  2) Rename output layers to the access database:
-#      HELYESNO        --> Field Determination
-#      cluHELIntersect --> Final HEL Summary
-#      HELsummary      --> Initial HEL Summary
-#      FinalHELMap     --> LiDAR HEL Summary
-#  3) HEL output values are switched from YES/NO to HEL/NHEL
-#  4) Polygons are exploded after the intersection between CLUs and Soils b/c each
-#     delination must be assessed individually
-#  5) Buffer CLU by 400 meters instead of 300.  This is approximately a 1/4 of a mile.
-#  6) Updated sq.meter to acre conversion factor to 4046.8564224
-#  7) Removed the 'This preliminary determination was conducted off-site with LiDAR data
-#     only if PHEL mapunits are present' remark
-#  8) Redid the AddLayersToArcMap to utilize .lyr files for full symbology.  This allows
-#     field offices with the flexibility of updating symbology without altering the code.
-#  9) Renamed Toolbox and tool to 'NRCS HEL Determination'
-# 10) Removed Parameter #1 (manual Digitizing of AOI).  The tool will not exit if a
-#     selected set of CLU polygons is not used.  Instead, the tool will exit if there
-#     are multiple tracts found. This also leaves flexibility for definition queries
-#     to be used without a selected set.
-# 11) Removed HEL Summary by AOI.  This was a summary of all of the fields together.
-#     It was determined that this summary was not valuable b/c fields are what are
-#     important.
-# 12) Added functionality to utilize a DEM image service.  Added 2 new functions
-#     to handle this capability: extractDEM and extractDEMfromImageService.  Image
-#     service function could use a little more work to determine cell resolution of
-#     a service in WGS84.
-# 13) Bypass geoprocessing if field is HEL and (pct >= 33.3 or acres >= 50) OR
-#     NHEL pct > 66.67.  The boolean bSkipGeoprocessing will is set to True by default
-#     until 1 field does not meet the HEL or NHEL criteria above, in which case the
-#     field will have to be analyzed using LiDAR.  If 1 field requires geoprocessing
-#     ALL fields will be processed.
-# 14) After adding 2-4 layers to arcmap, depending on the outcome, the original selected
-#     polygons from the CLU are cleared and the dataframe extent is set to the extent
-#     of the 'Field Determination' layer.
-# 15) Final HEL results are summarized in order similar to the initial HEL Summary.
-#     Originally, the final results were printed in random CLU Field order b/c the
-#     results were being read from a dictionary.  A dict is inherently not ordered.
-# 16) All messages printed to the Arcmap console will be logged to a text file that
-#     will be saved in the 'HEL_Text_Files' folder.  If the folder does not exist it
-#     will automatically be created in the same folder that the scripts are located.
-#     The text file will have the prefix "NRCS_HEL_Determination" and the Tract, Farm
-#     and field numbers appended to the end.
-# 17) Added code to verify that a subset of CLU fields were selected otherwise the
-#     tool will exit.  This will prevent an entire CLU layer from being executed.
-# 18) Remove all progress positions. very minor!
-# 19) Exit if there are any NULLs or invalid HEL labels.  Previously this was only
-#     set as a WARNING.  Now it is an ERROR.
-# 20) Removed the state parameter from the tool and instead mined the state from
-#     the field determination layer.  A dictionary was created to be used as a
-#     conversion from state fips code to state abbreviation.  If obtaining the state
-#     abbreviation fails using the dictionary the state name will be extracted from
-#     the user computer name.
-# 21) All .lyr files were set to relative path and description populated.
-# 22) Validation code was updated to autopopulate layers and fields based on the
-#     newly adopted naming convention of layers and field schema.
-
-# ==========================================================================================
-# Updated 6/26/2019
-# - When an elevation service was used the slope derivative was being derived incorrectly.
-#   It turns out that the environmental output coordinate system variable set to
-#   4326 (WGS84) in the extractDEMfromImageService function was overriding the output
-#   coordinate system in the project raster tool.  I didn't think this variable could
-#   override a specfied tool parameter.  I reintroduced this variable before the project
-#   raster tool and set it to the same as the output coordinate system used in the project
-#   raster tool.
-# - Code was added to set the dataframe extent to the field determination layer but buffered
-#   to 50 meters.  The buffer was introduced so that the dataframe extent wasn't too tight
-#   around the selected fields.  The dataframe extent was set to the selected fields so
-#   that the cartography looks better.
-# - Altered the populateForm function so that all tables are populated regardless of whether
-#   Microsoft Access is found.  Microsoft Access is installed differently in the VDI
-#   environment so the tables never populated.  This way the user can manually open Access
-#   and continue with the workflow.
-
-# ==========================================================================================
-# Updated 7/1/2019
-# - To minimize confusion, 'Final HEL Values' was switched to LiDAR HEL values; The confusion
-#   when there are NHEL pixels that are summarized from the geoprocessing, the user expects
-#   to see NHEL polygons.  However, the polygons are assessed differently.
-# - "RuntimeError: Too few parameters. Expected 1" error message was encountered when
-#   determining if individual PHEL delineations are HEL or NHEL.  Specifically, the error
-#   was during an updateCursor to the finalHELSummary layer when there was no HEL values
-#   present.  "Value_2" was added to the outPolyTabulate table but it wasn't being recognized.
-#   It turns out it is an access datbase issue related to adding field names:
-#   https://support.esri.com/en/technical-article/000006080
-#   To circumvent this issue the finalHELSummary layer and the outPolyTabulate table
-#   are first joined and then if HEL values (VALUE_2) is not present then its added to
-#   the finalHELSumary layer.
-# - There was an error when an image service was used AND z-units left blank.  Normally
-#   the z-units, if left blank, are set to the same as linear units but most image
-#   services' linear units are set to degrees, which isn't a valid z-unit.  A check was put
-#   in place.  the Z-units are set to the projected dem linear units.
-
-# Updated 7/17/2019
-# - Received an error from Julie Pitts: ERROR 000728: Field OBJECTID_1_1 does not exist within
-#   table.  When joining 2 tables using OBJECTID as a join field, the output table will
-#   create its own OBJECTID forcing the join field to be renamed to OBJECTID_1.  However, if
-#   one of the incoming tables has an existing OBJECTID_1 then it creates a problem.  A fix
-#   was introduced to look for an "_" in the OID fieldname and append "_1" to that field if it
-#   is present.  This should take care of any errors with join fields.
-# - It turns out that the field level determination calculation was wrong.  The tool was summarizing
-#   HEL values, inlcuding pixels from geoprocessing to determing if field was HEL.  The tool
-#   has been updated to reflect sums of acres from polygons that are HEL and then making the field
-#   evaluation.
-# - Added "NA" as a valid HEL attribute.  It will be processed as NHEL.
-# - Updated validation code to find HEL Layer from the Arcmap TOC based on the new schema of
-#   'HEL_Frozen_a'
-# - Added a check to make sure a DEM is present if PHEL attributes are present.
-
-# Updated 8/12/2019, C.M.
-# - Re-runs would crash on ArcMap 10.6.1 and up. Changed scratch workspace for K, T, R, and
-#   HELValue layers to use the scratch.gdb instead of memory to avoid this crash.
-# - Updated L-factor formula to use 72.6 as the constant (per AH 537 pg. 12)
-# - Updated S-factor formula to use radians from slope % (per AH 537 pg. 12)
-# - Updated zfactor conversion lookups to correctly handle a variety of input DEMs
-# - Updated conditions for conversion of flow length layer to feet to use new linear units
-#   from the dem returned from the extractDEM function. Previous condition assessing zUnits
-#   led to incorrect results when using DEMs with vertical feet.
-# - Set Snap Raster environment equal to the final dem returned from extract DEM. This
-#   setting properly aligns the rasters generated from the soils for K, T, and R to fit
-#   to the DEM pixel space. We can't use the soils layer to generate snap rasters from the
-#   K, T, or R layers that are generated because the origin for those layers will vary clip
-#   to clip and site to site, compared to a stock DEM that already exists in pixel space. Also,
-#   shifting the DEM would reduce confidence in slope percentage and length computations.
-
-# Updated 8/15/2019, C.M.
-# - A Fill function is run on the DEM prior to creating derivative layers. The fill surface is
-#   limited to filling depths no greater than 1 foot. A conversion factor for setting the fill
-#   limit was created to express the limit in amounts that correspond to the input DEM's Z units.
-#   If no Z Units are specified, the smallest fill amount is assumed (0.3048, as if units are
-#   meters).
-# - Focal Statistics Mean was moved from running on slope to running on the DEM, per typically
-#   accepted lidar-based DEM modeling workflows for creating slope percentage.
-
-# Updated 8/20/2019, C.M.
-# - Created a new map layout for use in the release version where map elements are tagged
-#   with element names as hooks to program against.
-# - Added configLayout function to autopopulate elements of the map layout which include:
-#    - Farm Number
-#    - Tract Number
-#    - Customer Name (from parameter inputs)
-#    - County Name (Actual tract location; not administrative county)
-#    - State (Postal Code) (Actual tract location; not administrative state)
-# - Updated populateForm function:
-#    - Request From field's default entry changed to "FSA", per Jason Outlaw.
-#    - Default remarks statement changed, per Jason Outlaw, and lengthened to 255 characters
-#    - Customer Name input parameter is output to the First Name parameter for the time being.
-#    - Increased First Name field length to 50.
-# - Disabled Snap Raster for release version 1. Need to fix in future versions. See notes by
-#   env.snapRaster.
-
-# Updated 9/16/2019, C.M.
-# -Added alternate equation for regions of the northwestern US that need a special LS equation
-#  that is used for HEL determinations involving runoff on partially frozen soil.
-# -Updated HEL Determination Tool validations to better handle automatic DEM and units assignment.
-# -Fixed a crash in the extractDEMfromImageService function related to variables and returns.
-#  The direct use of NRCS Web Service DEMs is working again without need for the download utility.
-
-# Updated 8/10/2020, C.M.
-# -Updated county lookups to pass county names to the table for use in Access and on a new 026 form.
-# -Added workaround to handle DEMs that generate slightly larger than 3m but slightly increasing
-#  tolerance values.
-# -Updated populateForm to set the HEL on Farm value to not always populate, in case results are
-#  all NHEL.
-# -Incorporated a code snippet from Kentucky to handle input CLU layers if the layer is a member
-#  of a group layer in ArcMap.
-
-#-------------------------------------------------------------------------------
-
-## ===================================================================================
 def AddMsgAndPrint(msg, severity=0):
-    # prints message to screen if run as a python script
-    # Adds tool message to the geoprocessor
-    #
-    #Split the message on \n first, so that if it's multiple lines, a GPMessage will be added for each line
+    """ Adds tool message to the geoprocessor. Split the message on \n first, so a GPMessage will be added for each line."""
     try:
-
         if bLog:
             f = open(textFilePath,'a+')
             f.write(msg + " \n")
             f.close
             del f
-
-        #for string in msg.split('\n'):
-            #Add a geoprocessing message (in case this is run as a tool)
         if severity == 0:
             arcpy.AddMessage(msg)
-
         elif severity == 1:
             arcpy.AddWarning(msg)
-
         elif severity == 2:
             arcpy.AddError(msg)
-
     except:
         pass
 
-## ===================================================================================
-def errorMsg():
-# Print traceback exceptions.  If sys.exit was trapped by default exception then
-# ignore traceback message.
 
+def errorMsg():
+    """ Print traceback exceptions. If sys.exit was trapped by default exception then ignore traceback message."""
     try:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         theMsg = "\t" + traceback.format_exception(exc_type, exc_value, exc_traceback)[1] + "\n\t" + traceback.format_exception(exc_type, exc_value, exc_traceback)[-1]
-
         if theMsg.find("sys.exit") > -1:
             AddMsgAndPrint("\n\n")
             pass
         else:
             AddMsgAndPrint("\n\tNRCS HEL Tool Error: -------------------------",2)
             AddMsgAndPrint(theMsg,2)
-
     except:
         AddMsgAndPrint("Unhandled error in errorMsg method", 2)
         pass
 
-## ==================================================================================
-def tic():
-    """ Returns the current time """
 
-    return time.time()
-
-## ==================================================================================
-def toc(_start_time):
-    """ Returns the total time by subtracting the start time - finish time"""
-
-    try:
-
-        t_sec = round(time.time() - _start_time)
-        (t_min, t_sec) = divmod(t_sec,60)
-        (t_hour,t_min) = divmod(t_min,60)
-
-        if t_hour:
-            return ('{} hour(s): {} minute(s): {} second(s)'.format(int(t_hour),int(t_min),int(t_sec)))
-        elif t_min:
-            return ('{} minute(s): {} second(s)'.format(int(t_min),int(t_sec)))
-        else:
-            return ('{} second(s)'.format(int(t_sec)))
-
-    except:
-        errorMsg()
-
-## ===================================================================================
-def createTextFile(Tract,Farm,cluList):
+def createTextFile(Tract, Farm):
     """ This function sets up the text file to begin recording all messages
         reported to the console.  The text file will be created in a folder
         called 'HEL_Text_Files' in argv[0].  The text file will have the prefix
         "NRCS_HEL_Determination" and the Tract, Farm and field numbers appended
         to the end.  Basic information will be collected and logged to the
         text file.  The function will return the full path to the text file."""
-
     try:
         # Set log file
         helTextNotesDir = os.path.dirname(sys.argv[0]) + os.sep + 'HEL_Text_Files'
         if not os.path.isdir(helTextNotesDir):
            os.makedirs(helTextNotesDir)
-
-##        # name was too long when using numerous fields in the name
-##        textFileName = "NRCS_HEL_Determination_TRACT(" + str(Tract) + ")_FARM(" + str(Farm) \
-##                        + ")_CLU(" + str(cluList).replace('[','').replace(']','').replace(' ','') \
-##                        + ").txt"
-
-        textFileName = "NRCS_HEL_Determination_TRACT(" + str(Tract) + ")_FARM(" + str(Farm) \
-                        + ").txt"
-
+        textFileName = "NRCS_HEL_Determination_TRACT(" + str(Tract) + ")_FARM(" + str(Farm) + ").txt"
         textPath = helTextNotesDir + os.sep + textFileName
-
         # Version check
         version = str(arcpy.GetInstallInfo()['Version'])
-        if version.find("10.") > -1:
-            ArcGIS10 = True
-        else:
-            ArcGIS10 = False
-
-        # Convert version string to a float value
         versionFlt = float(version[0:4])
         if versionFlt < 10.3:
-            AddMsgAndPrint.AddError("\nThis tool has only been tested on ArcGIS version 10.4 or greater",1)
-
+            AddMsgAndPrint("\nThis tool has only been tested on ArcGIS version 10.4 or greater",1)
         f = open(textPath,'a+')
         f.write('#' * 80 + "\n")
         f.write("NRCS HEL Determination Tool\n")
@@ -420,300 +68,45 @@ def createTextFile(Tract,Farm,cluList):
         f.write("Date Executed: " + time.ctime() + "\n")
         f.write("ArcGIS Version: " + str(version) + "\n")
         f.close
-
         return textPath
-
     except:
         errorMsg()
 
-## ===================================================================================
-def setScratchWorkspace():
-    """ This function will set the scratchWorkspace for the interim of the execution
-        of this tool.  The scratchWorkspace is used to set the scratchGDB which is
-        where all of the temporary files will be written to.  The path of the user-defined
-        scratchWorkspace will be compared to existing paths from the user's system
-        variables.  If there is any overlap in directories the scratchWorkspace will
-        be set to C:\TEMP, assuming C:\ is the system drive.  If all else fails then
-        the packageWorkspace Environment will be set as the scratchWorkspace. This
-        function returns the scratchGDB environment which is set upon setting the scratchWorkspace"""
 
+def FindField(layer, chkField):
+    """ Check table or featureclass to see if specified field exists. If fully qualified name is found, return that name;
+        otherwise return Set workspace before calling FindField."""
     try:
-        AddMsgAndPrint("\nSetting Scratch Workspace")
-        scratchWK = arcpy.env.scratchWorkspace
-
-        # -----------------------------------------------
-        # Scratch Workspace is defined by user or default is set
-        if scratchWK is not None:
-
-            # dictionary of system environmental variables
-            envVariables = os.environ
-
-            # get the root system drive
-            if 'SYSTEMDRIVE' in envVariables:
-                sysDrive = envVariables['SYSTEMDRIVE']
-            else:
-                sysDrive = None
-
-            varsToSearch = ['ESRI_OS_DATADIR_LOCAL_DONOTUSE','ESRI_OS_DIR_DONOTUSE','ESRI_OS_DATADIR_MYDOCUMENTS_DONOTUSE',
-                            'ESRI_OS_DATADIR_ROAMING_DONOTUSE','TEMP','LOCALAPPDATA','PROGRAMW6432','COMMONPROGRAMFILES','APPDATA',
-                            'USERPROFILE','PUBLIC','SYSTEMROOT','PROGRAMFILES','COMMONPROGRAMFILES(X86)','ALLUSERSPROFILE']
-
-            """ This is a printout of my system environmmental variables - Windows 7
-            -----------------------------------------------------------------------------------------
-            ESRI_OS_DATADIR_LOCAL_DONOTUSE C:\\Users\adolfo.diaz\AppData\Local\
-            ESRI_OS_DIR_DONOTUSE C:\\Users\ADOLFO~1.DIA\AppData\Local\Temp\6\arc3765\
-            ESRI_OS_DATADIR_MYDOCUMENTS_DONOTUSE C:\\Users\adolfo.diaz\Documents\
-            ESRI_OS_DATADIR_COMMON_DONOTUSE C:\ProgramData\
-            ESRI_OS_DATADIR_ROAMING_DONOTUSE C:\\Users\adolfo.diaz\AppData\Roaming\
-            TEMP C:\\Users\ADOLFO~1.DIA\AppData\Local\Temp\6\arc3765\
-            LOCALAPPDATA C:\\Users\adolfo.diaz\AppData\Local
-            PROGRAMW6432 C:\Program Files
-            COMMONPROGRAMFILES :  C:\Program Files (x86)\Common Files
-            APPDATA C:\\Users\adolfo.diaz\AppData\Roaming
-            USERPROFILE C:\\Users\adolfo.diaz
-            PUBLIC C:\\Users\Public
-            SYSTEMROOT :  C:\Windows
-            PROGRAMFILES :  C:\Program Files (x86)
-            COMMONPROGRAMFILES(X86) :  C:\Program Files (x86)\Common Files
-            ALLUSERSPROFILE :  C:\ProgramData
-            ------------------------------------------------------------------------------------------"""
-
-            bSetTempWorkSpace = False
-
-            """ Iterate through each Environmental variable; If the variable is within the 'varsToSearch' list
-                above then check their value against the user-set scratch workspace.  If they have anything
-                in common then switch the workspace to something local  """
-            for var in envVariables:
-
-                if not var in varsToSearch:
-                    continue
-
-                # make a list from the scratch and environmental paths
-                varValueList = (envVariables[var].lower()).split(os.sep)          # ['C:', 'Users', 'adolfo.diaz', 'AppData', 'Local']
-                scratchWSList = (scratchWK.lower()).split(os.sep)                 # [u'C:', u'Users', u'adolfo.diaz', u'Documents', u'ArcGIS', u'Default.gdb', u'']
-
-                # remove any blanks items from lists
-                if '' in varValueList: varValueList.remove('')
-                if '' in scratchWSList: scratchWSList.remove('')
-
-                # First element is the drive letter; remove it if they are
-                # the same otherwise review the next variable.
-                if varValueList[0] == scratchWSList[0]:
-                    scratchWSList.remove(scratchWSList[0])
-                    varValueList.remove(varValueList[0])
-
-                # obtain a similarity ratio between the 2 lists above
-                #sM = SequenceMatcher(None,varValueList,scratchWSList)
-
-                # Compare the values of 2 lists; order is significant
-                common = [i for i, j in zip(varValueList, scratchWSList) if i == j]
-
-                if len(common) > 0:
-                    bSetTempWorkSpace = True
-                    break
-
-            # The current scratch workspace shares 1 or more directory paths with the
-            # system env variables.  Create a temp folder at root
-            if bSetTempWorkSpace:
-                AddMsgAndPrint("\tCurrent Workspace: " + scratchWK,0)
-
-                if sysDrive:
-                    tempFolder = sysDrive + os.sep + "TEMP"
-
-                    if not os.path.exists(tempFolder):
-                        os.makedirs(tempFolder,mode=777)
-
-                    arcpy.env.scratchWorkspace = tempFolder
-                    AddMsgAndPrint("\tTemporarily setting scratch workspace to: " + arcpy.env.scratchGDB,1)
-
-                else:
-                    packageWS = [f for f in arcpy.ListEnvironments() if f=='packageWorkspace']
-                    if arcpy.env[packageWS[0]]:
-                        arcpy.env.scratchWorkspace = arcpy.env[packageWS[0]]
-                        AddMsgAndPrint("\tTemporarily setting scratch workspace to: " + arcpy.env.scratchGDB,1)
-                    else:
-                        AddMsgAndPrint("\tCould not set any scratch workspace",2)
-                        return False
-
-            # user-set workspace does not violate system paths; Check for read/write
-            # permissions; if write permissions are denied then set workspace to TEMP folder
-            else:
-                arcpy.env.scratchWorkspace = scratchWK
-
-                if arcpy.env.scratchGDB == None:
-                    AddMsgAndPrint("\tCurrent scratch workspace: " + scratchWK + " is READ only!",0)
-
-                    if sysDrive:
-                        tempFolder = sysDrive + os.sep + "TEMP"
-
-                        if not os.path.exists(tempFolder):
-                            os.makedirs(tempFolder,mode=777)
-
-                        arcpy.env.scratchWorkspace = tempFolder
-                        AddMsgAndPrint("\tTemporarily setting scratch workspace to: " + arcpy.env.scratchGDB,1)
-
-                    else:
-                        packageWS = [f for f in arcpy.ListEnvironments() if f=='packageWorkspace']
-                        if arcpy.env[packageWS[0]]:
-                            arcpy.env.scratchWorkspace = arcpy.env[packageWS[0]]
-                            AddMsgAndPrint("\tTemporarily setting scratch workspace to: " + arcpy.env.scratchGDB,1)
-
-                        else:
-                            AddMsgAndPrint("\tCould not set any scratch workspace",2)
-                            return False
-
-                else:
-                    AddMsgAndPrint("\tUser-defined scratch workspace is set to: "  + arcpy.env.scratchGDB,0)
-
-        # No workspace set (Very odd that it would go in here unless running directly from python)
-        else:
-            AddMsgAndPrint("\tNo user-defined scratch workspace ",0)
-            sysDrive = os.environ['SYSTEMDRIVE']
-
-            if sysDrive:
-                tempFolder = sysDrive + os.sep + "TEMP"
-
-                if not os.path.exists(tempFolder):
-                    os.makedirs(tempFolder,mode=777)
-
-                arcpy.env.scratchWorkspace = tempFolder
-                AddMsgAndPrint("\tTemporarily setting scratch workspace to: " + arcpy.env.scratchGDB,1)
-
-            else:
-                packageWS = [f for f in arcpy.ListEnvironments() if f=='packageWorkspace']
-                if arcpy.env[packageWS[0]]:
-                    arcpy.env.scratchWorkspace = arcpy.env[packageWS[0]]
-                    AddMsgAndPrint("\tTemporarily setting scratch workspace to: " + arcpy.env.scratchGDB,1)
-
-                else:
-                    AddMsgAndPrint("\tCould not set scratchWorkspace. Not even to default!",2)
-                    return False
-
-        #arcpy.Compact_management(arcpy.env.scratchGDB)
-        return arcpy.env.scratchGDB
-
-    except:
-
-        # All Failed; set workspace to packageWorkspace environment
-        try:
-            packageWS = [f for f in arcpy.ListEnvironments() if f=='packageWorkspace']
-            if arcpy.env[packageWS[0]]:
-                arcpy.env.scratchWorkspace = arcpy.env[packageWS[0]]
-                arcpy.Compact_management(arcpy.env.scratchGDB)
-                return arcpy.env.scratchGDB
-            else:
-                AddMsgAndPrint("\tCould not set scratchWorkspace. Not even to default!",2)
-                return False
-        except:
-            errorMsg()
-            return False
-
-## ===============================================================================================================
-def splitThousands(someNumber):
-# will determine where to put a thousands seperator if one is needed.
-# Input is an integer.  Integer with or without thousands seperator is returned.
-
-    try:
-        return re.sub(r'(\d{3})(?=\d)', r'\1,', str(someNumber)[::-1])[::-1]
-
-    except:
-        errorMsg()
-        return someNumber
-
-## ================================================================================================================
-def FindField(layer,chkField):
-    # Check table or featureclass to see if specified field exists
-    # If fully qualified name is found, return that name; otherwise return ""
-    # Set workspace before calling FindField
-
-    try:
-
         if arcpy.Exists(layer):
-
             theDesc = arcpy.Describe(layer)
             theFields = theDesc.fields
             theField = theFields[0]
-
             for theField in theFields:
-
                 # Parses a fully qualified field name into its components (database, owner name, table name, and field name)
                 parseList = arcpy.ParseFieldName(theField.name) # (null), (null), (null), MUKEY
-
                 # choose the last component which would be the field name
                 theFieldname = parseList.split(",")[len(parseList.split(','))-1].strip()  # MUKEY
-
                 if theFieldname.upper() == chkField.upper():
                     return theField.name
-
             return False
-
         else:
             AddMsgAndPrint("\tInput layer not found", 0)
             return False
-
     except:
         errorMsg()
         return False
 
-## ================================================================================================================
-def getDatum(layer):
-    # This function will isolate the datum of the input raster and return the spatial
-    # reference datum if it is WGS84 or NAD83 otherwise return "Other".  The input
-    # must be the catalog path.  The datum name or code cannot be mined using the
-    # describe object on projected coordinate systems, only Geographic Coordinate
-    # systems which is why the Create Spatial Reference tool is used.
 
+def extractDEMfromImageService(demSource, zUnits):
+    """ This function will extract a DEM from a Web Image Service that is in WGS. The CLU will be buffered to 410 meters
+        and set to WGS84 GCS in order to clip the DEM. The clipped DEM will then be projected to the same coordinate system as the CLU.
+        Eventually code will be added to determine the approximate cell size  of the image service using y-distances from the center of the cells.
+        Cell size from a WGS84 service is difficult to calculate. Clip is the fastest however it doesn't honor cellsize so a project is required.
+        Original Z-factor on WGS84 service cannot be calculated b/c linear units are unknown. Assume linear units and z-units are the same.
+        Returns a clipped DEM and new Z-Factor"""
     try:
-        # Create Spatial Reference of the input fc. It must first be converted in to string in ArcGIS10
-        # otherwise .find will not work.
-        spatialRef = str(arcpy.CreateSpatialReference_management("#",layer,"#","#","#","#"))
-        datum_start = spatialRef.find("DATUM") + 7
-        datum_stop = spatialRef.find(",", datum_start) - 1
-        datum = spatialRef[datum_start:datum_stop]
-
-        # Create the GCS WGS84 spatial reference and datum name using the factory code
-        WGS84_sr = arcpy.SpatialReference(4326)
-        WGS84_datum = WGS84_sr.datumName
-
-        NAD83_datum = "D_North_American_1983"
-
-        # Input datum is either WGS84 or NAD83; return true
-        if datum == WGS84_datum:
-            return WGS84_datum
-
-        elif datum == NAD83_datum:
-            return NAD83_datum
-
-        # Input Datum is some other Datum; return false
-        else:
-            return "Other"
-
-    except arcpy.ExecuteError:
-        AddMsgAndPrint(arcpy.GetMessages(2),2)
-        return False
-
-    except:
-        errorMsg()
-        return False
-
-## ================================================================================================================
-def extractDEMfromImageService(demSource,zUnits):
-    # This function will extract a DEM from a Web Image Service that is in WGS.  The
-    # CLU will be buffered to 410 meters and set to WGS84 GCS in order to clip the DEM.
-    # The clipped DEM will then be projected to the same coordinate system as the CLU.
-    # -- Eventually code will be added to determine the approximate cell size  of the
-    #    image service using y-distances from the center of the cells.  Cell size from
-    #    a WGS84 service is difficult to calculate.
-    # -- Clip is the fastest however it doesn't honor cellsize so a project is required.
-    # -- Original Z-factor on WGS84 service cannot be calculated b/c linear units are
-    #    unknown.  Assume linear units and z-units are the same.
-    # Returns a clipped DEM and new Z-Factor
-
-    try:
-        #startTime = tic()
         desc = arcpy.Describe(demSource)
         sr = desc.SpatialReference
-        cellSize = desc.MeanCellWidth
         outputCellsize = 3
 
         AddMsgAndPrint("\nInput DEM Image Service: " + desc.baseName)
@@ -743,12 +136,9 @@ def extractDEMfromImageService(demSource,zUnits):
         arcpy.env.outputCoordinateSystem = outputCS
         demProject = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("demProjectIS",data_type="RasterDataset",workspace=scratchWS))
         arcpy.ProjectRaster_management(demClip, demProject, outputCS, "BILINEAR", outputCellsize)
-
-##        testing_raster = r'C:\Temp\Temp2.gdb\dem_testing'
-##        arcpy.CopyRaster_management(demClip, testing_raster)
         arcpy.Delete_management(demClip)
 
-        # ------------------------------------------------------------------------------------ Report new DEM properties
+        # Report new DEM properties
         desc = arcpy.Describe(demProject)
         newSR = desc.SpatialReference
         newLinearUnits = newSR.LinearUnitName
@@ -756,8 +146,6 @@ def extractDEMfromImageService(demSource,zUnits):
 
         # if zUnits not populated assume it is the same as linearUnits
         if not zUnits: zUnits = newLinearUnits
-
-        #newZfactor = zFactorList[unitLookUpDict.get(zUnits)][unitLookUpDict.get(newLinearUnits)]
         newZfactor = zFactorList[unitLookUpDict.get(newLinearUnits)][unitLookUpDict.get(zUnits)]
 
         AddMsgAndPrint("\t\tNew Projection Name: " + newSR.Name,0)
@@ -766,38 +154,29 @@ def extractDEMfromImageService(demSource,zUnits):
         AddMsgAndPrint("\t\tCell Size: " + str(newCellSize) + " " + newLinearUnits )
         AddMsgAndPrint("\t\tZ-Factor: " + str(newZfactor))
 
-        #AddMsgAndPrint(toc(startTime))
         return newLinearUnits,newZfactor,demProject
 
     except:
         errorMsg()
 
-## ================================================================================================================
-def extractDEM(inputDEM,zUnits):
-    # This function will return a DEM that has the same extent as the CLU selected fields
-    # buffered to 410 Meters.  The DEM can be a local raster layer or a web image server. Datum
-    # must be in WGS84 or NAD83 and linear units must be in Meters or Feet otherwise it
-    # will exit.  If the cell size is finer than 3M then the DEM will be resampled.
-    # The resampling will happen using the Project Raster tool regardless of an actual
-    # coordinate system change.  If the cell size is 3M then the DEM will be clipped using
-    # the buffered CLU.  Environmental settings are used to control the output coordinate system.
-    # -- Function does not check the SR of the CLU.  Assumes the CLU is in a project coord system
-    #    and in meters.  Should probably verify before reprojecting to a 3M cell.
-    # returns a clipped DEM and new Z-Factor
 
+def extractDEM(inputDEM, zUnits):
+    """ This function will return a DEM that has the same extent as the CLU selected fields buffered to 410 Meters. The DEM can be a local
+        raster layer or a web image server. Datum must be in WGS84 or NAD83 and linear units must be in Meters or Feet otherwise it will exit.
+        If the cell size is finer than 3M then the DEM will be resampled. The resampling will happen using the Project Raster tool regardless
+        of an actual coordinate system change. If the cell size is 3M then the DEM will be clipped using the buffered CLU. Environment settings
+        are used to control the output coordinate system. Function does not check the SR of the CLU. Assumes the CLU is in a projected coordinate
+        system and in meters. Should probably verify before reprojecting to a 3M cell.
+        Returns a clipped DEM and new Z-Factor"""
     try:
-
-        # Set environmental variables
+        # Set environment variables
         arcpy.env.geographicTransformations = "WGS_1984_(ITRF00)_To_NAD_1983"
         arcpy.env.resamplingMethod = "BILINEAR"
         arcpy.env.outputCoordinateSystem = arcpy.Describe(cluLayer).SpatialReference
-
         bImageService = False
         bResample = False
         outputCellSize = 3
-
         desc = arcpy.Describe(inputDEM)
-        inputDEMPath = desc.catalogPath
         sr = desc.SpatialReference
         linearUnits = sr.LinearUnitName
         cellSize = desc.MeanCellWidth
@@ -808,14 +187,13 @@ def extractDEM(inputDEM,zUnits):
                 return newLinearUnits,newZfactor,demExtract
             bImageService = True
 
-        # ------------------------------------------------------------------------------------ Check DEM properties
+        # Check DEM properties
         if bImageService:
             AddMsgAndPrint("\nInput DEM Image Service: " + desc.baseName)
         else:
             AddMsgAndPrint("\nInput DEM Information: " + desc.baseName)
 
-        # DEM must be in a project coordinate system to continue
-        # unless DEM is an image service.
+        # DEM must be in a project coordinate system to continue unless DEM is an image service.
         if not bImageService and sr.type != 'Projected':
             AddMsgAndPrint("\n\t" + str(desc.name) + " Must be in a projected coordinate system, Exiting",2)
             AddMsgAndPrint("\tContact your State GIS Coordinator to resolve this issue",2)
@@ -828,13 +206,10 @@ def extractDEM(inputDEM,zUnits):
             return False,False
 
         if linearUnits == "Meter":
-            #tolerance = 3
             tolerance = 3.1
         elif linearUnits == "Foot":
-            #tolerance = 9.84252
             tolerance = 10.1706
         elif linearUnits == "Foot_US":
-            #tolerance = 9.84252
             tolerance = 10.1706
         else:
             AddMsgAndPrint("\n\tHorizontal units of " + str(desc.baseName) + " must be in feet or meters... Exiting!")
@@ -857,21 +232,20 @@ def extractDEM(inputDEM,zUnits):
         if not zUnits: zUnits = linearUnits; bZunits = False
 
         # look up zFactor based on units (z,xy -- I should've reversed the table)
-        #zFactor = zFactorList[unitLookUpDict.get(zUnits)][unitLookUpDict.get(linearUnits)]
         zFactor = zFactorList[unitLookUpDict.get(linearUnits)][unitLookUpDict.get(zUnits)]
 
-        # ------------------------------------------------------------------------------------ Print Input DEM properties
+        # Print Input DEM properties
         AddMsgAndPrint("\tProjection Name: " + sr.Name)
         AddMsgAndPrint("\tLinear Units (XY): " + linearUnits)
         AddMsgAndPrint("\tElevation Units (Z): " + zUnits)
-        if not bZunits: AddMsgAndPrint("\t\tZ-units were auto set to: " + linearUnits,0)
+        if not bZunits:
+            AddMsgAndPrint("\t\tZ-units were auto set to: " + linearUnits,0)
         AddMsgAndPrint("\tCell Size: " + str(desc.MeanCellWidth) + " " + linearUnits)
         AddMsgAndPrint("\tZ-Factor: " + str(zFactor))
 
-        # ------------------------------------------------------------------------------------ Extract DEM
+        # Extract DEM
         arcpy.SetProgressorLabel("Buffering AOI by 410 Meters")
         cluBuffer = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("cluBuffer",data_type="FeatureClass",workspace=scratchWS))
-        #cluBuffer = arcpy.CreateScratchName("cluBuffer",data_type="FeatureClass",workspace=scratchWS)
         arcpy.Buffer_analysis(fieldDetermination,cluBuffer,"410 Meters","FULL","ROUND")
         arcpy.env.extent = cluBuffer
 
@@ -883,32 +257,24 @@ def extractDEM(inputDEM,zUnits):
         if bResample:
             arcpy.SetProgressorLabel("Changing resolution from " + str(cellSize) + " " + linearUnits + " to 3 Meters")
             AddMsgAndPrint("\n\tChanging resolution from " + str(cellSize) + " " + linearUnits + " to 3 Meters")
-
             demClip = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("demClip_resample",data_type="RasterDataset",workspace=scratchWS))
             arcpy.Clip_management(inputDEM, clipExtent, demClip, "", "", "", "NO_MAINTAIN_EXTENT")
-
-            #demExtract = arcpy.CreateScratchName("demClip_project",data_type="RasterDataset",workspace=scratchWS)
             demExtract = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("demClip_project",data_type="RasterDataset",workspace=scratchWS))
-            arcpy.ProjectRaster_management(demClip,demExtract,arcpy.env.outputCoordinateSystem,arcpy.env.resamplingMethod,
-                                           outputCellSize,"#","#",sr)
-
+            arcpy.ProjectRaster_management(demClip,demExtract,arcpy.env.outputCoordinateSystem,arcpy.env.resamplingMethod,outputCellSize,"#","#",sr)
             arcpy.Delete_management(demClip)
 
         # Resolution is correct; Clip the raster
         else:
             arcpy.SetProgressorLabel("Clipping DEM using buffered CLU")
             AddMsgAndPrint("\n\tClipping DEM using buffered CLU")
-
-            #demExtract = arcpy.CreateScratchName("demClip",data_type="RasterDataset",workspace=scratchWS)
             demExtract = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("demClip",data_type="RasterDataset",workspace=scratchWS))
             arcpy.Clip_management(inputDEM, clipExtent, demExtract, "", "", "", "NO_MAINTAIN_EXTENT")
 
-        # ------------------------------------------------------------------------------------ Report any new DEM properties
+        # Report any new DEM properties
         desc = arcpy.Describe(demExtract)
         newSR = desc.SpatialReference
         newLinearUnits = newSR.LinearUnitName
         newCellSize = desc.MeanCellWidth
-        #newZfactor = zFactorList[unitLookUpDict.get(zUnits)][unitLookUpDict.get(newLinearUnits)]
         newZfactor = zFactorList[unitLookUpDict.get(newLinearUnits)][unitLookUpDict.get(zUnits)]
 
         if newSR.name != sr.Name:
@@ -925,21 +291,12 @@ def extractDEM(inputDEM,zUnits):
         errorMsg()
         return False,False,False
 
-## ================================================================================================================
-def removeScratchLayers():
-    # This function is the last task that is executed or gets invoked in
-    # an except clause.  Simply removes all temporary scratch layers.
-    #import itertools
 
+def removeScratchLayers():
+    """ This function is the last task that is executed or gets invoked in an except clause. Removes all temporary scratch layers."""
     try:
-        #for lyr in list(itertools.chain(*scratchLayers)):
-        #arcpy.AddMessage("The scratch layers are: " + str(scratchLayers))
-        #for lyr in scratchLayers:
-            #arcpy.AddMessage("Layer name: " + str(lyr) + " is in the scratchLayers list.")
         for lyr in scratchLayers:
-            #if arcpy.Exists(lyr):
             try:
-                #arcpy.AddMessage("Deleting Layer: " + str(lyr))
                 arcpy.Delete_management(lyr)
             except:
                 arcpy.AddMessage("Deleting Layer: " + str(lyr) + " failed.")
@@ -947,16 +304,12 @@ def removeScratchLayers():
     except:
         pass
 
-## ================================================================================================================
-def AddLayersToArcMap():
-    # This Function will add necessary layers to ArcMap.  Nothing is returned
-    # If no PHEL Values were present only 2 layers will be added: Initial HEL Summary
-    # and Field Determination.  If PHEL values were processed than all 4 layers
-    # will be added.  This function does not utilize the setParameterastext function
-    # to add layers to arcmap through the toolbox.
 
+def AddLayersToArcMap():
+    """ Adds necessary layers to ArcMap. If no PHEL Values were present only 2 layers will be added: Initial HEL Summary
+        and Field Determination. If PHEL values were processed than all 4 layers will be added. This function does not
+        utilize the setParameterastext function to add layers to arcmap through the toolbox."""
     try:
-        # ------------------------------------------------------------------------ Post Process layers
         # Add 3 fields to the field determination layer and populate them
         # from ogCLUinfoDict and 4 fields to the Final HEL Summary layer that
         # otherwise would've been added after geoprocessing was successful.
@@ -996,25 +349,20 @@ def AddLayersToArcMap():
             # [polyAcres,finalHELvalue,finalHELacres,finalHELpct,MUHELCL,'CLUNBR',"SHAPE@AREA"]
             with arcpy.da.UpdateCursor(finalHELSummary,newFields) as cursor:
                 for row in cursor:
-
                     # Calculate polygon acres;
                     row[0] = row[6] / acreConversionDict.get(arcpy.Describe(finalHELSummary).SpatialReference.LinearUnitName)
-
                     # Final_HEL_Value will be set to the initial HEL value
                     row[1] = row[4]
-
                     # set Final HEL Acres to 0 for PHEL and NHEL; othewise set to polyAcres
                     if row[4] in ('NHEL','PHEL'):
                         row[2] = 0.0
                     else:
                         row[2] = row[0]
-
                     # Calculate percent of polygon relative to CLU
                     cluAcres = ogCLUinfoDict.get(row[5])[1]
                     pct = (row[0] / cluAcres) * 100
                     if pct > 100.0: pct = 100.0
                     row[3] = pct
-
                     del cluAcres,pct
                     cursor.updateRow(row)
             del cursor
@@ -1023,51 +371,41 @@ def AddLayersToArcMap():
         mxd = arcpy.mapping.MapDocument("CURRENT")
         df = arcpy.mapping.ListDataFrames(mxd)[0]
 
-        # redundant workaround.  ListLayers returns a list of layer objects
-        # had to create a list of layer name Strings in order to see if a
-        # specific layer currently exists in Arcmap.
+        # Workaround:  ListLayers returns a list of layer objects. Need to create a list of layer name Strings
         currentLayersObj = arcpy.mapping.ListLayers(mxd)
         currentLayersStr = [str(x) for x in arcpy.mapping.ListLayers(mxd)]
 
         # List of layers to add to Arcmap (layer path, arcmap layer name)
         if bNoPHELvalues or bSkipGeoprocessing:
             addToArcMap = [(helSummary,"Initial HEL Summary"),(fieldDetermination,"Field Determination")]
-
             # Remove these layers from arcmap if they are present since they were not produced
             if 'LiDAR HEL Summary' in currentLayersStr:
                 arcpy.mapping.RemoveLayer(df,currentLayersObj[currentLayersStr.index('LiDAR HEL Summary')])
-
             if 'Final HEL Summary' in currentLayersStr:
                 arcpy.mapping.RemoveLayer(df,currentLayersObj[currentLayersStr.index('Final HEL Summary')])
-
         else:
             addToArcMap = [(lidarHEL,"LiDAR HEL Summary"),(helSummary,"Initial HEL Summary"),(finalHELSummary,"Final HEL Summary"),(fieldDetermination,"Field Determination")]
 
         for layer in addToArcMap:
-
             # remove layer from ArcMap if it exists
             if layer[1] in currentLayersStr:
                 arcpy.mapping.RemoveLayer(df,currentLayersObj[currentLayersStr.index(layer[1])])
-
             # Raster Layers need to be handled differently than vector layers
             if layer[1] == "LiDAR HEL Summary":
                 rasterLayer = arcpy.MakeRasterLayer_management(layer[0],layer[1])
                 tempLayer = rasterLayer.getOutput(0)
                 arcpy.mapping.AddLayer(df,tempLayer,"TOP")
-
                 # define the symbology layer and convert it to a layer object
                 updateLayer = arcpy.mapping.ListLayers(mxd,layer[1], df)[0]
                 symbologyLyr = os.path.join(os.path.dirname(sys.argv[0]),layer[1].lower().replace(" ","") + ".lyr")
                 sourceLayer = arcpy.mapping.Layer(symbologyLyr)
                 arcpy.mapping.UpdateLayer(df,updateLayer,sourceLayer)
-
             else:
                 # add layer to arcmap
                 symbologyLyr = os.path.join(os.path.dirname(sys.argv[0]),layer[1].lower().replace(" ","") + ".lyr")
                 arcpy.mapping.AddLayer(df, arcpy.mapping.Layer(symbologyLyr.strip("'")), "TOP")
 
-            # This layer should be turned on if no PHEL values were processed.
-            # Symbology should also be updated to reflect current values.
+            # This layer should be turned on if no PHEL values were processed. Symbology should also be updated to reflect current values.
             if layer[1] in ("Initial HEL Summary") and bNoPHELvalues:
                 for lyr in arcpy.mapping.ListLayers(mxd, layer[1]):
                     lyr.visible = True
@@ -1079,9 +417,7 @@ def AddLayersToArcMap():
 
             AddMsgAndPrint("Added " + layer[1] + " to your ArcMap Session",0)
 
-        # Unselect CLU polygons; Looks goofy after processed layers have been added to ArcMap
-        # Turn it off as well
-        #for lyr in arcpy.mapping.ListLayers(mxd, arcpy.Describe(cluLayer).nameString, df):
+        # Unselect CLU polygons; Looks goofy after processed layers have been added to ArcMap. Turn it off as well
         for lyr in arcpy.mapping.ListLayers(mxd, "*" + str(arcpy.Describe(cluLayer).nameString).split("\\")[-1], df):
             arcpy.SelectLayerByAttribute_management(lyr, "CLEAR_SELECTION")
             lyr.visible = False
@@ -1089,39 +425,27 @@ def AddLayersToArcMap():
         # Turn off the original HEL layer to put the outputs into focus
         helLyr = arcpy.mapping.ListLayers(mxd, arcpy.Describe(helLayer).nameString, df)[0]
         helLyr.visible = False
-
         # set dataframe extent to the extent of the Field Determintation layer buffered by 50 meters.
         fieldDeterminationBuffer = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("fdBuffer",data_type="FeatureClass",workspace=scratchWS))
         arcpy.Buffer_analysis(fieldDetermination, fieldDeterminationBuffer, "50 Meters", "FULL", "", "ALL", "")
-        # fdLayer = arcpy.mapping.ListLayers(mxd, "Field Determination", df)[0]
         df.extent = arcpy.Describe(fieldDeterminationBuffer).extent
         arcpy.Delete_management(fieldDeterminationBuffer)
-
         arcpy.RefreshTOC()
         arcpy.RefreshActiveView()
 
     except:
         errorMsg()
 
-## ================================================================================================================
+
 def populateForm():
-    # This function will prepare the 1026 form by adding 16 fields to the
-    # fieldDetermination feauture class.  This function will still be invoked even if
-    # there was no geoprocessing executed due to no PHEL values to be computed.
-    # if bNoPHELvalues is true, 3 fields will be added that otherwise would've
-    # been added after HEL geoprocessing.  However, values to these fields will
-    # be populated from the ogCLUinfoDict and represent original HEL values
-    # primarily determined by the 33.33% or 50 acre rule
-
+    """ This function will prepare the 1026 form by adding 16 fields to the fieldDetermination feauture class. This function will
+        still be invoked even if there was no geoprocessing executed due to no PHEL values to be computed. If bNoPHELvalues is true,
+        3 fields will be added that otherwise would've been added after HEL geoprocessing. However, values to these fields will be
+        populated from the ogCLUinfoDict and represent original HEL values primarily determined by the 33.33% or 50 acre rule."""
     try:
-
         AddMsgAndPrint("\nPreparing and Populating NRCS-CPA-026 Form", 0)
-
-        # ---------------------------------------------------------------------  Collect Time information
         today = datetime.date.today()
         today = today.strftime('%b %d, %Y')
-
-        # ---------------------------------------------------------------------- Get State Abbreviation
         stateCodeDict = {'WA': '53', 'DE': '10', 'DC': '11', 'WI': '55', 'WV': '54', 'HI': '15',
                         'FL': '12', 'WY': '56', 'PR': '72', 'NJ': '34', 'NM': '35', 'TX': '48',
                         'LA': '22', 'NC': '37', 'ND': '38', 'NE': '31', 'TN': '47', 'NY': '36',
@@ -1132,11 +456,10 @@ def populateForm():
                         'MN': '27', 'MI': '26', 'RI': '44', 'KS': '20', 'MT': '30', 'MS': '28',
                         'SC': '45', 'KY': '21', 'OR': '41', 'SD': '46'}
 
-        # Try to get the state using the field determination layer
+        # Try to get the state using the field determination layer, Otherwise get the state from the computer user name
         try:
             stateCode = ([row[0] for row in arcpy.da.SearchCursor(fieldDetermination,"STATECD")])
             state = [stAbbrev for (stAbbrev, code) in list(stateCodeDict.items()) if code == stateCode[0]][0]
-        # Otherwise get the state from the computer user name
         except:
             state = getpass.getuser().replace('.',' ').replace('\'','')
 
@@ -1175,8 +498,6 @@ def populateForm():
                     # We should only get one result if using installed lookup table from US Census Tiger table, so break
                     break
 
-            del expression1, expression2
-
             GeoLocation = GeoCounty + ", " + GeoState
             AdminLocation = AdminCounty + ", " + AdminState
 
@@ -1202,9 +523,7 @@ def populateForm():
             except:
                 fldLength = 0
                 pass
-
             arcpy.AddField_management(fieldDetermination,field,params[0],"#","#",fldLength)
-
             if len(params[1]) > 0:
                 expression = "\"" + params[1] + "\""
                 arcpy.CalculateField_management(fieldDetermination,field,expression,"VB")
@@ -1230,23 +549,18 @@ def populateForm():
                 arcpy.SetProgressorLabel("Could not locate the Microsoft Access Software")
 
         return True
-
     except:
         return False
-        errorMsg()
 
-## ================================================================================================================
+
 def configLayout():
-    # This function will gather and update information for elements of the map layout
-
+    """ This function will gather and update information for elements of the map layout"""
     try:
         # Confirm Map Doc existence
         mxd = arcpy.mapping.MapDocument("CURRENT")
-
         # Set starting variables as empty for logical comparison later on, prior to updating layout
         farmNum = ''
         trNum = ''
-        #input_cust comes from input parameters to tool in which this function was built
         county = ''
         state = ''
 
@@ -1266,7 +580,6 @@ def configLayout():
 
         # Lookup state and county name
         stco_code = str(stCD) + str(coCD)
-        #expression = (u'{} = ' + stco_code).format(arcpy.AddFieldDelimiters(lu_table, 'GEOID'))
         expression = ("{} = '" + stco_code + "'").format(arcpy.AddFieldDelimiters(lu_table, 'GEOID'))
         with arcpy.da.SearchCursor(lu_table, ['GEOID','NAME','STPOSTAL'], where_clause=expression) as cursor:
             for row in cursor:
@@ -1286,7 +599,7 @@ def configLayout():
             if elm.name == "county_txt":
                 county_ele = elm
             if elm.name == "state_txt":
-                state_ele = elm
+                state_ele = elm #Not used anywhere?
 
         # Configure the text boxes
         # If any of the info is missing, the script still runs and boxes are reset to a manual entry prompt
@@ -1294,39 +607,25 @@ def configLayout():
             farm_ele.text = "Farm: " + str(farmNum)
         else:
             farm_ele.text = "Farm: <dbl-click to enter>"
-
         if trNum != '':
             tract_ele.text = "Tract: " + str(trNum)
         else:
             tract_ele.text = "Tract: <dbl-click to enter>"
-
         if input_cust != '':
             customer_ele.text = "Customer(s): " + str(input_cust)
         else:
             customer_ele.text = "Customer(s): <dbl-click to enter>"
-
         if county != '':
             county_ele.text = "County: " + str(county) + ", " + str(state)
         else:
             county_ele.text = "County: <dbl-click to enter>"
 
         return True
-
     except:
         return False
 
-## =========================================================== Main Body ========================================================
-import sys, string, os, traceback, re
-import arcpy, subprocess, getpass, time
-from arcpy import env
-from arcpy.sa import *
-import importlib
-importlib.reload(sys)
-sys.setdefaultencoding('utf-8')
-
 
 if __name__ == '__main__':
-
     try:
         cluLayer = arcpy.GetParameter(0)
         helLayer = arcpy.GetParameter(1)
@@ -1335,23 +634,17 @@ if __name__ == '__main__':
         dcSignature = arcpy.GetParameterAsText(4)
         input_cust = arcpy.GetParameterAsText(5)
         use_runoff_ls = arcpy.GetParameter(6)
-        #use_runoff_ls = False      ## Used for testing when not set as a parameter
-
-        ## 8/20/2019 - Observation: stateThreshold is not used anywhere in the code. Was intended as a PHEL predominance % paramter.
-        ##Commenting it out for now.
-        #stateThreshold = 50
 
         kFactorFld = "K"
         tFactorFld = "T"
         rFactorFld = "R"
         helFld = "MUHELCL"
 
-        bLog = False # boolean to begin logging to text file.
+        bLog = False # If True, log to text file
         arcpy.SetProgressorLabel("Checking input values and environments")
         AddMsgAndPrint("\nChecking input values and environments")
 
-        ## ----------------------------------------------------------------------------------------------------------------- Check HEL Access Database"""
-        # --------------------------------------------------- Make sure the HEL access database is present, Exit otherwise
+        # Check HEL Access Database
         helDatabase = os.path.dirname(sys.argv[0]) + os.sep + r'HEL.mdb'
         if not arcpy.Exists(helDatabase):
             AddMsgAndPrint("\nHEL Access Database does not exist in the same path as HEL Tools",2)
@@ -1359,24 +652,12 @@ if __name__ == '__main__':
         # Also define the lu_table, but it's still ok to continue if it's not present
         lu_table = os.path.dirname(sys.argv[0]) + os.sep + r'census_fips_lut.dbf'
 
-        #-------------------------------------------------------- Close Microsoft Access Database software if it is open.
-##        tasks = os.popen('tasklist /v').read().strip().split('\n')
-##        for i in range(len(tasks)):
-##            task = tasks[i]
-##            if 'MSACCESS.EXE' in task:
-##                try:
-##                    os.system("taskkill /f /im MSACCESS.EXE"); time.sleep(2)
-##                    AddMsgAndPrint("\nMicrosoft Access was closed in order to continue")
-##                except:
-##                    AddMsgAndPrint("\nMicrosoft Access could not be closed")
-##                break
-        # forcibly kill image name msaccess if open.
-        # remove access record-locking information
+        # Close Microsoft Access Database software if it is open.
+        # forcibly kill image name msaccess if open. remove access record-locking information
         try:
             killAccess = os.system("TASKKILL /F /IM msaccess.exe")
             if killAccess == 0:
                 AddMsgAndPrint("\tMicrosoft Access was closed in order to continue")
-
             accessLockFile = os.path.dirname(sys.argv[0]) + os.sep + r'HEL.ldb'
             if os.path.exists(accessLockFile):
                os.remove(accessLockFile)
@@ -1385,14 +666,12 @@ if __name__ == '__main__':
             time.sleep(2)
             pass
 
-        # ---------------------------------------------------------------------- establish path to access database layers
+        # Establish path to access database layers
         fieldDetermination = os.path.join(helDatabase, r'Field_Determination')
         helSummary = os.path.join(helDatabase, r'Initial_HEL_Summary')
         lidarHEL = os.path.join(helDatabase, r'LiDAR_HEL_Summary')
-        #lidarHEL = os.path.dirname(sys.argv[0]) + os.sep + r'LiDAR_HEL_Summary.img'
         finalHELSummary = os.path.join(helDatabase, r'Final_HEL_Summary')
         accessLayers = [fieldDetermination,helSummary,lidarHEL,finalHELSummary]
-
         for layer in accessLayers:
             if arcpy.Exists(layer):
                 try:
@@ -1402,10 +681,9 @@ if __name__ == '__main__':
                     newName = str(layer)
                     newName = arcpy.CreateScratchName(os.path.basename(layer),data_type="FeatureClass",workspace=helDatabase)
 
-        # ---------------------------------------------------------- determine Microsoft Access path from windows version
+        # Determine Microsoft Access path from windows version
         bAccess = True
         winVersion = sys.getwindowsversion()
-
         # Windows 10
         if winVersion.build == 9200:
             msAccessPath = r'C:\Program Files (x86)\Microsoft Office\root\Office16\MSACCESS.EXE'
@@ -1415,24 +693,17 @@ if __name__ == '__main__':
         else:
             AddMsgAndPrint("\nCould not determine Windows version, will not populate 026 Form",2)
             bAccess = False
-
         if bAccess and not os.path.isfile(msAccessPath):
             bAccess = False
 
-        ## ------------------------------------------------------------------------------------ Checkout Spatial Analyst Extension and set scratch workspace """
-        # Check Availability of Spatial Analyst Extension
+        # Checkout Spatial Analyst Extension and set scratch workspace
+        # TODO: Move this extension check to tool validation
         try:
             if arcpy.CheckExtension("Spatial") == "Available":
                 arcpy.CheckOutExtension("Spatial")
-            else:
-                raise LicenseError
-
-        except LicenseError:
+        except Exception:
             AddMsgAndPrint("\n\nSpatial Analyst license is unavailable.  Go to Customize -> Extensions to activate it",2)
             AddMsgAndPrint("\n\nExiting!")
-            sys.exit()
-        except arcpy.ExecuteError:
-            AddMsgAndPrint(arcpy.GetMessages(2),2)
             sys.exit()
 
         # Set overwrite option
@@ -1441,9 +712,7 @@ if __name__ == '__main__':
         # define and set the scratch workspace
         scratchWS = os.path.dirname(sys.argv[0]) + os.sep + r'scratch.gdb'
         if not arcpy.Exists(scratchWS):
-            scratchWS = setScratchWorkspace()
-        #else:
-            #AddMsgAndPrint("\nScratch workspace set to " + scratchWS)
+            arcpy.CreateFileGDB_management(os.path.dirname(sys.argv[0]), r'scratch.gdb')
 
         if not scratchWS:
             AddMsgAndPrint("\nCould Not set scratchWorkspace!")
@@ -1452,8 +721,7 @@ if __name__ == '__main__':
         arcpy.env.scratchWorkspace = scratchWS
         scratchLayers = list()
 
-        ## -------------------------------------------------------------------------------------------------------- Stamp CLU into field determination fc.
-        # ------------------------------------------------------------------ Exit if no CLU fields selected
+        # Stamp CLU into field determination fc. Exit if no CLU fields selected
         cluDesc = arcpy.Describe(cluLayer)
         if cluDesc.FIDset == '':
             AddMsgAndPrint("\nPlease select fields from the CLU Layer. Exiting!",2)
@@ -1461,7 +729,7 @@ if __name__ == '__main__':
         else:
             fieldDetermination = arcpy.CopyFeatures_management(cluLayer,fieldDetermination)
 
-        # -------------------------------------------- Make sure TRACTNBR and FARMNBR  are unique; exit otherwise
+        # Make sure TRACTNBR and FARMNBR  are unique; exit otherwise
         uniqueTracts = list(set([row[0] for row in arcpy.da.SearchCursor(fieldDetermination,("TRACTNBR"))]))
         uniqueFarm   = list(set([row[0] for row in arcpy.da.SearchCursor(fieldDetermination,("FARMNBR"))]))
         uniqueFields = list(set([row[0] for row in arcpy.da.SearchCursor(fieldDetermination,("CLUNBR"))]))
@@ -1470,14 +738,14 @@ if __name__ == '__main__':
            AddMsgAndPrint("\n\tThere are " + str(len(uniqueTracts)) + " different Tract Numbers. Exiting!",2)
            for tract in uniqueTracts:
                AddMsgAndPrint("\t\tTract #: " + str(tract),2)
-           removeScratchLayers
+           removeScratchLayers()
            sys.exit()
 
         if len(uniqueFarm) != 1:
            AddMsgAndPrint("\n\tThere are " + str(len(uniqueFarm)) + " different Farm Numbers. Exiting!",2)
            for farm in uniqueFarm:
                AddMsgAndPrint("\t\tFarm #: " + str(farm),2)
-           removeScratchLayers
+           removeScratchLayers()
            sys.exit()
 
         # Create Text file to log info to
@@ -1500,10 +768,10 @@ if __name__ == '__main__':
         # If we set all internal acres computations to 2 decimal places from rounding based on the above, all acres would be consistent, except possibly for raster derived acres (need to check).
         arcpy.CalculateField_management(fieldDetermination,calcAcreFld,"!shape.area@acres!","PYTHON_9.3")
         totalAcres = float("%.1f" % (sum([row[0] for row in arcpy.da.SearchCursor(fieldDetermination, (calcAcreFld))])))
-        AddMsgAndPrint("\tTotal Acres: " + splitThousands(totalAcres))
+        AddMsgAndPrint("\tTotal Acres: " + str(totalAcres))
 
-        ## ------------------------------------------------------------------------------------------------------------ Z-factor conversion Lookup table
-        # lookup dictionary to convert XY units to area.  Key = XY unit of DEM; Value = conversion factor to sq.meters
+        # Z-factor conversion Lookup table
+        # lookup dictionary to convert XY units to area. Key = XY unit of DEM; Value = conversion factor to sq.meters
         acreConversionDict = {'Meter':4046.8564224,'Foot':43560,'Foot_US':43560,'Centimeter':40470000,'Inch':6273000}
 
         # Assign Z-factor based on XY and Z units of DEM
@@ -1524,8 +792,8 @@ if __name__ == '__main__':
                        [100,30.48,1,2.54],
                        [39.3701,12,0.393701,1]]
 
-        ### ------------------------------------------------------------------------------------------------------------- Compute Summary of original HEL values"""
-        # -------------------------------------------------------------------------- Intersect fieldDetermination (CLU & AOI) with soils (helLayer) -> finalHELSummary
+        # Compute Summary of original HEL values
+        # Intersect fieldDetermination (CLU & AOI) with soils (helLayer) -> finalHELSummary
         AddMsgAndPrint("\nComputing summary of original HEL Values")
         arcpy.SetProgressorLabel("Computing summary of original HEL Values")
         cluHELintersect_pre = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("cluHELintersect_pre",data_type="FeatureClass",workspace=scratchWS))
@@ -1546,16 +814,15 @@ if __name__ == '__main__':
             removeScratchLayers()
             sys.exit()
 
-        # -------------------------------------------------------------------------- Dissolve intersection output by the following fields -> helSummary
+        # Dissolve intersection output by the following fields -> helSummary
         cluNumberFld = "CLUNBR"
         dissovleFlds = [cluNumberFld,"TRACTNBR","FARMNBR","COUNTYCD","CALCACRES",helFld]
 
         # Dissolve the finalHELSummary to report input summary
         arcpy.Dissolve_management(finalHELSummary, helSummary, dissovleFlds, "","MULTI_PART", "DISSOLVE_LINES")
 
-        # --------------------------------------------------------------------------- Add and Update fields in the HEL Summary Layer (Og_HELcode, Og_HEL_Acres, Og_HEL_AcrePct)
-        # Add 3 fields to the intersected layer.  The intersected 'clueHELintersect' layer will
-        # be used for the dissolve process and at the end of the script.
+        # Add and Update fields in the HEL Summary Layer (Og_HELcode, Og_HEL_Acres, Og_HEL_AcrePct)
+        # Add 3 fields to the intersected layer. The intersected 'clueHELintersect' layer will be used for the dissolve process and at the end of the script.
         HELrasterCode = 'Og_HELcode'    # Used for rasterization purposes
         HELacres = 'Og_HEL_Acres'
         HELacrePct = 'Og_HEL_AcrePct'
@@ -1579,12 +846,10 @@ if __name__ == '__main__':
         # HEL Field, Og_HELcode, Og_HEL_Acres, Og_HEL_AcrePct, "SHAPE@AREA", "CALCACRES"
         with arcpy.da.UpdateCursor(helSummary,[helFld,HELrasterCode,HELacres,HELacrePct,"SHAPE@AREA",calcAcreFld]) as cursor:
             for row in cursor:
-
                 # Update HEL value field; Continue if NULL HEL value
                 if row[0] is None or row[0] == '' or len(row[0]) == 0:
                     nullHEL+=1
                     continue
-
                 elif row[0] == "HEL":
                     row[1] = 0
                 elif row[0] == "NHEL":
@@ -1621,7 +886,6 @@ if __name__ == '__main__':
 
         # No PHEL values were found; Bypass geoprocessing and populate form
         if 'PHEL' not in helSummaryDict:
-            #AddMsgAndPrint("\n\tWARNING: There are no PHEL values in HEL layer",1)
             bNoPHELvalues = True
 
         # Inform user about NULL values; Exit if any NULLs exist.
@@ -1640,14 +904,12 @@ if __name__ == '__main__':
 
         del dissovleFlds,nullHEL,wrongHELvalues
 
-        ### --------------------------------------------------------------------------------------------------------- Report HEl Layer Summary by field
+        # Report HEl Layer Summary by field
         AddMsgAndPrint("\n\tSummary by CLU:")
 
         # Create 2 temporary tables to capture summary statistics
         ogHelSummaryStats = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("ogHELSummaryStats",data_type="ArcInfoTable",workspace=scratchWS))
         ogHelSummaryStatsPivot = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("ogHELSummaryStatsPivot",data_type="ArcInfoTable",workspace=scratchWS))
-        #ogHelSummaryStats = arcpy.CreateScratchName("ogHELSummaryStats",data_type="ArcInfoTable",workspace=scratchWS)
-        #ogHelSummaryStatsPivot = arcpy.CreateScratchName("ogHELSummaryStatsPivot",data_type="ArcInfoTable",workspace=scratchWS)
 
         stats = [[HELacres,"SUM"]]
         caseField = [cluNumberFld,helFld]
@@ -1707,7 +969,6 @@ if __name__ == '__main__':
                         elif pivotFields[i] == "NHEL" and pct > 66.67:
                             bNHELgreaterthan66 = True
                             og_cluHELrating = "NHEL"
-
                             if not row[0] in ogCLUinfoDict:
                                 ogCLUinfoDict[row[0]] = (og_cluHELrating,cluAcres,pct)
 
@@ -1726,20 +987,18 @@ if __name__ == '__main__':
                     firstSpace = " " * (4-len(pivotFields[i]))                                    # PHEL has 4 characters
                     secondSpace = " " * (len(str(maxAcreLength[0])) - len(str(acres)))            # Number of spaces
                     msgList.append(str("\t\t\t" + pivotFields[i] + firstSpace + " -- " + str(acres) + secondSpace + " .ac -- " + str(pct) + " %"))
-                    #AddMsgAndPrint("\t\t\t" + pivotFields[i] + firstSpace + " -- " + str(acres) + secondSpace + " .ac -- " + str(pct) + " %")
                     del acres,pct,firstSpace,secondSpace
 
                 # Skip geoprocessing if HEL >=33.33% or NHEL > 66.67%
                 if bSkipGeoprocessing:
-                   if not bHELgreaterthan33 and not bNHELgreaterthan66:
-                      bSkipGeoprocessing = False
+                    if not bHELgreaterthan33 and not bNHELgreaterthan66:
+                        bSkipGeoprocessing = False
 
                 # Report messages to user; og CLU HEL rating will be reported if bNoPHELvalues is true.
                 if bNoPHELvalues:
                     AddMsgAndPrint("\n\t\tCLU #: " + str(row[0]) + " - Rating: " + og_cluHELrating)
                 else:
-                     AddMsgAndPrint("\n\t\tCLU #: " + str(row[0]))
-
+                    AddMsgAndPrint("\n\t\tCLU #: " + str(row[0]))
                 for msg in msgList:
                     AddMsgAndPrint(msg)
 
@@ -1747,12 +1006,9 @@ if __name__ == '__main__':
 
         del stats,caseField,sumHELacreFld,pivotFields,numOfhelValues,maxAcreLength
 
-        # ------------------------------------------------------------------------- No PHEL Values Found
-        # If there are no PHEL Values add helSummary and fieldDetermination layers to ArcMap
-        # and prepare 1026 form.  Skip geoProcessing.
-
+        # No PHEL Values Found
+        # If there are no PHEL Values add helSummary and fieldDetermination layers to ArcMap and prepare 1026 form. Skip geoprocessing.
         if bNoPHELvalues or bSkipGeoprocessing:
-
             if bNoPHELvalues:
                AddMsgAndPrint("\n\tThere are no PHEL values in HEL layer",1)
                AddMsgAndPrint("\tNo Geoprocessing is required.")
@@ -1774,9 +1030,8 @@ if __name__ == '__main__':
             arcpy.RefreshCatalog(scratchWS)
             sys.exit()
 
-        ### ---------------------------------------------------------------------------------------------- Check and create DEM clip from buffered CLU
-        # Exit if a DEM is not present; At this point PHEL mapunits are present
-        # and requires a DEM to process them.
+        # Check and create DEM clip from buffered CLU
+        # Exit if a DEM is not present; At this point PHEL mapunits are present and requires a DEM to process them.
         try:
             arcpy.Describe(inputDEM).baseName
         except:
@@ -1785,16 +1040,11 @@ if __name__ == '__main__':
 
         units,zFactor,dem = extractDEM(inputDEM,zUnits)
         if not zFactor or not dem:
-           removeScratchLayers()
-           sys.exit()
+            removeScratchLayers()
+            sys.exit()
         scratchLayers.append(dem)
 
-        ### ----------------------------------------------------------------------------------------------------------------------------- Set Snap Raster
-        # Disabled for now due to shifting soils results.
-        # Investigating change so that soil derived rasters exist first and are the snap rasters (9/16/2019)
-        #arcpy.env.snapRaster = dem
-
-        ### ------------------------------------------------------------------------------------ Check DEM for NoData overlaps with input CLU fields
+        # Check DEM for NoData overlaps with input CLU fields
         AddMsgAndPrint("\nChecking input DEM for site coverage...")
         vectorNull = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("vectorNull",data_type="FeatureClass",workspace=scratchWS))
         demCheck = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("demCheck",data_type="FeatureClass",workspace=scratchWS))
@@ -1838,9 +1088,8 @@ if __name__ == '__main__':
 
         del fields, cursor, nd_warning
 
-        ### -------------------------------------------------------------------------------------------------------------------------- Create Slope Layer
-        # Perform a minor fill to reduce LiDAR data noise and minor irregularities.
-        # Try to use a max fill height of no more than 1 foot, based on input zUnits.
+        # Create Slope Layer
+        # Perform a minor fill to reduce LiDAR data noise and minor irregularities. Try to use a max fill height of no more than 1 foot, based on input zUnits.
         arcpy.SetProgressorLabel("Filling small sinks in DEM")
         AddMsgAndPrint("\nFilling small sinks in DEM")
         if zUnits == "Feet":
@@ -1855,81 +1104,52 @@ if __name__ == '__main__':
             # Assume worst case z units of Meters
             zLimit = 0.3048
 
-        #1 Perform the fill using the zLimit as the max fill amount
+        # 1 Perform the fill using the zLimit as the max fill amount
         filled = Fill(dem, zLimit)
         scratchLayers.append(filled)
 
-        #2 Run a FocalMean to smooth the DEM of LiDAR data noise. This should be run prior to creating derivative products.
+        # 2 Run a FocalMean to smooth the DEM of LiDAR data noise. This should be run prior to creating derivative products.
         # This replaces running FocalMean on the slope layer itself.
         arcpy.SetProgressorLabel("Running Focal Statistics on DEM")
         AddMsgAndPrint("Running Focal Statistics on DEM")
-        #slope = arcpy.CreateScratchName("focStatsMean_DemFilled",data_type="RasterDataset",workspace=scratchWS)
         preslope = FocalStatistics(filled, NbrRectangle(3,3,"CELL"),"MEAN","DATA")
-        #outFocalStatistics.save(slope)
 
-        #3 Create Slope
+        # 3 Create Slope
         arcpy.SetProgressorLabel("Creating Slope Derivative")
         AddMsgAndPrint("\nCreating Slope Derivative")
-        #preslope = arcpy.CreateScratchName("preslope",data_type="RasterDataset",workspace=scratchWS)
         slope = Slope(preslope,"PERCENT_RISE",zFactor)
-        #outSlope.save(preslope)
 
-###### REMOVED IN FAVOR OF FOCAL MEAN ON DEM PRIOR TO RUNNING SLOPE ######
-##        # Run a FocalMean statistics on slope output
-##        arcpy.SetProgressorLabel("Running Focal Statistics on Slope Percent")
-##        AddMsgAndPrint("Running Focal Statistics on Slope Percent")
-##        #slope = arcpy.CreateScratchName("focStatsMean_Slope",data_type="RasterDataset",workspace=scratchWS)
-##        slope = FocalStatistics(preslope, NbrRectangle(3,3,"CELL"),"MEAN","DATA")
-##        #outFocalStatistics.save(slope)
-###### REMOVED IN FAVOR OF FOCAL MEAN ON DEM PRIOR TO RUNNING SLOPE ######
-
-        ### ------------------------------------------------------------------------------------------------------------ Create Flow Direction and Flow Length
-        #4 Calculate Flow direction
+        # 4 Create Flow Direction and Flow Length
         arcpy.SetProgressorLabel("Calculating Flow Direction")
         AddMsgAndPrint("Calculating Flow Direction")
-        #flowDirection = arcpy.CreateScratchName("flowDirection",data_type="RasterDataset",workspace=scratchWS)
-        #flowDirection = FlowDirection(dem, "FORCE")
         flowDirection = FlowDirection(preslope, "FORCE")
-        #outFlowDirection.save(flowDirection)
         scratchLayers.append(flowDirection)
 
-        #5 Calculate Flow Length
+        # 5 Calculate Flow Length
         arcpy.SetProgressorLabel("Calculating Flow Length")
         AddMsgAndPrint("Calculating Flow Length")
-        #preflowLength = arcpy.CreateScratchName("flowLength",data_type="RasterDataset",workspace=scratchWS)
         preflowLength = FlowLength(flowDirection,"UPSTREAM", "")
         scratchLayers.append(preflowLength)
-        #outpreFlowLength.save(preflowLength)
 
-        #6 Run a focal statistics on flow length
+        # 6 Run a focal statistics on flow length
         arcpy.SetProgressorLabel("Running Focal Statistics on Flow Length")
         AddMsgAndPrint("Running Focal Statistics on Flow Length")
-        #flowLength = arcpy.CreateScratchName("focStatsMax_FlowLength",data_type="RasterDataset",workspace=scratchWS)
         flowLength = FocalStatistics(preflowLength, NbrRectangle(3,3,"CELL"),"MAXIMUM","DATA")
-        #outFocalStatistics.save(flowLength)
         scratchLayers.append(flowLength)
 
-        #7 convert Flow Length distance units to feet if original DEM LINEAR UNITS ARE not in feet.
-        # Change this zUnits reference!
-        #if not zUnits in ('Feet','Foot','Foot_US'):
+        # 7 convert Flow Length distance units to feet if original DEM LINEAR UNITS ARE not in feet.
         if not units in ('Feet','Foot','Foot_US'):
             AddMsgAndPrint("Converting Flow Length Distance units to Feet")
-            #flowLengthFT = arcpy.CreateScratchName("flowLength_FT",data_type="RasterDataset",workspace=scratchWS)
-            #outflowLengthFT = Raster(flowLength) * 3.280839896
             flowLengthFT = flowLength * 3.280839896
-            #outflowLengthFT.save(flowLengthFT)
             scratchLayers.append(flowLengthFT)
-
         else:
             flowLengthFT = flowLength
             scratchLayers.append(flowLengthFT)
 
-        ### --------------------------------------------------------------------------------------------------------------- Calculate LS Factor
-
-        #8 Convert slope percent to radians for use in various LS equations
+        # 8 Convert slope percent to radians for use in various LS equations
         radians = ATan(Times(slope,0.01))
 
-        # ----------------------------------------------------------------------------- Compute LS Factor
+        # Compute LS Factor
         # If Northwest US 'Use Runoff LS Equation' flag was active, use the following equation
         if use_runoff_ls:
             arcpy.SetProgressorLabel("Calculating LS Factor")
@@ -1938,17 +1158,16 @@ if __name__ == '__main__':
 
         # Otherwise, use the standard AH537 LS computation
         else:
-            #9 ------------------------------------------------------------------------------- Calculate S Factor
+            # 9 Calculate S Factor
             arcpy.SetProgressorLabel("Calculating S Factor")
             AddMsgAndPrint("\nCalculating S Factor")
             # Compute S factor using formula in AH537, pg 12
             sFactor = ((Power(Sin(radians),2)*65.41)+(Sin(radians)*4.56)+(0.065))
             scratchLayers.append(sFactor)
 
-            #10 ------------------------------------------------------------------------------ Calculate L Factor
+            # 10 Calculate L Factor
             arcpy.SetProgressorLabel("Calculating L Factor")
             AddMsgAndPrint("Calculating L Factor")
-            #lFactor = arcpy.CreateScratchName("lFactor",data_type="RasterDataset",workspace=scratchWS)
 
             # Original outlFactor lines
             """outlFactor = Con(Raster(slope),Power(Raster(flowLengthFT) / 72.6,0.2),
@@ -1962,30 +1181,19 @@ if __name__ == '__main__':
                             Con(slope,Power(flowLengthFT / 72.6,0.4),
                             Power(flowLengthFT / 72.6,0.5),"VALUE >= 3 AND VALUE < 5"),"VALUE >= 1 AND VALUE < 3"),"VALUE<1")
 
-            #outlFactor.save(lFactor)
             scratchLayers.append(lFactor)
 
-            # ----------------------------------------------------------------------------- Calculate LS Factor
-            #11 "%l_factor%" * "%s_factor%"
+            # 11 Calculate LS Factor "%l_factor%" * "%s_factor%"
             arcpy.SetProgressorLabel("Calculating LS Factor")
             AddMsgAndPrint("Calculating LS Factor")
-            #lsFactor = arcpy.CreateScratchName("lsFactor",data_type="RasterDataset",workspace=scratchWS)
-            #outlsFactor = Raster(lFactor) * Raster(sFactor)  ## Original Line
             lsFactor = lFactor * sFactor
-            #outlsFactor.save(lsFactor)
 
         scratchLayers.append(radians)
         scratchLayers.append(lsFactor)
 
-        ### ------------------------------------------------------------------------------------------------------------- Convert K,T & R Factor and HEL Value to Rasters
+        # Convert K,T & R Factor and HEL Value to Rasters
         AddMsgAndPrint("\nConverting Vector to Raster for Spatial Analysis Purpose")
         cellSize = arcpy.Describe(dem).MeanCellWidth
-
-        # (Works in 10.5 and under, but not 10.6 and up) All raster datasets will be created in memory
-##        kFactor =  "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("kFactor",data_type="RasterDataset",workspace=scratchWS))
-##        tFactor =  "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("tFactor",data_type="RasterDataset",workspace=scratchWS))
-##        rFactor =  "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("rFactor",data_type="RasterDataset",workspace=scratchWS))
-##        helValue = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("helValue",data_type="RasterDataset",workspace=scratchWS))
 
         # This works in 10.5 AND works in 10.6.1 and 10.7 but slows processing
         kFactor = arcpy.CreateScratchName("kFactor",data_type="RasterDataset",workspace=scratchWS)
@@ -1993,17 +1201,17 @@ if __name__ == '__main__':
         rFactor = arcpy.CreateScratchName("rFactor",data_type="RasterDataset",workspace=scratchWS)
         helValue = arcpy.CreateScratchName("helValue",data_type="RasterDataset",workspace=scratchWS)
 
-        #12 Convert KFactor to raster
+        # 12 Convert KFactor to raster
         arcpy.SetProgressorLabel("Converting K Factor field to a raster")
         AddMsgAndPrint("\tConverting K Factor field to a raster")
         arcpy.FeatureToRaster_conversion(finalHELSummary,kFactorFld,kFactor,cellSize)
 
-        #13 Convert TFactor to raster
+        # 13 Convert TFactor to raster
         arcpy.SetProgressorLabel("Converting T Factor field to a raster")
         AddMsgAndPrint("\tConverting T Factor field to a raster")
         arcpy.FeatureToRaster_conversion(finalHELSummary,tFactorFld,tFactor,cellSize)
 
-        #14 Convert RFactor to raster
+        # 14 Convert RFactor to raster
         arcpy.SetProgressorLabel("Converting R Factor field to a raster")
         AddMsgAndPrint("\tConverting R Factor field to a raster")
         arcpy.FeatureToRaster_conversion(finalHELSummary,rFactorFld,rFactor,cellSize)
@@ -2012,22 +1220,18 @@ if __name__ == '__main__':
         AddMsgAndPrint("\tConverting HEL Value field to a raster")
         arcpy.FeatureToRaster_conversion(helSummary,HELrasterCode,helValue,cellSize)
 
-        #scratchLayers.append((kFactor,tFactor,rFactor,helValue))
         scratchLayers.append(kFactor)
         scratchLayers.append(tFactor)
         scratchLayers.append(rFactor)
         scratchLayers.append(helValue)
 
-        ### ------------------------------------------------------------------------------------------------------------- Calculate EI Factor
+        # Calculate EI Factor
         arcpy.SetProgressorLabel("Calculating EI Factor")
         AddMsgAndPrint("\nCalculating EI Factor")
-        #eiFactor = arcpy.CreateScratchName("eiFactor", data_type="RasterDataset", workspace=scratchWS)
-        #outEIfactor = Divide((Raster(lsFactor) * Raster(kFactor) * Raster(rFactor)),Raster(tFactor))  # Original Lines
         eiFactor = Divide((lsFactor * kFactor * rFactor),tFactor)
-        #outEIfactor.save(eiFactor)
         scratchLayers.append(eiFactor)
 
-        ### ------------------------------------------------------------------------------------------------------------- Calculate Final HEL Factor
+        # Calculate Final HEL Factor
         # Create Conditional statement to reflect the following:
         # 1) PHEL Value = 0 -- Take EI factor -- Depends     2
         # 2) HEL Value  = 1 -- Assign 9                      0
@@ -2036,27 +1240,21 @@ if __name__ == '__main__':
 
         arcpy.SetProgressorLabel("Calculating HEL Factor")
         AddMsgAndPrint("Calculating HEL Factor")
-        #helFactor = arcpy.CreateScratchName("helFactor",data_type="RasterDataset",workspace=scratchWS)
-        #outHELfactor = Con(Raster(helValue),Raster(eiFactor),Con(Raster(helValue),9,Raster(helValue),"VALUE=0"),"VALUE=2")  ## Original Line
         helFactor = Con(helValue,eiFactor,Con(helValue,9,helValue,"VALUE=0"),"VALUE=2")
         scratchLayers.append(helFactor)
-        #outHELfactor.save(helFactor)
 
-        #lidarHEL = arcpy.CreateScratchName("lidarHEL",data_type="RasterDataset",workspace=scratchWS)
         # Reclassify values:
         #       < 8 = Value_1 = NHEL
         #       > 8 = Value_2 = HEL
         remapString = "0 8 1;8 100000000 2"
         arcpy.Reclassify_3d(helFactor, "VALUE", remapString, lidarHEL,'NODATA')
 
-        ### ------------------------------------------------------------------------------------- Determine if individual PHEL delineations are HEL/NHEL"""
+        # Determine if individual PHEL delineations are HEL/NHEL"""
         arcpy.SetProgressorLabel("Computing summary of LiDAR HEL Values:")
         AddMsgAndPrint("\nComputing summary of LiDAR HEL Values:\n")
 
         # Summarize new values between HEL soil polygon and lidarHEL raster
         outPolyTabulate = "in_memory" + os.sep + os.path.basename(arcpy.CreateScratchName("HEL_Polygon_Tabulate",data_type="ArcInfoTable",workspace=scratchWS))
-        #outPolyTabulate = arcpy.CreateScratchName("HEL_Polygon_Tabulate",data_type="ArcInfoTable",workspace=scratchWS)
-
         zoneFld = arcpy.Describe(finalHELSummary).OIDFieldName
         TabulateArea(finalHELSummary,zoneFld,lidarHEL,"VALUE",outPolyTabulate,cellSize)
         tabulateFields = [fld.name for fld in arcpy.ListFields(outPolyTabulate)][2:]
@@ -2064,7 +1262,6 @@ if __name__ == '__main__':
 
         # Add 4 fields to Final HEL Summary layer
         newFields = ['Polygon_Acres','Final_HEL_Value','Final_HEL_Acres','Final_HEL_Percent']
-
         for fld in newFields:
             if not len(arcpy.ListFields(finalHELSummary,fld)) > 0:
                if fld == 'Final_HEL_Value':
@@ -2114,10 +1311,8 @@ if __name__ == '__main__':
         # [polyAcres,finalHELvalue,finalHELacres,finalHELpct,"VALUE_2","SHAPE@AREA","CLUNBR"]
         with arcpy.da.UpdateCursor(finalHELSummary,newFields) as cursor:
             for row in cursor:
-
                 # Calculate polygon acres
                 row[0] = row[5] / acreConversionDict.get(arcpy.Describe(finalHELSummary).SpatialReference.LinearUnitName)
-
                 # Convert "VALUE_2" values to acres.  Represent acres from a poly that is HEL.
                 # The intersection of CLU and soils may cause slivers below the tabulate cell size
                 # which will create NULLs.  Set these slivers to 0 acres.
@@ -2135,7 +1330,6 @@ if __name__ == '__main__':
                 # polygon HEL Pct is greater than 50%; HEL
                 if row[3] > 50.0:
                     row[1] = "HEL"
-
                     # Add the HEL polygon acres to the dict
                     if not row[6] in fieldDeterminationDict:
                         fieldDeterminationDict[row[6]] = row[0]
@@ -2145,7 +1339,6 @@ if __name__ == '__main__':
                 # polygon HEL Pct is less than 50%; NHEL
                 else:
                     row[1] = "NHEL"
-
                     # Don't Add NHEL polygon acres to dict but place
                     # holder for the clu
                     if not row[6] in fieldDeterminationDict:
@@ -2166,8 +1359,7 @@ if __name__ == '__main__':
         arcpy.DeleteField_management(finalHELSummary,deleteFlds)
         del zoneFld,finalHELSummaryFlds,tabulateFields,newFields,validFlds
 
-        ### ---------------------------------------------------------------------------------------------------- Determine if field is HEL/NHEL"""
-        # Add 3 fields to fieldDetermination layer
+        # Determine if field is HEL/NHEL. Add 3 fields to fieldDetermination layer
         fieldList = ["HEL_YES","HEL_Acres","HEL_Pct"]
         for field in fieldList:
             if not FindField(fieldDetermination,field):
@@ -2183,7 +1375,6 @@ if __name__ == '__main__':
         # ['HEL_YES','HEL_Acres','HEL_Pct','CLUNBR','CALCACRES']
         with arcpy.da.UpdateCursor(fieldDetermination,fieldList) as cursor:
             for row in cursor:
-
                 # if results are completely HEL or NHEL then get total clu acres from ogCLUinfoDict
                 if bOnlyHEL or bOnlyNHEL:
                     if bOnlyHEL:
@@ -2199,10 +1390,8 @@ if __name__ == '__main__':
                 else:
                     helAcres = fieldDeterminationDict[row[3]]    # total HEL acres for field
                     helPct = (helAcres / row[4]) * 100           # helAcres / CALCACRES
-
                     nhelAcres = row[4] - helAcres
                     nhelPct = 100 - helPct
-
                     # set pct to 100 if its greater; rounding issue
                     if helPct > 100.0: helPct = 100.0
                     if nhelPct > 100.0: nhelPct = 100.0
@@ -2231,7 +1420,6 @@ if __name__ == '__main__':
         # Strictly for formatting and printing
         maxHelAcreLength = sorted([cluinfo[1] for clu,cluinfo in cluDict.items()],reverse=True)[0]
         maxNHelAcreLength = sorted([cluinfo[4] for clu,cluinfo in cluDict.items()],reverse=True)[0]
-        #maxPercentLength = sorted([cluinfo[4] for clu,cluinfo in cluDict.iteritems()],reverse=True)[0]
 
         for clu in sorted(cluDict.keys()):
             firstSpace = " "  * (maxHelAcreLength - cluDict[clu][1])
@@ -2241,7 +1429,6 @@ if __name__ == '__main__':
             nHelAcres = cluDict[clu][3]
             nHelPct = cluDict[clu][5]
             yesOrNo = cluDict[clu][6]
-
             AddMsgAndPrint("\tCLU #: " + str(clu))
             AddMsgAndPrint("\t\tHEL Acres:  " + str(helAcres) + firstSpace + " .ac -- " + str(helPct) + " %")
             AddMsgAndPrint("\t\tNHEL Acres: " + str(nHelAcres) + secondSpace + " .ac -- " + str(nHelPct) + " %")
@@ -2250,7 +1437,7 @@ if __name__ == '__main__':
 
         del fieldList,cluDict,maxHelAcreLength,maxNHelAcreLength
 
-        """----------------------------------------------------------------------------------------------------- Prepare Symboloby for ArcMap and 1026 form"""
+        # Prepare Symboloby for ArcMap and 1026 form
         AddLayersToArcMap()
 
         if not populateForm():
