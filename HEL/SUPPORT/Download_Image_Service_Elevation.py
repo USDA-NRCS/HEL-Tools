@@ -1,9 +1,9 @@
+from os import path
+from sys import argv
+
 from arcpy import AddError, AddMessage, Describe, env, Exists, GetParameterAsText, SetParameterAsText, SpatialReference
 from arcpy.analysis import Buffer
 from arcpy.management import Clip, CreateFileGDB, Delete, Project, ProjectRaster
-
-from os import path
-from sys import argv
 
 
 # Tool Inputs

@@ -1,9 +1,9 @@
+from os import path
+from sys import argv, exit
+
 from arcpy import AddError, AddMessage, env, Exists, GetParameterAsText, ListFields, SetParameterAsText
 from arcpy.analysis import Clip
 from arcpy.management import Delete, Merge
-
-from os import path
-from sys import argv, exit
 
 
 # Geoprocessing Environment Settings

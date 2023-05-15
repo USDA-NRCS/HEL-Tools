@@ -1,10 +1,10 @@
+from os import path
+from sys import argv, exit
+
 from arcpy import AddError, AddMessage, Describe, env, Exists, GetParameterAsText, SetParameterAsText
 from arcpy.analysis import Buffer
 from arcpy.management import CreateFileGDB, Delete, GetRasterProperties, MosaicToNewRaster
 from arcpy.sa import ExtractByMask
-
-from os import path
-from sys import argv, exit
 
 
 # Tool Inputs
