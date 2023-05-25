@@ -22,6 +22,8 @@ from arcpy.management import AddField, CalculateField, Clip as Clip_m, CopyFeatu
 from arcpy.mapping import AddLayer, Layer, ListDataFrames, ListLayoutElements, ListLayers, MapDocument, RefreshActiveView, \
     RefreshTOC, RemoveLayer, UpdateLayer
 
+#from arcpy.mp import ArcGISProject, LayerFile
+
 from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, FocalStatistics, IsNull, NbrRectangle, \
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
@@ -387,11 +389,15 @@ def AddLayersToArcMap():
 
         # Put this section in a try-except. It will fail if run from ArcCatalog
         mxd = MapDocument("CURRENT")
+        #aprx = ArcGISProject("CURRENT") #pro
         df = ListDataFrames(mxd)[0]
+        #maps = aprx.listMaps()[0] #pro
 
         # Workaround:  ListLayers returns a list of layer objects. Need to create a list of layer name Strings
         currentLayersObj = ListLayers(mxd)
+        #currentLayersObj = maps.listLayers() #pro
         currentLayersStr = [str(x) for x in ListLayers(mxd)]
+        #currentLayersStr = [str(x) for x in maps.listLayers()] #pro
 
         # List of layers to add to Arcmap (layer path, arcmap layer name)
         if bNoPHELvalues or bSkipGeoprocessing:
@@ -399,8 +405,10 @@ def AddLayersToArcMap():
             # Remove these layers from arcmap if they are present since they were not produced
             if 'LiDAR HEL Summary' in currentLayersStr:
                 RemoveLayer(df,currentLayersObj[currentLayersStr.index('LiDAR HEL Summary')])
+                #LayerFile.removeLayer(currentLayersObj[currentLayersStr.index('LiDAR HEL Summary')]) #pro
             if 'Final HEL Summary' in currentLayersStr:
                 RemoveLayer(df,currentLayersObj[currentLayersStr.index('Final HEL Summary')])
+                #LayerFile.removeLayer(currentLayersObj[currentLayersStr.index('Final HEL Summary')]) #pro
         else:
             addToArcMap = [(lidarHEL,"LiDAR HEL Summary"),(helSummary,"Initial HEL Summary"),(finalHELSummary,"Final HEL Summary"),(fieldDetermination,"Field Determination")]
 
@@ -408,48 +416,58 @@ def AddLayersToArcMap():
             # remove layer from ArcMap if it exists
             if layer[1] in currentLayersStr:
                 RemoveLayer(df,currentLayersObj[currentLayersStr.index(layer[1])])
+                #LayerFile.removeLayer(currentLayersObj[currentLayersStr.index(layer[1])]) #pro
             # Raster Layers need to be handled differently than vector layers
             if layer[1] == "LiDAR HEL Summary":
                 rasterLayer = MakeRasterLayer(layer[0],layer[1])
                 tempLayer = rasterLayer.getOutput(0)
                 AddLayer(df,tempLayer,"TOP")
+                #maps.addLayer(tempLayer,"TOP") #pro
                 # define the symbology layer and convert it to a layer object
+                
+                #This section below to UpdateLayer I don't think is necessary because of how pro updates.
                 updateLayer = ListLayers(mxd,layer[1], df)[0]
+                #updateLayer = maps.listLayers(layer[1]) #pro
                 symbologyLyr = path.join(path.dirname(argv[0]),layer[1].lower().replace(" ","") + ".lyr")
-                sourceLayer = Layer(symbologyLyr)
-                UpdateLayer(df,updateLayer,sourceLayer)
+                sourceLayer = Layer(symbologyLyr) #this should work the same in pro after removing the .mapping imports
+                UpdateLayer(df,updateLayer,sourceLayer) #I don't think this is necessary in Pro
             else:
                 # add layer to arcmap
                 symbologyLyr = path.join(path.dirname(argv[0]),layer[1].lower().replace(" ","") + ".lyr")
                 AddLayer(df, Layer(symbologyLyr.strip("'")), "TOP")
+                #maps.addLayer(Layer(symbologyLyr.strip("'")), "TOP") #pro
 
             # This layer should be turned on if no PHEL values were processed. Symbology should also be updated to reflect current values.
             if layer[1] in ("Initial HEL Summary") and bNoPHELvalues:
                 for lyr in ListLayers(mxd, layer[1]):
+                #for lyr in maps.listLayers(layer[1]): #pro
                     lyr.visible = True
 
             # these 2 layers should be turned off by default if full processing happens
             if layer[1] in ("Initial HEL Summary","LiDAR HEL Summary") and not bNoPHELvalues:
                 for lyr in ListLayers(mxd, layer[1]):
+                #for lyr in ListLayers(layer[1]): #pro
                     lyr.visible = False
 
             AddMsgAndPrint("Added " + layer[1] + " to your ArcMap Session",0)
 
         # Unselect CLU polygons; Looks goofy after processed layers have been added to ArcMap. Turn it off as well
         for lyr in ListLayers(mxd, "*" + str(Describe(cluLayer).nameString).split("\\")[-1], df):
+        #for lyr in maps.listLayers("*" + str(Describe(cluLayer).nameString).split("\\")[-1]): #pro
             SelectLayerByAttribute(lyr, "CLEAR_SELECTION")
             lyr.visible = False
 
         # Turn off the original HEL layer to put the outputs into focus
         helLyr = ListLayers(mxd, Describe(helLayer).nameString, df)[0]
+        #helLyr = maps.listLayers(Describe(helLayer).nameString)[0] #pro
         helLyr.visible = False
         # set dataframe extent to the extent of the Field Determintation layer buffered by 50 meters.
         fieldDeterminationBuffer = "in_memory" + sep + path.basename(CreateScratchName("fdBuffer",data_type="FeatureClass",workspace=scratchWS))
         Buffer(fieldDetermination, fieldDeterminationBuffer, "50 Meters", "FULL", "", "ALL", "")
         df.extent = Describe(fieldDeterminationBuffer).extent
         Delete(fieldDeterminationBuffer)
-        RefreshTOC()
-        RefreshActiveView()
+        RefreshTOC() # No longer needed as changes in Pro are immediate
+        RefreshActiveView() # No longer needed as changes in Pro are immediate
 
     except:
         errorMsg()
@@ -576,6 +594,7 @@ def configLayout():
     try:
         # Confirm Map Doc existence
         mxd = MapDocument("CURRENT")
+        #project = ArcGISProject("CURRENT")
         # Set starting variables as empty for logical comparison later on, prior to updating layout
         farmNum = ''
         trNum = ''
@@ -608,6 +627,7 @@ def configLayout():
 
         # Find and hook map layout elements to variables
         for elm in ListLayoutElements(mxd):
+        #for elm in project.listLayouts() #pro
             if elm.name == "farm_txt":
                 farm_ele = elm
             if elm.name == "tract_txt":
