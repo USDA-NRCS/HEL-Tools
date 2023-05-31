@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="en"><Esri><CreaDate>20230425</CreaDate><CreaTime>16060800</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process ToolSource="c:\program files (x86)\arcgis\desktop10.8\ArcToolbox\Toolboxes\3D Analyst Tools.tbx\Reclassify" Date="20230425" Time="160608">Reclassify C:\HEL\scratch.gdb\Con_helValue2 VALUE "0 8 1;8 100000000 2" C:\HEL\HEL.mdb\LiDAR_HEL_Summary NODATA</Process></lineage></DataProperties></Esri></metadata>
