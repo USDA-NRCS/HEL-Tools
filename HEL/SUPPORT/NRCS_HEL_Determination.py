@@ -74,7 +74,7 @@ def createTextFile(Tract, Farm):
         helTextNotesDir = path.dirname(argv[0]) + sep + 'HEL_Text_Files'
         if not path.isdir(helTextNotesDir):
            makedirs(helTextNotesDir)
-        textFileName = "NRCS_HEL_Determination_TRACT(" + str(Tract) + ")_FARM(" + str(Farm) + ").txt"
+        textFileName = f"NRCS_HEL_Determination_TRACT({str(Tract)})_FARM({str(Farm)}).txt"
         textPath = helTextNotesDir + sep + textFileName
         # Version check
         version = str(GetInstallInfo()['Version'])
@@ -84,9 +84,9 @@ def createTextFile(Tract, Farm):
         f = open(textPath,'a+')
         f.write('#' * 80 + "\n")
         f.write("NRCS HEL Determination Tool\n")
-        f.write("User Name: " + getuser() + "\n")
-        f.write("Date Executed: " + ctime() + "\n")
-        f.write("ArcGIS Version: " + str(version) + "\n")
+        f.write(f"User Name: {getuser()}\n")
+        f.write(f"Date Executed: {ctime()}\n")
+        f.write(f"ArcGIS Version: {str(version)}\n")
         f.close
         return textPath
     except:
@@ -129,9 +129,9 @@ def extractDEMfromImageService(demSource, zUnits):
         sr = desc.SpatialReference
         outputCellsize = 3
 
-        AddMsgAndPrint("\nInput DEM Image Service: " + desc.baseName)
-        AddMsgAndPrint("\tGeographic Coordinate System: " + sr.Name)
-        AddMsgAndPrint("\tUnits (XY): " + sr.AngularUnitName)
+        AddMsgAndPrint(f"\nInput DEM Image Service: {desc.baseName}")
+        AddMsgAndPrint(f"\tGeographic Coordinate System: {sr.Name}")
+        AddMsgAndPrint(f"\tUnits (XY): {sr.AngularUnitName}")
 
         # Set output env variables to WGS84 to project clu
         env.geographicTransformations = "WGS_1984_(ITRF00)_To_NAD_1983"
@@ -143,10 +143,10 @@ def extractDEMfromImageService(demSource, zUnits):
 
         # Use the WGS 1984 AOI to clip/extract the DEM from the service
         cluExtent = Describe(cluBuffer).extent
-        clipExtent = str(cluExtent.XMin) + " " + str(cluExtent.YMin) + " " + str(cluExtent.XMax) + " " + str(cluExtent.YMax)
+        clipExtent = f"{str(cluExtent.XMin)} {str(cluExtent.YMin)} {str(cluExtent.XMax)} {str(cluExtent.YMax)}"
 
-        SetProgressorLabel("Downloading DEM from " + desc.baseName + " Image Service")
-        AddMsgAndPrint("\n\tDownloading DEM from " + desc.baseName + " Image Service")
+        SetProgressorLabel(f"Downloading DEM from {desc.baseName} Image Service")
+        AddMsgAndPrint(f"\n\tDownloading DEM from {desc.baseName} Image Service")
 
         demClip = "in_memory" + sep + path.basename(CreateScratchName("demClipIS",data_type="RasterDataset",workspace=scratchWS))
         Clip_m(demSource, clipExtent, demClip, "", "", "", "NO_MAINTAIN_EXTENT")
@@ -168,11 +168,11 @@ def extractDEMfromImageService(demSource, zUnits):
         if not zUnits: zUnits = newLinearUnits
         newZfactor = zFactorList[unitLookUpDict.get(newLinearUnits)][unitLookUpDict.get(zUnits)]
 
-        AddMsgAndPrint("\t\tNew Projection Name: " + newSR.Name,0)
-        AddMsgAndPrint("\t\tLinear Units (XY): " + newLinearUnits)
-        AddMsgAndPrint("\t\tElevation Units (Z): " + zUnits)
-        AddMsgAndPrint("\t\tCell Size: " + str(newCellSize) + " " + newLinearUnits )
-        AddMsgAndPrint("\t\tZ-Factor: " + str(newZfactor))
+        AddMsgAndPrint(f"\t\tNew Projection Name: {newSR.Name}")
+        AddMsgAndPrint(f"\t\tLinear Units (XY): {newLinearUnits}")
+        AddMsgAndPrint(f"\t\tElevation Units (Z): {zUnits}")
+        AddMsgAndPrint(f"\t\tCell Size: {str(newCellSize)} {newLinearUnits}")
+        AddMsgAndPrint(f"\t\tZ-Factor: {str(newZfactor)}")
 
         return newLinearUnits,newZfactor,demProject
 
@@ -190,8 +190,8 @@ def extractDEM(inputDEM, zUnits):
         Returns a clipped DEM and new Z-Factor"""
     try:
         # Set environment variables
-        env.geographicTransformations = "WGS_1984_(ITRF00)_To_NAD_1983"
-        env.resamplingMethod = "BILINEAR"
+        env.geographicTransformations = 'WGS_1984_(ITRF00)_To_NAD_1983'
+        env.resamplingMethod = 'BILINEAR'
         env.outputCoordinateSystem = Describe(cluLayer).SpatialReference
         bImageService = False
         bResample = False
@@ -202,20 +202,20 @@ def extractDEM(inputDEM, zUnits):
         cellSize = desc.MeanCellWidth
 
         if desc.format == 'Image Service':
-            if sr.Type == "Geographic":
+            if sr.Type == 'Geographic':
                 newLinearUnits,newZfactor,demExtract = extractDEMfromImageService(inputDEM,zUnits)
                 return newLinearUnits,newZfactor,demExtract
             bImageService = True
 
         # Check DEM properties
         if bImageService:
-            AddMsgAndPrint("\nInput DEM Image Service: " + desc.baseName)
+            AddMsgAndPrint(f"\nInput DEM Image Service: {desc.baseName}")
         else:
-            AddMsgAndPrint("\nInput DEM Information: " + desc.baseName)
+            AddMsgAndPrint(f"\nInput DEM Information: {desc.baseName}")
 
         # DEM must be in a project coordinate system to continue unless DEM is an image service.
         if not bImageService and sr.type != 'Projected':
-            AddMsgAndPrint("\n\t" + str(desc.name) + " Must be in a projected coordinate system, Exiting",2)
+            AddMsgAndPrint(f"\n\t{str(desc.name)} Must be in a projected coordinate system, Exiting",2)
             AddMsgAndPrint("\tContact your State GIS Coordinator to resolve this issue",2)
             return False,False
 
@@ -225,21 +225,21 @@ def extractDEM(inputDEM, zUnits):
             AddMsgAndPrint("\tContact your State GIS Coordinator to resolve this issue",2)
             return False,False
 
-        if linearUnits == "Meter":
+        if linearUnits == 'Meter':
             tolerance = 3.1
-        elif linearUnits == "Foot":
+        elif linearUnits == 'Foot':
             tolerance = 10.1706
-        elif linearUnits == "Foot_US":
+        elif linearUnits == 'Foot_US':
             tolerance = 10.1706
         else:
-            AddMsgAndPrint("\n\tHorizontal units of " + str(desc.baseName) + " must be in feet or meters... Exiting!")
+            AddMsgAndPrint(f"\n\tHorizontal units of {str(desc.baseName)} must be in feet or meters... Exiting!")
             AddMsgAndPrint("\tContact your State GIS Coordinator to resolve this issue",2)
             return False,False
 
         # Cell size must be the equivalent of 3 meters.
         if cellSize > tolerance:
             AddMsgAndPrint("\n\tThe cell size of the input DEM must be 3 Meters (9.84252 FT) or less to continue... Exiting!",2)
-            AddMsgAndPrint("\t" + str(desc.baseName) + " has a cell size of " + str(desc.MeanCellWidth) + " " + linearUnits,2)
+            AddMsgAndPrint(f"\t{str(desc.baseName)} has a cell size of {str(desc.MeanCellWidth)} {linearUnits}",2)
             AddMsgAndPrint("\tContact your State GIS Coordinator to resolve this issue",2)
             return False,False
         elif cellSize < tolerance:
@@ -255,28 +255,28 @@ def extractDEM(inputDEM, zUnits):
         zFactor = zFactorList[unitLookUpDict.get(linearUnits)][unitLookUpDict.get(zUnits)]
 
         # Print Input DEM properties
-        AddMsgAndPrint("\tProjection Name: " + sr.Name)
-        AddMsgAndPrint("\tLinear Units (XY): " + linearUnits)
-        AddMsgAndPrint("\tElevation Units (Z): " + zUnits)
+        AddMsgAndPrint(f"\tProjection Name: {sr.Name}")
+        AddMsgAndPrint(f"\tLinear Units (XY): {linearUnits}")
+        AddMsgAndPrint(f"\tElevation Units (Z): {zUnits}")
         if not bZunits:
-            AddMsgAndPrint("\t\tZ-units were auto set to: " + linearUnits,0)
-        AddMsgAndPrint("\tCell Size: " + str(desc.MeanCellWidth) + " " + linearUnits)
-        AddMsgAndPrint("\tZ-Factor: " + str(zFactor))
+            AddMsgAndPrint(f"\t\tZ-units were auto set to: {linearUnits}")
+        AddMsgAndPrint(f"\tCell Size: {str(desc.MeanCellWidth)} {linearUnits}")
+        AddMsgAndPrint(f"\tZ-Factor: {str(zFactor)}")
 
         # Extract DEM
-        SetProgressorLabel("Buffering AOI by 410 Meters")
+        SetProgressorLabel('Buffering AOI by 410 Meters')
         cluBuffer = "in_memory" + sep + path.basename(CreateScratchName("cluBuffer",data_type="FeatureClass",workspace=scratchWS))
         Buffer(fieldDetermination,cluBuffer,"410 Meters","FULL","ROUND")
         env.extent = cluBuffer
 
         # CLU clip extents
         cluExtent = Describe(cluBuffer).extent
-        clipExtent = str(cluExtent.XMin) + " " + str(cluExtent.YMin) + " " + str(cluExtent.XMax) + " " + str(cluExtent.YMax)
+        clipExtent = f"{str(cluExtent.XMin)} {str(cluExtent.YMin)} {str(cluExtent.XMax)} {str(cluExtent.YMax)}"
 
         # Cell Resolution needs to change; Clip and Project
         if bResample:
-            SetProgressorLabel("Changing resolution from " + str(cellSize) + " " + linearUnits + " to 3 Meters")
-            AddMsgAndPrint("\n\tChanging resolution from " + str(cellSize) + " " + linearUnits + " to 3 Meters")
+            SetProgressorLabel(f"Changing resolution from {str(cellSize)} {linearUnits} to 3 Meters")
+            AddMsgAndPrint(f"\n\tChanging resolution from {str(cellSize)} {linearUnits} to 3 Meters")
             demClip = "in_memory" + sep + path.basename(CreateScratchName("demClip_resample",data_type="RasterDataset",workspace=scratchWS))
             Clip_m(inputDEM, clipExtent, demClip, "", "", "", "NO_MAINTAIN_EXTENT")
             demExtract = "in_memory" + sep + path.basename(CreateScratchName("demClip_project",data_type="RasterDataset",workspace=scratchWS))
@@ -285,7 +285,7 @@ def extractDEM(inputDEM, zUnits):
 
         # Resolution is correct; Clip the raster
         else:
-            SetProgressorLabel("Clipping DEM using buffered CLU")
+            SetProgressorLabel('Clipping DEM using buffered CLU')
             AddMsgAndPrint("\n\tClipping DEM using buffered CLU")
             demExtract = "in_memory" + sep + path.basename(CreateScratchName("demClip",data_type="RasterDataset",workspace=scratchWS))
             Clip_m(inputDEM, clipExtent, demExtract, "", "", "", "NO_MAINTAIN_EXTENT")
@@ -298,11 +298,11 @@ def extractDEM(inputDEM, zUnits):
         newZfactor = zFactorList[unitLookUpDict.get(newLinearUnits)][unitLookUpDict.get(zUnits)]
 
         if newSR.name != sr.Name:
-            AddMsgAndPrint("\t\tNew Projection Name: " + newSR.Name,0)
+            AddMsgAndPrint(f"\t\tNew Projection Name: {newSR.Name}")
         if newCellSize != cellSize:
-            AddMsgAndPrint("\t\tNew Cell Size: " + str(newCellSize) + " " + newLinearUnits )
+            AddMsgAndPrint(f"\t\tNew Cell Size: {str(newCellSize)} {newLinearUnits}")
         if newZfactor != zFactor:
-            AddMsgAndPrint("\t\tNew Z-Factor: " + str(newZfactor))
+            AddMsgAndPrint(f"\t\tNew Z-Factor: {str(newZfactor)}")
 
         Delete(cluBuffer)
         return newLinearUnits,newZfactor,demExtract
@@ -319,7 +319,7 @@ def removeScratchLayers():
             try:
                 Delete(lyr)
             except:
-                AddMessage("Deleting Layer: " + str(lyr) + " failed.")
+                AddMsgAndPrint(f"\n\tDeleting Layer: {str(lyr)} failed.",2)
                 continue
     except:
         pass
@@ -336,10 +336,10 @@ def AddLayersToArcMap():
         if bNoPHELvalues or bSkipGeoprocessing:
 
             # Add 3 fields to fieldDetermination layer
-            fieldList = ["HEL_YES","HEL_Acres","HEL_Pct"]
+            fieldList = ['HEL_YES', 'HEL_Acres', 'HEL_Pct']
             for field in fieldList:
                 if not FindField(fieldDetermination,field):
-                    if field == "HEL_YES":
+                    if field == 'HEL_YES':
                         AddField(fieldDetermination,field,"TEXT","","",5)
                     else:
                         AddField(fieldDetermination,field,"FLOAT")
@@ -354,17 +354,16 @@ def AddLayersToArcMap():
                      cursor.updateRow(row)
 
             # Add 4 fields to Final HEL Summary layer
-            newFields = ['Polygon_Acres','Final_HEL_Value','Final_HEL_Acres','Final_HEL_Percent']
+            newFields = ['Polygon_Acres', 'Final_HEL_Value', 'Final_HEL_Acres', 'Final_HEL_Percent']
             for fld in newFields:
                 if not len(ListFields(finalHELSummary,fld)) > 0:
                    if fld == 'Final_HEL_Value':
                       AddField(finalHELSummary,'Final_HEL_Value',"TEXT","","",5)
                    else:
                         AddField(finalHELSummary,fld,"DOUBLE")
-
             newFields.append(helFld)
             newFields.append(cluNumberFld)
-            newFields.append("SHAPE@AREA")
+            newFields.append('SHAPE@AREA')
 
             # [polyAcres,finalHELvalue,finalHELacres,finalHELpct,MUHELCL,'CLUNBR',"SHAPE@AREA"]
             with UpdateCursor(finalHELSummary,newFields) as cursor:
@@ -374,7 +373,7 @@ def AddLayersToArcMap():
                     # Final_HEL_Value will be set to the initial HEL value
                     row[1] = row[4]
                     # set Final HEL Acres to 0 for PHEL and NHEL; othewise set to polyAcres
-                    if row[4] in ('NHEL','PHEL'):
+                    if row[4] in ('NHEL', 'PHEL'):
                         row[2] = 0.0
                     else:
                         row[2] = row[0]
@@ -449,12 +448,12 @@ def AddLayersToArcMap():
                 #for lyr in ListLayers(layer[1]): #pro
                     lyr.visible = False
 
-            AddMsgAndPrint("Added " + layer[1] + " to your ArcMap Session",0)
+            AddMsgAndPrint(f"Added {layer[1]} to your ArcMap Session")
 
         # Unselect CLU polygons; Looks goofy after processed layers have been added to ArcMap. Turn it off as well
         for lyr in ListLayers(mxd, "*" + str(Describe(cluLayer).nameString).split("\\")[-1], df):
         #for lyr in maps.listLayers("*" + str(Describe(cluLayer).nameString).split("\\")[-1]): #pro
-            SelectLayerByAttribute(lyr, "CLEAR_SELECTION")
+            SelectLayerByAttribute(lyr, 'CLEAR_SELECTION')
             lyr.visible = False
 
         # Turn off the original HEL layer to put the outputs into focus
@@ -479,7 +478,7 @@ def populateForm():
         3 fields will be added that otherwise would've been added after HEL geoprocessing. However, values to these fields will be
         populated from the ogCLUinfoDict and represent original HEL values primarily determined by the 33.33% or 50 acre rule."""
     try:
-        AddMsgAndPrint("\nPreparing and Populating NRCS-CPA-026 Form", 0)
+        AddMsgAndPrint("\nPreparing and Populating NRCS-CPA-026 Form")
         today = date.today()
         today = today.strftime('%b %d, %Y')
         stateCodeDict = {'WA': '53', 'DE': '10', 'DC': '11', 'WI': '55', 'WV': '54', 'HI': '15',
@@ -534,12 +533,12 @@ def populateForm():
                     # We should only get one result if using installed lookup table from US Census Tiger table, so break
                     break
 
-            GeoLocation = GeoCounty + ", " + GeoState
-            AdminLocation = AdminCounty + ", " + AdminState
+            GeoLocation = f"{GeoCounty}, {GeoState}"
+            AdminLocation = f"{AdminCounty}, {AdminState}"
 
         else:
-            GeoLocation = "Not Found"
-            AdminLocation = "Not Found"
+            GeoLocation = 'Not Found'
+            AdminLocation = 'Not Found'
 
         # Add 20 Fields to the fieldDetermination feature class
         remarks_txt = r'This Highly Erodible Land determination was conducted offsite using the soil survey. If PHEL soil map units were present, they may have been evaluated using elevation data.'
@@ -553,7 +552,7 @@ def populateForm():
         SetProgressor("step", "Preparing and Populating NRCS-CPA-026 Form", 0, len(fieldDict), 1)
 
         for field,params in fieldDict.items():
-            SetProgressorLabel("Adding Field: " + field + r' to "Field Determination" layer')
+            SetProgressorLabel(f"Adding Field: {field} to 'Field Determination' layer")
             try:
                 fldLength = params[2]
             except:
@@ -565,7 +564,7 @@ def populateForm():
                 CalculateField(fieldDetermination,field,expression,"VB")
 
         if bAccess:
-            AddMsgAndPrint("\tOpening NRCS-CPA-026 Form",0)
+            AddMsgAndPrint("\tOpening NRCS-CPA-026 Form")
             try:
                 Popen([msAccessPath,helDatabase])
             except:
@@ -576,7 +575,7 @@ def populateForm():
                     AddMsgAndPrint("\tOpen Microsoft Access manually to access the NRCS-CPA-026 Form",1)
                     SetProgressorLabel("Could not locate the Microsoft Access Software")
         else:
-            AddMsgAndPrint("\tOpening NRCS-CPA-026 Form",0)
+            AddMsgAndPrint("\tOpening NRCS-CPA-026 Form")
             try:
                 startfile(helDatabase)
             except:
@@ -628,35 +627,35 @@ def configLayout():
         # Find and hook map layout elements to variables
         for elm in ListLayoutElements(mxd):
         #for elm in project.listLayouts() #pro
-            if elm.name == "farm_txt":
+            if elm.name == 'farm_txt':
                 farm_ele = elm
-            if elm.name == "tract_txt":
+            if elm.name == 'tract_txt':
                 tract_ele = elm
-            if elm.name == "customer_txt":
+            if elm.name == 'customer_txt':
                 customer_ele = elm
-            if elm.name == "county_txt":
+            if elm.name == 'county_txt':
                 county_ele = elm
-            if elm.name == "state_txt":
+            if elm.name == 'state_txt':
                 state_ele = elm #Not used anywhere?
 
         # Configure the text boxes
         # If any of the info is missing, the script still runs and boxes are reset to a manual entry prompt
         if farmNum != '':
-            farm_ele.text = "Farm: " + str(farmNum)
+            farm_ele.text = f"Farm: {str(farmNum)}"
         else:
-            farm_ele.text = "Farm: <dbl-click to enter>"
+            farm_ele.text = 'Farm: <dbl-click to enter>'
         if trNum != '':
-            tract_ele.text = "Tract: " + str(trNum)
+            tract_ele.text = f"Tract: {str(trNum)}"
         else:
-            tract_ele.text = "Tract: <dbl-click to enter>"
+            tract_ele.text = 'Tract: <dbl-click to enter>'
         if input_cust != '':
-            customer_ele.text = "Customer(s): " + str(input_cust)
+            customer_ele.text = f"Customer(s): {str(input_cust)}"
         else:
-            customer_ele.text = "Customer(s): <dbl-click to enter>"
+            customer_ele.text = 'Customer(s): <dbl-click to enter>'
         if county != '':
-            county_ele.text = "County: " + str(county) + ", " + str(state)
+            county_ele.text = f"County: {str(county)}, {str(state)}"
         else:
-            county_ele.text = "County: <dbl-click to enter>"
+            county_ele.text = 'County: <dbl-click to enter>'
 
         return True
     except:
@@ -673,14 +672,14 @@ if __name__ == '__main__':
         input_cust = GetParameterAsText(5)
         use_runoff_ls = GetParameter(6)
 
-        kFactorFld = "K"
-        tFactorFld = "T"
-        rFactorFld = "R"
-        helFld = "MUHELCL"
+        kFactorFld = 'K'
+        tFactorFld = 'T'
+        rFactorFld = 'R'
+        helFld = 'MUHELCL'
 
         bLog = False # If True, log to text file
-        SetProgressorLabel("Checking input values and environments")
-        AddMsgAndPrint("\nChecking input values and environments")
+        SetProgressorLabel('Checking input values and environments')
+        AddMsgAndPrint('\nChecking input values and environments')
 
         # Check HEL Access Database
         helDatabase = path.dirname(argv[0]) + sep + r'HEL.mdb'
@@ -693,9 +692,9 @@ if __name__ == '__main__':
         # Close Microsoft Access Database software if it is open.
         # forcibly kill image name msaccess if open. remove access record-locking information
         try:
-            killAccess = system("TASKKILL /F /IM msaccess.exe")
+            killAccess = system('TASKKILL /F /IM msaccess.exe')
             if killAccess == 0:
-                AddMsgAndPrint("\tMicrosoft Access was closed in order to continue")
+                AddMsgAndPrint('\tMicrosoft Access was closed in order to continue')
             accessLockFile = path.dirname(argv[0]) + sep + r'HEL.ldb'
             if path.exists(accessLockFile):
                 remove(accessLockFile)
@@ -715,7 +714,7 @@ if __name__ == '__main__':
                 try:
                     Delete(layer)
                 except:
-                    AddMsgAndPrint("\tCould not delete the " + path.basename(layer) + " feature class in the HEL access database. Creating an additional layer",2)
+                    AddMsgAndPrint(f"\tCould not delete the {path.basename(layer)} feature class in the HEL access database. Creating an additional layer",2)
                     newName = str(layer)
                     newName = CreateScratchName(path.basename(layer),data_type="FeatureClass",workspace=helDatabase)
 
@@ -729,7 +728,7 @@ if __name__ == '__main__':
         elif winVersion.build == 7601:
             msAccessPath = r'C:\Program Files (x86)\Microsoft Office\Office15\MSACCESS.EXE'
         else:
-            AddMsgAndPrint("\nCould not determine Windows version, will not populate 026 Form",2)
+            AddMsgAndPrint('\nCould not determine Windows version, will not populate 026 Form',2)
             bAccess = False
         if bAccess and not path.isfile(msAccessPath):
             bAccess = False
@@ -737,11 +736,10 @@ if __name__ == '__main__':
         # Checkout Spatial Analyst Extension and set scratch workspace
         # TODO: Move this extension check to tool validation
         try:
-            if CheckExtension("Spatial") == "Available":
-                CheckOutExtension("Spatial")
+            if CheckExtension('Spatial') == 'Available':
+                CheckOutExtension('Spatial')
         except Exception:
-            AddMsgAndPrint("\n\nSpatial Analyst license is unavailable.  Go to Customize -> Extensions to activate it",2)
-            AddMsgAndPrint("\n\nExiting!")
+            AddMsgAndPrint('\n\nSpatial Analyst license is unavailable.  Go to Customize -> Extensions to activate it. Exiting!',2)
             exit()
 
         # Set overwrite option
@@ -753,7 +751,7 @@ if __name__ == '__main__':
             CreateFileGDB(path.dirname(argv[0]), r'scratch.gdb')
 
         if not scratchWS:
-            AddMsgAndPrint("\nCould Not set scratchWorkspace!")
+            AddMsgAndPrint('\nCould Not set scratchWorkspace!')
             exit()
 
         env.scratchWorkspace = scratchWS
@@ -762,7 +760,7 @@ if __name__ == '__main__':
         # Stamp CLU into field determination fc. Exit if no CLU fields selected
         cluDesc = Describe(cluLayer)
         if cluDesc.FIDset == '':
-            AddMsgAndPrint("\nPlease select fields from the CLU Layer. Exiting!",2)
+            AddMsgAndPrint('\nPlease select fields from the CLU Layer. Exiting!',2)
             exit()
         else:
             fieldDetermination = CopyFeatures(cluLayer,fieldDetermination)
@@ -773,16 +771,16 @@ if __name__ == '__main__':
         uniqueFields = list(set([row[0] for row in SearchCursor(fieldDetermination,("CLUNBR"))]))
 
         if len(uniqueTracts) != 1:
-           AddMsgAndPrint("\n\tThere are " + str(len(uniqueTracts)) + " different Tract Numbers. Exiting!",2)
+           AddMsgAndPrint(f"\n\tThere are {str(len(uniqueTracts))} different Tract Numbers. Exiting!",2)
            for tract in uniqueTracts:
-               AddMsgAndPrint("\t\tTract #: " + str(tract),2)
+               AddMsgAndPrint(f"\t\tTract #: {str(tract)}",2)
            removeScratchLayers()
            exit()
 
         if len(uniqueFarm) != 1:
-           AddMsgAndPrint("\n\tThere are " + str(len(uniqueFarm)) + " different Farm Numbers. Exiting!",2)
+           AddMsgAndPrint(f"\n\tThere are {str(len(uniqueFarm))} different Farm Numbers. Exiting!",2)
            for farm in uniqueFarm:
-               AddMsgAndPrint("\t\tFarm #: " + str(farm),2)
+               AddMsgAndPrint(f"\t\tFarm #: {str(farm)}",2)
            removeScratchLayers()
            exit()
 
@@ -793,12 +791,12 @@ if __name__ == '__main__':
         # Update the map layout for the current site being run
         configLayout()
 
-        AddMsgAndPrint("\nNumber of CLU fields selected: {}".format(len(cluDesc.FIDset.split(";"))))
+        AddMsgAndPrint(f"\nNumber of CLU fields selected: {len(cluDesc.FIDset.split(';'))}")
 
         # Add Calcacre field if it doesn't exist. Should be part of the CLU layer.
-        calcAcreFld = "CALCACRES"
+        calcAcreFld = 'CALCACRES'
         if not len(ListFields(fieldDetermination,calcAcreFld)) > 0:
-            AddField(fieldDetermination,calcAcreFld,"DOUBLE")
+            AddField(fieldDetermination,calcAcreFld,'DOUBLE')
 
         # Note: FSA MIDAS uses "square meters * 0.0002471" based on NAD 83 for the current UTM Zone and then rounds to two decimal points to set its calc acres.
         # If we changed all calc acres formulas to match FSA's formula, we would have matching FSA acres, but slightly incorrect amounts.
@@ -806,7 +804,7 @@ if __name__ == '__main__':
         # If we set all internal acres computations to 2 decimal places from rounding based on the above, all acres would be consistent, except possibly for raster derived acres (need to check).
         CalculateField(fieldDetermination,calcAcreFld,"!shape.area@acres!","PYTHON_9.3")
         totalAcres = float("%.1f" % (sum([row[0] for row in SearchCursor(fieldDetermination, (calcAcreFld))])))
-        AddMsgAndPrint("\tTotal Acres: " + str(totalAcres))
+        AddMsgAndPrint(f"\tTotal Acres: {str(totalAcres)}")
 
         # Z-factor conversion Lookup table
         # lookup dictionary to convert XY units to area. Key = XY unit of DEM; Value = conversion factor to sq.meters
@@ -832,8 +830,8 @@ if __name__ == '__main__':
 
         # Compute Summary of original HEL values
         # Intersect fieldDetermination (CLU & AOI) with soils (helLayer) -> finalHELSummary
-        AddMsgAndPrint("\nComputing summary of original HEL Values")
-        SetProgressorLabel("Computing summary of original HEL Values")
+        AddMsgAndPrint('\nComputing summary of original HEL Values')
+        SetProgressorLabel('Computing summary of original HEL Values')
         cluHELintersect_pre = "in_memory" + sep + path.basename(CreateScratchName("cluHELintersect_pre",data_type="FeatureClass",workspace=scratchWS))
 
         # Use the catalog path of the hel layer to avoid using a selection
@@ -848,13 +846,13 @@ if __name__ == '__main__':
         # No modification needed for these acres. The total is used only for this check.
         totalIntAcres = sum([row[0] for row in SearchCursor(finalHELSummary, ("SHAPE@AREA"))]) / acreConversionDict.get(Describe(finalHELSummary).SpatialReference.LinearUnitName)
         if not totalIntAcres:
-            AddMsgAndPrint("\tThere is no overlap between HEL soil layer and CLU Layer. EXITTING!",2)
+            AddMsgAndPrint('\tThere is no overlap between HEL soil layer and CLU Layer. Exiting!',2)
             removeScratchLayers()
             exit()
 
         # Dissolve intersection output by the following fields -> helSummary
-        cluNumberFld = "CLUNBR"
-        dissovleFlds = [cluNumberFld,"TRACTNBR","FARMNBR","COUNTYCD","CALCACRES",helFld]
+        cluNumberFld = 'CLUNBR'
+        dissovleFlds = [cluNumberFld, 'TRACTNBR', 'FARMNBR', 'COUNTYCD', 'CALCACRES', helFld]
 
         # Dissolve the finalHELSummary to report input summary
         Dissolve(finalHELSummary, helSummary, dissovleFlds, "","MULTI_PART", "DISSOLVE_LINES")
@@ -888,13 +886,13 @@ if __name__ == '__main__':
                 if row[0] is None or row[0] == '' or len(row[0]) == 0:
                     nullHEL+=1
                     continue
-                elif row[0] == "HEL":
+                elif row[0] == 'HEL':
                     row[1] = 0
-                elif row[0] == "NHEL":
+                elif row[0] == 'NHEL':
                     row[1] = 1
-                elif row[0] == "PHEL":
+                elif row[0] == 'PHEL':
                     row[1] = 2
-                elif row[0] == "NA":
+                elif row[0] == 'NA':
                     row[1] = 1
                 else:
                     if not str(row[0]) in wrongHELvalues:
@@ -928,22 +926,22 @@ if __name__ == '__main__':
 
         # Inform user about NULL values; Exit if any NULLs exist.
         if nullHEL > 0:
-            AddMsgAndPrint("\n\tERROR: There are " + str(nullHEL) + " polygon(s) with missing HEL values. EXITING!",2)
+            AddMsgAndPrint(f"\n\tERROR: There are {str(nullHEL)} polygon(s) with missing HEL values. Exiting!",2)
             removeScratchLayers()
             exit()
 
         # Inform user about invalid HEL values (not PHEL,HEL, NHEL); Exit if invalid values exist.
         if wrongHELvalues:
-            AddMsgAndPrint("\n\tERROR: There is " + str(len(set(wrongHELvalues))) + " invalid HEL values in HEL Layer:",1)
+            AddMsgAndPrint(f"\n\tERROR: There is {str(len(set(wrongHELvalues)))} invalid HEL values in HEL Layer:",1)
             for wrongVal in set(wrongHELvalues):
-                AddMsgAndPrint("\t\t" + wrongVal)
+                AddMsgAndPrint(f"\t\t{wrongVal}")
             removeScratchLayers()
             exit()
 
         del dissovleFlds,nullHEL,wrongHELvalues
 
         # Report HEl Layer Summary by field
-        AddMsgAndPrint("\n\tSummary by CLU:")
+        AddMsgAndPrint('\n\tSummary by CLU:')
 
         # Create 2 temporary tables to capture summary statistics
         ogHelSummaryStats = "in_memory" + sep + path.basename(CreateScratchName("ogHELSummaryStats",data_type="ArcInfoTable",workspace=scratchWS))
@@ -1034,9 +1032,9 @@ if __name__ == '__main__':
 
                 # Report messages to user; og CLU HEL rating will be reported if bNoPHELvalues is true.
                 if bNoPHELvalues:
-                    AddMsgAndPrint("\n\t\tCLU #: " + str(row[0]) + " - Rating: " + og_cluHELrating)
+                    AddMsgAndPrint(f"\n\t\tCLU #: {str(row[0])} - Rating: {og_cluHELrating}")
                 else:
-                    AddMsgAndPrint("\n\t\tCLU #: " + str(row[0]))
+                    AddMsgAndPrint(f"\n\t\tCLU #: {str(row[0])}")
                 for msg in msgList:
                     AddMsgAndPrint(msg)
 
@@ -1048,24 +1046,24 @@ if __name__ == '__main__':
         # If there are no PHEL Values add helSummary and fieldDetermination layers to ArcMap and prepare 1026 form. Skip geoprocessing.
         if bNoPHELvalues or bSkipGeoprocessing:
             if bNoPHELvalues:
-               AddMsgAndPrint("\n\tThere are no PHEL values in HEL layer",1)
-               AddMsgAndPrint("\tNo Geoprocessing is required.")
+               AddMsgAndPrint('\n\tThere are no PHEL values in HEL layer',1)
+               AddMsgAndPrint('\tNo Geoprocessing is required')
 
             # Only Print this if there are PHEL values but they don't need
             # to be processed; Otherwise it should be captured by above statement.
             if bSkipGeoprocessing and not bNoPHELvalues:
-               AddMsgAndPrint("\n\tHEL values are >= 33.33% or more than 50 acres, or NHEL values are > 66.67%",1)
-               AddMsgAndPrint("\tNo Geoprocessing is required.\n")
+               AddMsgAndPrint('\n\tHEL values are >= 33.33% or more than 50 acres, or NHEL values are > 66.67%',1)
+               AddMsgAndPrint('\tNo Geoprocessing is required\n')
 
             AddLayersToArcMap()
 
             if not populateForm():
-                AddMsgAndPrint("\nFailed to correclty populate NRCS-CPA-026 form",2)
+                AddMsgAndPrint('\nFailed to correclty populate NRCS-CPA-026 form',2)
 
             # Clean up time
-            SetProgressorLabel("")
-            AddMsgAndPrint("\n")
-            RefreshCatalog(scratchWS)
+            SetProgressorLabel('')
+            AddMsgAndPrint('\n')
+            RefreshCatalog(scratchWS) #TODO: not required in Pro
             exit()
 
         # Check and create DEM clip from buffered CLU
@@ -1073,7 +1071,7 @@ if __name__ == '__main__':
         try:
             Describe(inputDEM).baseName
         except:
-            AddMsgAndPrint("\nDEM is required to process PHEL values. EXITING!")
+            AddMsgAndPrint('\nDEM is required to process PHEL values. Exiting!')
             exit()
 
         units,zFactor,dem = extractDEM(inputDEM,zUnits)
@@ -1083,12 +1081,12 @@ if __name__ == '__main__':
         scratchLayers.append(dem)
 
         # Check DEM for NoData overlaps with input CLU fields
-        AddMsgAndPrint("\nChecking input DEM for site coverage...")
+        AddMsgAndPrint('\nChecking input DEM for site coverage...')
         vectorNull = "in_memory" + sep + path.basename(CreateScratchName("vectorNull",data_type="FeatureClass",workspace=scratchWS))
         demCheck = "in_memory" + sep + path.basename(CreateScratchName("demCheck",data_type="FeatureClass",workspace=scratchWS))
 
         # Use Set Null statement to change things with value of 0 to NoData
-        whereClause = "VALUE = 0"
+        whereClause = 'VALUE = 0'
         setNull = SetNull(dem, dem, whereClause)
         scratchLayers.append(SetNull)
 
@@ -1117,26 +1115,26 @@ if __name__ == '__main__':
 
         # If no data warning is True, show error messages
         if nd_warning == True:
-            AddMsgAndPrint("\nInput DEM problem detected! The input DEM may have null data areas covering the input CLU fields!",2)
-            AddMsgAndPrint("\nPHEL map unit and slope analysis is likely to be invalid!",2)
-            AddMsgAndPrint("\nPlease review input DEM data for actual coverage over the site.",2)
-            AddMsgAndPrint("\nIf input DEM does not cover the site, the determination must be made with traditional methods.",2)
+            AddMsgAndPrint('\nInput DEM problem detected! The input DEM may have null data areas covering the input CLU fields!',2)
+            AddMsgAndPrint('\nPHEL map unit and slope analysis is likely to be invalid!',2)
+            AddMsgAndPrint('\nPlease review input DEM data for actual coverage over the site.',2)
+            AddMsgAndPrint('\nIf input DEM does not cover the site, the determination must be made with traditional methods.',2)
         else:
-            AddMsgAndPrint("\nDEM values in site extent are not null. Continuing...")
+            AddMsgAndPrint('\nDEM values in site extent are not null. Continuing...')
 
         del fields, cursor, nd_warning
 
         # Create Slope Layer
         # Perform a minor fill to reduce LiDAR data noise and minor irregularities. Try to use a max fill height of no more than 1 foot, based on input zUnits.
-        SetProgressorLabel("Filling small sinks in DEM")
-        AddMsgAndPrint("\nFilling small sinks in DEM")
-        if zUnits == "Feet":
+        SetProgressorLabel('Filling small sinks in DEM')
+        AddMsgAndPrint('\nFilling small sinks in DEM')
+        if zUnits == 'Feet':
             zLimit = 1
-        elif zUnits == "Meters":
+        elif zUnits == 'Meters':
             zLimit = 0.3048
-        elif zUnits == "Inches":
+        elif zUnits == 'Inches':
             zLimit = 12
-        elif zUnits == "Centimeters":
+        elif zUnits == 'Centimeters':
             zLimit = 30.48
         else:
             # Assume worst case z units of Meters
@@ -1148,36 +1146,36 @@ if __name__ == '__main__':
 
         # 2 Run a FocalMean to smooth the DEM of LiDAR data noise. This should be run prior to creating derivative products.
         # This replaces running FocalMean on the slope layer itself.
-        SetProgressorLabel("Running Focal Statistics on DEM")
-        AddMsgAndPrint("Running Focal Statistics on DEM")
-        preslope = FocalStatistics(filled, NbrRectangle(3,3,"CELL"),"MEAN","DATA")
+        SetProgressorLabel('Running Focal Statistics on DEM')
+        AddMsgAndPrint('Running Focal Statistics on DEM')
+        preslope = FocalStatistics(filled, NbrRectangle(3,3,'CELL'), 'MEAN', 'DATA')
 
         # 3 Create Slope
-        SetProgressorLabel("Creating Slope Derivative")
-        AddMsgAndPrint("\nCreating Slope Derivative")
-        slope = Slope(preslope,"PERCENT_RISE",zFactor)
+        SetProgressorLabel('Creating Slope Derivative')
+        AddMsgAndPrint('\nCreating Slope Derivative')
+        slope = Slope(preslope, 'PERCENT_RISE', zFactor)
 
         # 4 Create Flow Direction and Flow Length
-        SetProgressorLabel("Calculating Flow Direction")
-        AddMsgAndPrint("Calculating Flow Direction")
-        flowDirection = FlowDirection(preslope, "FORCE")
+        SetProgressorLabel('Calculating Flow Direction')
+        AddMsgAndPrint('Calculating Flow Direction')
+        flowDirection = FlowDirection(preslope, 'FORCE')
         scratchLayers.append(flowDirection)
 
         # 5 Calculate Flow Length
-        SetProgressorLabel("Calculating Flow Length")
-        AddMsgAndPrint("Calculating Flow Length")
-        preflowLength = FlowLength(flowDirection,"UPSTREAM", "")
+        SetProgressorLabel('Calculating Flow Length')
+        AddMsgAndPrint('Calculating Flow Length')
+        preflowLength = FlowLength(flowDirection, 'UPSTREAM', '')
         scratchLayers.append(preflowLength)
 
         # 6 Run a focal statistics on flow length
-        SetProgressorLabel("Running Focal Statistics on Flow Length")
-        AddMsgAndPrint("Running Focal Statistics on Flow Length")
-        flowLength = FocalStatistics(preflowLength, NbrRectangle(3,3,"CELL"),"MAXIMUM","DATA")
+        SetProgressorLabel('Running Focal Statistics on Flow Length')
+        AddMsgAndPrint('Running Focal Statistics on Flow Length')
+        flowLength = FocalStatistics(preflowLength, NbrRectangle(3,3,'CELL'), 'MAXIMUM', 'DATA')
         scratchLayers.append(flowLength)
 
         # 7 convert Flow Length distance units to feet if original DEM LINEAR UNITS ARE not in feet.
-        if not units in ('Feet','Foot','Foot_US'):
-            AddMsgAndPrint("Converting Flow Length Distance units to Feet")
+        if not units in ('Feet', 'Foot', 'Foot_US'):
+            AddMsgAndPrint('Converting Flow Length Distance units to Feet')
             flowLengthFT = flowLength * 3.280839896
             scratchLayers.append(flowLengthFT)
         else:
@@ -1190,22 +1188,22 @@ if __name__ == '__main__':
         # Compute LS Factor
         # If Northwest US 'Use Runoff LS Equation' flag was active, use the following equation
         if use_runoff_ls:
-            SetProgressorLabel("Calculating LS Factor")
-            AddMsgAndPrint("Calculating LS Factor")
+            SetProgressorLabel('Calculating LS Factor')
+            AddMsgAndPrint('Calculating LS Factor')
             lsFactor = (Power((flowLengthFT/72.6)*Cos(radians),0.5))*(Power(Sin((radians))/(Sin(5.143*((pi)/180))),0.7))
 
         # Otherwise, use the standard AH537 LS computation
         else:
             # 9 Calculate S Factor
-            SetProgressorLabel("Calculating S Factor")
-            AddMsgAndPrint("\nCalculating S Factor")
+            SetProgressorLabel('Calculating S Factor')
+            AddMsgAndPrint('\nCalculating S Factor')
             # Compute S factor using formula in AH537, pg 12
             sFactor = ((Power(Sin(radians),2)*65.41)+(Sin(radians)*4.56)+(0.065))
             scratchLayers.append(sFactor)
 
             # 10 Calculate L Factor
-            SetProgressorLabel("Calculating L Factor")
-            AddMsgAndPrint("Calculating L Factor")
+            SetProgressorLabel('Calculating L Factor')
+            AddMsgAndPrint('Calculating L Factor')
 
             # Original outlFactor lines
             """outlFactor = Con(Raster(slope),Power(Raster(flowLengthFT) / 72.6,0.2),
@@ -1222,15 +1220,15 @@ if __name__ == '__main__':
             scratchLayers.append(lFactor)
 
             # 11 Calculate LS Factor "%l_factor%" * "%s_factor%"
-            SetProgressorLabel("Calculating LS Factor")
-            AddMsgAndPrint("Calculating LS Factor")
+            SetProgressorLabel('Calculating LS Factor')
+            AddMsgAndPrint('Calculating LS Factor')
             lsFactor = lFactor * sFactor
 
         scratchLayers.append(radians)
         scratchLayers.append(lsFactor)
 
         # Convert K,T & R Factor and HEL Value to Rasters
-        AddMsgAndPrint("\nConverting Vector to Raster for Spatial Analysis Purpose")
+        AddMsgAndPrint('\nConverting Vector to Raster for Spatial Analysis Purpose')
         cellSize = Describe(dem).MeanCellWidth
 
         # This works in 10.5 AND works in 10.6.1 and 10.7 but slows processing
@@ -1240,22 +1238,22 @@ if __name__ == '__main__':
         helValue = CreateScratchName("helValue",data_type="RasterDataset",workspace=scratchWS)
 
         # 12 Convert KFactor to raster
-        SetProgressorLabel("Converting K Factor field to a raster")
-        AddMsgAndPrint("\tConverting K Factor field to a raster")
+        SetProgressorLabel('Converting K Factor field to a raster')
+        AddMsgAndPrint('\tConverting K Factor field to a raster')
         FeatureToRaster(finalHELSummary,kFactorFld,kFactor,cellSize)
 
         # 13 Convert TFactor to raster
-        SetProgressorLabel("Converting T Factor field to a raster")
-        AddMsgAndPrint("\tConverting T Factor field to a raster")
+        SetProgressorLabel('Converting T Factor field to a raster')
+        AddMsgAndPrint('\tConverting T Factor field to a raster')
         FeatureToRaster(finalHELSummary,tFactorFld,tFactor,cellSize)
 
         # 14 Convert RFactor to raster
-        SetProgressorLabel("Converting R Factor field to a raster")
-        AddMsgAndPrint("\tConverting R Factor field to a raster")
+        SetProgressorLabel('Converting R Factor field to a raster')
+        AddMsgAndPrint('\tConverting R Factor field to a raster')
         FeatureToRaster(finalHELSummary,rFactorFld,rFactor,cellSize)
 
-        SetProgressorLabel("Converting HEL Value field to a raster")
-        AddMsgAndPrint("\tConverting HEL Value field to a raster")
+        SetProgressorLabel('Converting HEL Value field to a raster')
+        AddMsgAndPrint('\tConverting HEL Value field to a raster')
         FeatureToRaster(helSummary,HELrasterCode,helValue,cellSize)
 
         scratchLayers.append(kFactor)
@@ -1264,8 +1262,8 @@ if __name__ == '__main__':
         scratchLayers.append(helValue)
 
         # Calculate EI Factor
-        SetProgressorLabel("Calculating EI Factor")
-        AddMsgAndPrint("\nCalculating EI Factor")
+        SetProgressorLabel('Calculating EI Factor')
+        AddMsgAndPrint('\nCalculating EI Factor')
         eiFactor = Divide((lsFactor * kFactor * rFactor),tFactor)
         scratchLayers.append(eiFactor)
 
@@ -1276,44 +1274,44 @@ if __name__ == '__main__':
         # 3) NHEL Value = 2 -- Assign 2 (No action needed)   1
         # Anything above 8 is HEL
 
-        SetProgressorLabel("Calculating HEL Factor")
-        AddMsgAndPrint("Calculating HEL Factor")
-        helFactor = Con(helValue,eiFactor,Con(helValue,9,helValue,"VALUE=0"),"VALUE=2")
+        SetProgressorLabel('Calculating HEL Factor')
+        AddMsgAndPrint('Calculating HEL Factor')
+        helFactor = Con(helValue,eiFactor,Con(helValue,9,helValue,'VALUE=0'),'VALUE=2')
         scratchLayers.append(helFactor)
 
         # Reclassify values:
         #       < 8 = Value_1 = NHEL
         #       > 8 = Value_2 = HEL
-        remapString = "0 8 1;8 100000000 2"
-        Reclassify_3d(helFactor, "VALUE", remapString, lidarHEL,'NODATA')
+        remapString = '0 8 1;8 100000000 2'
+        Reclassify_3d(helFactor, 'VALUE', remapString, lidarHEL, 'NODATA')
 
         # Determine if individual PHEL delineations are HEL/NHEL"""
-        SetProgressorLabel("Computing summary of LiDAR HEL Values:")
-        AddMsgAndPrint("\nComputing summary of LiDAR HEL Values:\n")
+        SetProgressorLabel('Computing summary of LiDAR HEL Values:')
+        AddMsgAndPrint('\nComputing summary of LiDAR HEL Values:\n')
 
         # Summarize new values between HEL soil polygon and lidarHEL raster
         outPolyTabulate = "in_memory" + sep + path.basename(CreateScratchName("HEL_Polygon_Tabulate",data_type="ArcInfoTable",workspace=scratchWS))
         zoneFld = Describe(finalHELSummary).OIDFieldName
-        TabulateArea(finalHELSummary,zoneFld,lidarHEL,"VALUE",outPolyTabulate,cellSize)
+        TabulateArea(finalHELSummary, zoneFld, lidarHEL, 'VALUE', outPolyTabulate, cellSize)
         tabulateFields = [fld.name for fld in ListFields(outPolyTabulate)][2:]
         scratchLayers.append(outPolyTabulate)
 
         # Add 4 fields to Final HEL Summary layer
-        newFields = ['Polygon_Acres','Final_HEL_Value','Final_HEL_Acres','Final_HEL_Percent']
+        newFields = ['Polygon_Acres', 'Final_HEL_Value', 'Final_HEL_Acres', 'Final_HEL_Percent']
         for fld in newFields:
             if not len(ListFields(finalHELSummary,fld)) > 0:
                if fld == 'Final_HEL_Value':
-                  AddField(finalHELSummary,'Final_HEL_Value',"TEXT","","",5)
+                  AddField(finalHELSummary, 'Final_HEL_Value', 'TEXT', '', '', 5)
                else:
-                    AddField(finalHELSummary,fld,"DOUBLE")
+                    AddField(finalHELSummary, fld, 'DOUBLE')
 
         # In some cases, the finalHELSummary layer's OID field name was "OBJECTID_1" which
         # conflicted with the output of the tabulate area table.
-        if zoneFld.find("_") > -1:
+        if zoneFld.find('_') > -1:
             outputJoinFld = zoneFld
         else:
-            outputJoinFld = zoneFld + "_1"
-        JoinField(finalHELSummary,zoneFld,outPolyTabulate,outputJoinFld,tabulateFields)
+            outputJoinFld = f"{zoneFld}_1"
+        JoinField(finalHELSummary, zoneFld, outPolyTabulate, outputJoinFld, tabulateFields)
 
         # Booleans to indicate if only HEL or only NHEL is present
         bOnlyHEL = False; bOnlyNHEL = False
@@ -1323,24 +1321,24 @@ if __name__ == '__main__':
         if len(finalHELSummaryFlds):
 
             # NHEL is not Present - so All is HEL; All is VALUE2
-            if not "VALUE_1" in tabulateFields:
-                AddMsgAndPrint("\tWARNING: Entire Area is HEL",1)
-                AddField(finalHELSummary,"VALUE_1","DOUBLE")
-                CalculateField(finalHELSummary,"VALUE_1",0)
+            if not 'VALUE_1' in tabulateFields:
+                AddMsgAndPrint('\tWARNING: Entire Area is HEL',1)
+                AddField(finalHELSummary, 'VALUE_1', 'DOUBLE')
+                CalculateField(finalHELSummary, 'VALUE_1', 0)
                 bOnlyHEL = True
 
             # HEL is not Present - All is NHEL; All is VALUE1
-            if not "VALUE_2" in tabulateFields:
-                AddMsgAndPrint("\tWARNING: Entire Area is NHEL",1)
-                AddField(finalHELSummary,"VALUE_2","DOUBLE")
-                CalculateField(finalHELSummary,"VALUE_2",0)
+            if not 'VALUE_2' in tabulateFields:
+                AddMsgAndPrint('\tWARNING: Entire Area is NHEL',1)
+                AddField(finalHELSummary, 'VALUE_2', 'DOUBLE')
+                CalculateField(finalHELSummary, 'VALUE_2', 0)
                 bOnlyNHEL = True
         else:
-            AddMsgAndPrint("\n\tReclassifying helFactor Failed",2)
+            AddMsgAndPrint('\n\tReclassifying helFactor Failed', 2)
             exit()
 
-        newFields.append("VALUE_2")
-        newFields.append("SHAPE@AREA")
+        newFields.append('VALUE_2')
+        newFields.append('SHAPE@AREA')
         newFields.append(cluNumberFld)
 
         # this will be used for field determination
@@ -1367,7 +1365,7 @@ if __name__ == '__main__':
 
                 # polygon HEL Pct is greater than 50%; HEL
                 if row[3] > 50.0:
-                    row[1] = "HEL"
+                    row[1] = 'HEL'
                     # Add the HEL polygon acres to the dict
                     if not row[6] in fieldDeterminationDict:
                         fieldDeterminationDict[row[6]] = row[0]
@@ -1376,7 +1374,7 @@ if __name__ == '__main__':
 
                 # polygon HEL Pct is less than 50%; NHEL
                 else:
-                    row[1] = "NHEL"
+                    row[1] = 'NHEL'
                     # Don't Add NHEL polygon acres to dict but place
                     # holder for the clu
                     if not row[6] in fieldDeterminationDict:
@@ -1385,7 +1383,7 @@ if __name__ == '__main__':
                 cursor.updateRow(row)
 
         # Delete unwanted fields from the finalHELSummary Layer
-        newFields.remove("VALUE_2")
+        newFields.remove('VALUE_2')
         validFlds = [cluNumberFld,"STATECD","TRACTNBR","FARMNBR","COUNTYCD","CALCACRES",helFld,"MUSYM","MUNAME","MUWATHEL","MUWNDHEL"] + newFields
 
         deleteFlds = list()
@@ -1437,9 +1435,9 @@ if __name__ == '__main__':
                 clu = row[3]
 
                 if helPct >= 33.33 or helAcres > 50.0:
-                    row[0] = "HEL"
+                    row[0] = 'HEL'
                 else:
-                    row[0] = "NHEL"
+                    row[0] = 'NHEL'
 
                 row[1] = helAcres
                 row[2] = helPct
@@ -1467,10 +1465,10 @@ if __name__ == '__main__':
             nHelAcres = cluDict[clu][3]
             nHelPct = cluDict[clu][5]
             yesOrNo = cluDict[clu][6]
-            AddMsgAndPrint("\tCLU #: " + str(clu))
-            AddMsgAndPrint("\t\tHEL Acres:  " + str(helAcres) + firstSpace + " .ac -- " + str(helPct) + " %")
-            AddMsgAndPrint("\t\tNHEL Acres: " + str(nHelAcres) + secondSpace + " .ac -- " + str(nHelPct) + " %")
-            AddMsgAndPrint("\t\tHEL Determination: " + yesOrNo + "\n")
+            AddMsgAndPrint(f"\tCLU #: {str(clu)}")
+            AddMsgAndPrint(f"\t\tHEL Acres:  {str(helAcres)}{firstSpace} .ac -- {str(helPct)} %")
+            AddMsgAndPrint(f"\t\tNHEL Acres: {str(nHelAcres)}{secondSpace} .ac -- {str(nHelPct)} %")
+            AddMsgAndPrint(f"\t\tHEL Determination: {yesOrNo}\n")
             del firstSpace,secondSpace,helAcres,helPct,nHelAcres,nHelPct,yesOrNo
 
         del fieldList,cluDict,maxHelAcreLength,maxNHelAcreLength
@@ -1479,12 +1477,12 @@ if __name__ == '__main__':
         AddLayersToArcMap()
 
         if not populateForm():
-            AddMsgAndPrint("\nFailed to correclty populate NRCS-CPA-026 form",2)
+            AddMsgAndPrint('\nFailed to correclty populate NRCS-CPA-026 form',2)
 
         # Clean up time
         removeScratchLayers()
-        SetProgressorLabel("")
-        AddMsgAndPrint("\n")
+        SetProgressorLabel('')
+        AddMsgAndPrint('\n')
         RefreshCatalog(scratchWS)
 
     except:
