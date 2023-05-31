@@ -1,13 +1,14 @@
-============================================================================================================================
-UPDATES TO 2019 HEL FOLDER
-============================================================================================================================
-This file documents updates to the 2019 HEL Folder to provide information to users subscribed to the SharePoint folder about
-any changes to the contents of the folder or new version releases of the NRCS HEL Tools.
-
+----------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+This file documents the files that changed within the NRCS HEL ArcMap tool for each new release. It is intended to limit
+the number of files a state or tool administrator needs to update with their users to limit the need for a full reinstall
+within any given update or new release.
+----------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------
 Latest Tools Release:
-v. 2.0.5
-2022-09-09
+v. 2.0.6
+2022-10-31
+- Update files for NRCS_HEL_Determination.py
 
 If  your tools predate this release, then see Release Notes text file for information about what changed as well as any
 special instructions for updating the tools.
@@ -33,13 +34,11 @@ special instructions for updating the tools.
 
 - Updated the HEL.mdb file and the Release Notes file.
 
-
 ----------------------------------------------------------------------------------------------------------------------------
 2019-11-04
 
 - Loaded the Release Notes file to the SharePoint
 - Loaded the Folder Updates file to the SharePoint
-
 
 ----------------------------------------------------------------------------------------------------------------------------
 2019-10-28

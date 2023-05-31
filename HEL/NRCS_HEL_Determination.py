@@ -398,7 +398,7 @@ def createTextFile(Tract,Farm,cluList):
 
         textFileName = "NRCS_HEL_Determination_TRACT(" + str(Tract) + ")_FARM(" + str(Farm) \
                         + ").txt"
-
+        
         textPath = helTextNotesDir + os.sep + textFileName
 
         # Version check
@@ -1155,7 +1155,7 @@ def populateForm():
                     astFIPS = row[2]
                     acoFIPS = row[3]
                     break
-
+            
             # Lookup state and county names from recovered fips codes
             GeoCode = str(stFIPS) + str(coFIPS)
             expression1 = (u"{} = '" + GeoCode + "'").format(arcpy.AddFieldDelimiters(lu_table, 'GEOID'))
@@ -1183,7 +1183,7 @@ def populateForm():
         else:
             GeoLocation = "Not Found"
             AdminLocation = "Not Found"
-
+            
         # Add 20 Fields to the fieldDetermination feature class
         remarks_txt = r'This Highly Erodible Land determination was conducted offsite using the soil survey. If PHEL soil map units were present, they may have been evaluated using elevation data.'
         fieldDict = {"Signature":("TEXT",dcSignature,50),"SoilAvailable":("TEXT","Yes",5),"Completion":("TEXT","Office",10),
@@ -1234,7 +1234,7 @@ def populateForm():
     except:
         return False
         errorMsg()
-
+    
 ## ================================================================================================================
 def configLayout():
     # This function will gather and update information for elements of the map layout
@@ -1253,7 +1253,7 @@ def configLayout():
         # end function if lookup table from tool parameters does not exist
         if not arcpy.Exists(lu_table):
             return False
-
+            
         # Get CLU information from first row of the cluLayer.
         # All CLU records should have this info, so break after one record.
         with arcpy.da.SearchCursor(fieldDetermination, ['statecd','countycd','farmnbr','tractnbr']) as cursor:
@@ -1274,7 +1274,7 @@ def configLayout():
                 state = row[2]
                 # We should only get one result if using installed lookup table from US Census Tiger table, so break
                 break
-
+            
         # Find and hook map layout elements to variables
         for elm in arcpy.mapping.ListLayoutElements(mxd):
             if elm.name == "farm_txt":
@@ -1314,13 +1314,13 @@ def configLayout():
 
     except:
         return False
-
+    
 ## =========================================================== Main Body ========================================================
 import sys, string, os, traceback, re
 import arcpy, subprocess, getpass, time
 from arcpy import env
 from arcpy.sa import *
-reload(sys)
+reload(sys)             
 sys.setdefaultencoding('utf-8')
 
 
@@ -1335,7 +1335,7 @@ if __name__ == '__main__':
         input_cust = arcpy.GetParameterAsText(5)
         use_runoff_ls = arcpy.GetParameter(6)
         #use_runoff_ls = False      ## Used for testing when not set as a parameter
-
+        
         ## 8/20/2019 - Observation: stateThreshold is not used anywhere in the code. Was intended as a PHEL predominance % paramter.
         ##Commenting it out for now.
         #stateThreshold = 50
@@ -1788,7 +1788,7 @@ if __name__ == '__main__':
            sys.exit()
         scratchLayers.append(dem)
 
-        ### ----------------------------------------------------------------------------------------------------------------------------- Set Snap Raster
+        ### ----------------------------------------------------------------------------------------------------------------------------- Set Snap Raster 
         # Disabled for now due to shifting soils results.
         # Investigating change so that soil derived rasters exist first and are the snap rasters (9/16/2019)
         #arcpy.env.snapRaster = dem
@@ -1828,10 +1828,10 @@ if __name__ == '__main__':
 
         # If no data warning is True, show error messages
         if nd_warning == True:
-            AddMsgAndPrint("\nInput DEM problem detected! The input DEM may have null data areas covering the input CLU fields!",2)
-            AddMsgAndPrint("\nPHEL map unit and slope analysis is likely to be invalid!",2)
-            AddMsgAndPrint("\nPlease review input DEM data for actual coverage over the site.",2)
-            AddMsgAndPrint("\nIf input DEM does not cover the site, the determination must be made with traditional methods.",2)
+            AddMsgAndPrint("\nInput DEM problem detected! The input DEM may have null data areas covering the input CLU fields!",1)
+            AddMsgAndPrint("\nReview input and output rasters over PHEL map units carefully!",1)
+            #AddMsgAndPrint("\nPlease review input DEM data for actual coverage over the site.",1)
+            AddMsgAndPrint("\nIf input DEM does not cover the site, the determination must be made with traditional methods.",1)
         else:
             AddMsgAndPrint("\nDEM values in site extent are not null. Continuing...")
 
@@ -1854,19 +1854,18 @@ if __name__ == '__main__':
             # Assume worst case z units of Meters
             zLimit = 0.3048
 
-        #1 Perform the fill using the zLimit as the max fill amount
+        # Perform the fill using the zLimit as the max fill amount
         filled = Fill(dem, zLimit)
         scratchLayers.append(filled)
 
-        #2 Run a FocalMean to smooth the DEM of LiDAR data noise. This should be run prior to creating derivative products.
+        # Run a FocalMean to smooth the DEM of LiDAR data noise. This should be run prior to creating derivative products.
         # This replaces running FocalMean on the slope layer itself.
         arcpy.SetProgressorLabel("Running Focal Statistics on DEM")
         AddMsgAndPrint("Running Focal Statistics on DEM")
-        #slope = arcpy.CreateScratchName("focStatsMean_DemFilled",data_type="RasterDataset",workspace=scratchWS)
+        #slope = arcpy.CreateScratchName("focStatsMean_Slope",data_type="RasterDataset",workspace=scratchWS)
         preslope = FocalStatistics(filled, NbrRectangle(3,3,"CELL"),"MEAN","DATA")
         #outFocalStatistics.save(slope)
 
-        #3 Create Slope
         arcpy.SetProgressorLabel("Creating Slope Derivative")
         AddMsgAndPrint("\nCreating Slope Derivative")
         #preslope = arcpy.CreateScratchName("preslope",data_type="RasterDataset",workspace=scratchWS)
@@ -1881,9 +1880,8 @@ if __name__ == '__main__':
 ##        slope = FocalStatistics(preslope, NbrRectangle(3,3,"CELL"),"MEAN","DATA")
 ##        #outFocalStatistics.save(slope)
 ###### REMOVED IN FAVOR OF FOCAL MEAN ON DEM PRIOR TO RUNNING SLOPE ######
-
+        
         ### ------------------------------------------------------------------------------------------------------------ Create Flow Direction and Flow Length
-        #4 Calculate Flow direction
         arcpy.SetProgressorLabel("Calculating Flow Direction")
         AddMsgAndPrint("Calculating Flow Direction")
         #flowDirection = arcpy.CreateScratchName("flowDirection",data_type="RasterDataset",workspace=scratchWS)
@@ -1892,7 +1890,6 @@ if __name__ == '__main__':
         #outFlowDirection.save(flowDirection)
         scratchLayers.append(flowDirection)
 
-        #5 Calculate Flow Length
         arcpy.SetProgressorLabel("Calculating Flow Length")
         AddMsgAndPrint("Calculating Flow Length")
         #preflowLength = arcpy.CreateScratchName("flowLength",data_type="RasterDataset",workspace=scratchWS)
@@ -1900,7 +1897,7 @@ if __name__ == '__main__':
         scratchLayers.append(preflowLength)
         #outpreFlowLength.save(preflowLength)
 
-        #6 Run a focal statistics on flow length
+        # Run a focal statistics on flow length
         arcpy.SetProgressorLabel("Running Focal Statistics on Flow Length")
         AddMsgAndPrint("Running Focal Statistics on Flow Length")
         #flowLength = arcpy.CreateScratchName("focStatsMax_FlowLength",data_type="RasterDataset",workspace=scratchWS)
@@ -1908,7 +1905,7 @@ if __name__ == '__main__':
         #outFocalStatistics.save(flowLength)
         scratchLayers.append(flowLength)
 
-        #7 convert Flow Length distance units to feet if original DEM LINEAR UNITS ARE not in feet.
+        # convert Flow Length distance units to feet if original DEM LINEAR UNITS ARE not in feet.
         # Change this zUnits reference!
         #if not zUnits in ('Feet','Foot','Foot_US'):
         if not units in ('Feet','Foot','Foot_US'):
@@ -1924,8 +1921,8 @@ if __name__ == '__main__':
             scratchLayers.append(flowLengthFT)
 
         ### --------------------------------------------------------------------------------------------------------------- Calculate LS Factor
-
-        #8 Convert slope percent to radians for use in various LS equations
+        
+        # Convert slope percent to radians for use in various LS equations
         radians = ATan(Times(slope,0.01))
 
         # ----------------------------------------------------------------------------- Compute LS Factor
@@ -1937,14 +1934,14 @@ if __name__ == '__main__':
 
         # Otherwise, use the standard AH537 LS computation
         else:
-            #9 ------------------------------------------------------------------------------- Calculate S Factor
+            # ------------------------------------------------------------------------------- Calculate S Factor
             arcpy.SetProgressorLabel("Calculating S Factor")
             AddMsgAndPrint("\nCalculating S Factor")
             # Compute S factor using formula in AH537, pg 12
             sFactor = ((Power(Sin(radians),2)*65.41)+(Sin(radians)*4.56)+(0.065))
             scratchLayers.append(sFactor)
 
-            #10 ------------------------------------------------------------------------------ Calculate L Factor
+            # ------------------------------------------------------------------------------ Calculate L Factor
             arcpy.SetProgressorLabel("Calculating L Factor")
             AddMsgAndPrint("Calculating L Factor")
             #lFactor = arcpy.CreateScratchName("lFactor",data_type="RasterDataset",workspace=scratchWS)
@@ -1965,13 +1962,13 @@ if __name__ == '__main__':
             scratchLayers.append(lFactor)
 
             # ----------------------------------------------------------------------------- Calculate LS Factor
-            #11 "%l_factor%" * "%s_factor%"
+            # "%l_factor%" * "%s_factor%"
             arcpy.SetProgressorLabel("Calculating LS Factor")
             AddMsgAndPrint("Calculating LS Factor")
             #lsFactor = arcpy.CreateScratchName("lsFactor",data_type="RasterDataset",workspace=scratchWS)
             #outlsFactor = Raster(lFactor) * Raster(sFactor)  ## Original Line
             lsFactor = lFactor * sFactor
-            #outlsFactor.save(lsFactor)
+            #outlsFactor.save(lsFactor)            
 
         scratchLayers.append(radians)
         scratchLayers.append(lsFactor)
@@ -1992,17 +1989,14 @@ if __name__ == '__main__':
         rFactor = arcpy.CreateScratchName("rFactor",data_type="RasterDataset",workspace=scratchWS)
         helValue = arcpy.CreateScratchName("helValue",data_type="RasterDataset",workspace=scratchWS)
 
-        #12 Convert KFactor to raster
         arcpy.SetProgressorLabel("Converting K Factor field to a raster")
         AddMsgAndPrint("\tConverting K Factor field to a raster")
         arcpy.FeatureToRaster_conversion(finalHELSummary,kFactorFld,kFactor,cellSize)
 
-        #13 Convert TFactor to raster
         arcpy.SetProgressorLabel("Converting T Factor field to a raster")
         AddMsgAndPrint("\tConverting T Factor field to a raster")
         arcpy.FeatureToRaster_conversion(finalHELSummary,tFactorFld,tFactor,cellSize)
 
-        #14 Convert RFactor to raster
         arcpy.SetProgressorLabel("Converting R Factor field to a raster")
         AddMsgAndPrint("\tConverting R Factor field to a raster")
         arcpy.FeatureToRaster_conversion(finalHELSummary,rFactorFld,rFactor,cellSize)
