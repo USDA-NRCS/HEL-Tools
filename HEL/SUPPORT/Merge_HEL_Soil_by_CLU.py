@@ -3,24 +3,34 @@ from sys import argv, exit
 
 from arcpy import AddError, AddMessage, env, Exists, GetParameterAsText, ListFields, SetParameterAsText
 from arcpy.analysis import Clip
-from arcpy.management import Delete, Merge
+from arcpy.management import CreateFileGDB, Delete, Merge
 
-
-# Geoprocessing Environment Settings
-env.overwriteOutput = True
 
 # Tool Inputs
 source_clu = GetParameterAsText(0)
 source_soils = GetParameterAsText(1).split(';')
 
-# Variables
-temp_soil = path.join(path.dirname(argv[0]), 'HEL.mdb', 'temp_soil')
-merged_soil = path.join(path.dirname(argv[0]), 'HEL.mdb', 'Merged_HEL_Soil')
+# Paths to SCRATCH.gdb features
+scratch_gdb = path.join(path.dirname(argv[0]), 'SCRATCH.gdb')
+temp_soil = path.join(scratch_gdb, 'temp_soil')
+merged_soil = path.join(scratch_gdb, 'Merged_HEL_Soil')
 
-# Make sure at least 2 datasets to be merged were entered
-if len(source_soils) < 2:
-    AddError('Only one input soil layer selected. If you need multiple layers, please run again and select multiple soil layers... Exiting')
-    exit()
+# Create SCRATCH.gdb if needed, clear any existing features otherwise
+if not Exists(scratch_gdb):
+    try:
+        CreateFileGDB(path.dirname(argv[0]), 'SCRATCH.gdb')
+    except Exception:
+        AddError('Failed to create SCRATCH.gdb in install location... Exiting')
+        exit()
+else:
+    scratch_features = [temp_soil, merged_soil]
+    for feature in scratch_features:
+        if Exists(feature):
+            Delete(feature)
+
+# Geoprocessing Environment Settings
+env.workspace = scratch_gdb
+env.overwriteOutput = True
 
 # List of valid HEL soil layer schema for the tool (in lower case for comparative purposes)
 schema = ['areasymbol', 'spatialver', 'musym', 'muname', 'muhelcl', 't', 'k', 'r']
