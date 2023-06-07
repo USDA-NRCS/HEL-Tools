@@ -1,7 +1,6 @@
 from datetime import date
 from getpass import getuser
 from os import makedirs, path, startfile
-from subprocess import Popen
 from sys import argv, exc_info
 from time import ctime
 from traceback import format_exception
@@ -465,7 +464,7 @@ def removeScratchLayers(scratchLayers):
 #         errorMsg()
 
 
-def populateForm(fieldDetermination, lu_table, dcSignature, input_cust, bAccess, msAccessPath, helDatabase):
+def populateForm(fieldDetermination, lu_table, dcSignature, input_cust, helDatabase):
     """ This function will prepare the 1026 form by adding 16 fields to the fieldDetermination feauture class. This function will
         still be invoked even if there was no geoprocessing executed due to no PHEL values to be computed. If bNoPHELvalues is true,
         3 fields will be added that otherwise would've been added after HEL geoprocessing. However, values to these fields will be
@@ -556,25 +555,12 @@ def populateForm(fieldDetermination, lu_table, dcSignature, input_cust, bAccess,
                 expression = '\'' + params[1] + '\''
                 CalculateField(fieldDetermination, field, expression, 'VB') #TODO: Change to Python expression
 
-        if bAccess:
-            AddMsgAndPrint('\tOpening NRCS-CPA-026 Form')
-            try:
-                Popen([msAccessPath, helDatabase])
-            except:
-                try:
-                    startfile(helDatabase)
-                except:
-                    AddMsgAndPrint('\tCould not locate the Microsoft Access Software', 1)
-                    AddMsgAndPrint('\tOpen Microsoft Access manually to access the NRCS-CPA-026 Form', 1)
-                    SetProgressorLabel('Could not locate the Microsoft Access Software')
-        else:
-            AddMsgAndPrint('\tOpening NRCS-CPA-026 Form')
-            try:
-                startfile(helDatabase)
-            except:
-                AddMsgAndPrint('\tCould not locate the Microsoft Access Software', 1)
-                AddMsgAndPrint('\tOpen Microsoft Access manually to access the NRCS-CPA-026 Form', 1)
-                SetProgressorLabel('Could not locate the Microsoft Access Software')
+        AddMsgAndPrint('\tOpening NRCS-CPA-026 Form')
+        try:
+            startfile(helDatabase)
+        except:
+            AddMsgAndPrint('\tCould not locate the Microsoft Word', 1)
+            AddMsgAndPrint('\tOpen Microsoft Word manually to access the NRCS-CPA-026 Form', 1)
 
         return True
     except:

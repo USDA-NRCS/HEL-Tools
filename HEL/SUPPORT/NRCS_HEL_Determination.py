@@ -1,10 +1,9 @@
 from math import pi
-from os import path, remove, system
-from sys import argv, exit, getwindowsversion
-from time import sleep
+from os import path
+from sys import exit
 
 from arcpy import CheckExtension, CheckOutExtension, CreateScratchName, Describe, env, Exists, GetParameter, \
-    GetParameterAsText, ListFields, Reclassify_3d, RefreshCatalog, SetProgressorLabel
+    GetParameterAsText, ListFields, Reclassify_3d, SetProgressorLabel
 
 from arcpy.analysis import Clip as Clip_a, Intersect, Statistics
 from arcpy.conversion import FeatureToRaster, RasterToPolygon
@@ -16,7 +15,7 @@ from arcpy.management import AddField, CalculateField, CopyFeatures, CreateFileG
 from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, FocalStatistics, IsNull, NbrRectangle, \
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
-from hel_utils import AddMsgAndPrint, configLayout, createTextFile, errorMsg, extractDEM, FindField, populateForm, removeScratchLayers
+from hel_utils import AddMsgAndPrint, createTextFile, errorMsg, extractDEM, FindField, removeScratchLayers
 
 
 try:
@@ -36,27 +35,14 @@ try:
     SetProgressorLabel('Checking input values and environments')
     AddMsgAndPrint('\nChecking input values and environments')
 
-    # Check HEL Access Database
-    helDatabase = path.join(path.dirname(argv[0]), r'HEL.mdb')
+    # TODO: Outputs need to go in project output gdb, read others from SUPPORT
+    base_dir = path.abspath(path.dirname(__file__)) #\SUPPORT
+    helDatabase = path.join(base_dir, 'SUPPORT.gdb')
     if not Exists(helDatabase):
-        AddMsgAndPrint('\nHEL Access Database does not exist in the same path as HEL Tools', 2)
+        AddMsgAndPrint('\nSUPPORT.gdb does not exist in the same path as HEL Tools', 2)
         exit()
     # Also define the lu_table, but it's still ok to continue if it's not present
-    lu_table = path.join(path.dirname(argv[0]), r'census_fips_lut.dbf')
-
-    # Close Microsoft Access Database software if it is open.
-    # forcibly kill image name msaccess if open. remove access record-locking information
-    try:
-        killAccess = system('TASKKILL /F /IM msaccess.exe')
-        if killAccess == 0:
-            AddMsgAndPrint('\tMicrosoft Access was closed in order to continue')
-        accessLockFile = path.join(path.dirname(argv[0]), r'HEL.ldb')
-        if path.exists(accessLockFile):
-            remove(accessLockFile)
-        sleep(2)
-    except:
-        sleep(2)
-        pass
+    lu_table = path.join(helDatabase, r'lut_census_fips')
 
     # Establish path to access database layers
     fieldDetermination = path.join(helDatabase, r'Field_Determination')
@@ -73,22 +59,6 @@ try:
                 newName = str(layer)
                 newName = CreateScratchName(path.basename(layer), data_type='FeatureClass', workspace=helDatabase)
 
-    # Determine Microsoft Access path from windows version
-    bAccess = True
-    winVersion = getwindowsversion()
-    # Windows 10
-    if winVersion.build == 9200:
-        msAccessPath = r'C:\Program Files (x86)\Microsoft Office\root\Office16\MSACCESS.EXE'
-    # Windows 7
-    elif winVersion.build == 7601:
-        msAccessPath = r'C:\Program Files (x86)\Microsoft Office\Office15\MSACCESS.EXE'
-    else:
-        AddMsgAndPrint('\nCould not determine Windows version, will not populate 026 Form', 2)
-        bAccess = False
-    if bAccess and not path.isfile(msAccessPath):
-        bAccess = False
-
-    # Checkout Spatial Analyst Extension and set scratch workspace
     # TODO: Move this extension check to tool validation
     try:
         if CheckExtension('Spatial') == 'Available':
@@ -101,9 +71,9 @@ try:
     env.overwriteOutput = True
 
     # define and set the scratch workspace
-    scratchWS = path.join(path.dirname(argv[0]), r'scratch.gdb')
+    scratchWS = path.join(base_dir, r'scratch.gdb')
     if not Exists(scratchWS):
-        CreateFileGDB(path.dirname(argv[0]), r'scratch.gdb')
+        CreateFileGDB(base_dir, r'scratch.gdb')
 
     if not scratchWS:
         AddMsgAndPrint('\nCould Not set scratchWorkspace!')
@@ -143,7 +113,8 @@ try:
     textFilePath = createTextFile(uniqueTracts[0], uniqueFarm[0], uniqueFields)
 
     # Update the map layout for the current site being run
-    configLayout(lu_table, fieldDetermination, input_cust)
+    # TODO: make into separate tool
+    # configLayout(lu_table, fieldDetermination, input_cust)
 
     AddMsgAndPrint(f"\nNumber of CLU fields selected: {len(cluDesc.FIDset.split(';'))}", textFilePath=textFilePath)
 
@@ -406,13 +377,13 @@ try:
 
         # AddLayersToArcMap()
 
-        if not populateForm(fieldDetermination, lu_table, dcSignature, input_cust, bAccess, msAccessPath, helDatabase):
-            AddMsgAndPrint('\nFailed to correclty populate NRCS-CPA-026 form', 2, textFilePath=textFilePath)
+        # TODO: make into separate tool
+        # if not populateForm(fieldDetermination, lu_table, dcSignature, input_cust, helDatabase):
+        #     AddMsgAndPrint('\nFailed to correclty populate NRCS-CPA-026 form', 2, textFilePath=textFilePath)
 
         # Clean up time
         SetProgressorLabel('')
         AddMsgAndPrint('\n', textFilePath=textFilePath)
-        RefreshCatalog(scratchWS) #TODO: not required in Pro
         exit()
 
     # Check and create DEM clip from buffered CLU
@@ -825,14 +796,14 @@ try:
     # Prepare Symboloby for ArcMap and 1026 form
     # AddLayersToArcMap()
 
-    if not populateForm(fieldDetermination, lu_table, dcSignature, input_cust, bAccess, msAccessPath, helDatabase):
-        AddMsgAndPrint('\nFailed to correclty populate NRCS-CPA-026 form', 2, textFilePath=textFilePath)
+    # TODO: make into separate tool
+    # if not populateForm(fieldDetermination, lu_table, dcSignature, input_cust, helDatabase):
+    #     AddMsgAndPrint('\nFailed to correclty populate NRCS-CPA-026 form', 2, textFilePath=textFilePath)
 
     # Clean up time
     removeScratchLayers(scratchLayers)
     SetProgressorLabel('')
     AddMsgAndPrint('\n', textFilePath=textFilePath)
-    RefreshCatalog(scratchWS) #probably not needed in pro
 
 except:
     removeScratchLayers(scratchLayers)
