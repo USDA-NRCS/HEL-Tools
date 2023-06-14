@@ -23,9 +23,9 @@ try:
     helLayer = GetParameter(1)
     inputDEM = GetParameter(2)
     zUnits = GetParameterAsText(3)
-    dcSignature = GetParameterAsText(4)
-    input_cust = GetParameterAsText(5)
-    use_runoff_ls = GetParameter(6)
+    # dcSignature = GetParameterAsText(4) #TODO: Move these to forms and letters tool
+    # input_cust = GetParameterAsText(5)
+    use_runoff_ls = GetParameter(4)
 
     kFactorFld = 'K'
     tFactorFld = 'T'
