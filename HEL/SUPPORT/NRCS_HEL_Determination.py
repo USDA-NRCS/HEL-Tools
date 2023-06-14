@@ -59,14 +59,6 @@ try:
                 newName = str(layer)
                 newName = CreateScratchName(path.basename(layer), data_type='FeatureClass', workspace=helDatabase)
 
-    # TODO: Move this extension check to tool validation
-    try:
-        if CheckExtension('Spatial') == 'Available':
-            CheckOutExtension('Spatial')
-    except Exception:
-        AddMsgAndPrint('\n\nSpatial Analyst license is unavailable.  Go to Customize -> Extensions to activate it. Exiting!', 2)
-        exit()
-
     # Set overwrite option
     env.overwriteOutput = True
 
