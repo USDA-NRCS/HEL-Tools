@@ -5,7 +5,7 @@ from sys import argv, exc_info
 from time import ctime
 from traceback import format_exception
 
-from arcpy import AddError, AddFieldDelimiters, AddMessage, AddWarning, CreateScratchName, Describe, env, Exists, GetInstallInfo, \
+from arcpy import AddError, AddFieldDelimiters, AddMessage, AddWarning, CreateScratchName, Describe, env, Exists, \
     ListFields, ParseFieldName, SetProgressor, SetProgressorLabel, SpatialReference
 
 from arcpy.analysis import Buffer
@@ -14,9 +14,9 @@ from arcpy.da import SearchCursor, UpdateCursor
 from arcpy.management import AddField, CalculateField, Clip as Clip_m, Delete, MakeRasterLayer, ProjectRaster, SelectLayerByAttribute
 
 # TODO: All arcpy.mapping must be converted to arcpy.mp (MapDocument --> ArcGISProject)
-from arcpy.mapping import AddLayer, Layer, ListDataFrames, ListLayoutElements, ListLayers, MapDocument, RefreshActiveView, \
-    RefreshTOC, RemoveLayer, UpdateLayer
-#from arcpy.mp import ArcGISProject, LayerFile
+# from arcpy.mapping import AddLayer, Layer, ListDataFrames, ListLayoutElements, ListLayers, MapDocument, RefreshActiveView, \
+#     RefreshTOC, RemoveLayer, UpdateLayer
+# from arcpy.mp import ArcGISProject, LayerFile
 
 
 def AddMsgAndPrint(msg, severity=0, textFilePath=None):
@@ -67,17 +67,11 @@ def createTextFile(tract, farm):
            makedirs(helTextNotesDir)
         textFileName = f"NRCS_HEL_Determination_TRACT({str(tract)})_FARM({str(farm)}).txt"
         textPath = path.join(helTextNotesDir, textFileName)
-        # Version check
-        version = str(GetInstallInfo()['Version'])
-        versionFlt = float(version[0:4])
-        if versionFlt < 10.3:
-            AddMsgAndPrint("\nThis tool has only been tested on ArcGIS version 10.4 or greater", 1)
         f = open(textPath,'a+')
         f.write('#' * 80 + "\n")
         f.write("NRCS HEL Determination Tool\n")
         f.write(f"User Name: {getuser()}\n")
         f.write(f"Date Executed: {ctime()}\n")
-        f.write(f"ArcGIS Version: {str(version)}\n")
         f.close
         return textPath
     except:
@@ -567,75 +561,75 @@ def populateForm(fieldDetermination, lu_table, dcSignature, input_cust, helDatab
         return False
 
 
-def configLayout(lu_table, fieldDetermination, input_cust):
-    """ This function will gather and update information for elements of the map layout"""
-    try:
-        # Confirm Map Doc existence
-        mxd = MapDocument('CURRENT')
-        #project = ArcGISProject('CURRENT')
-        # Set starting variables as empty for logical comparison later on, prior to updating layout
-        farmNum = ''
-        trNum = ''
-        county = ''
-        state = ''
+# def configLayout(lu_table, fieldDetermination, input_cust):
+#     """ This function will gather and update information for elements of the map layout"""
+#     try:
+#         # Confirm Map Doc existence
+#         mxd = MapDocument('CURRENT')
+#         #project = ArcGISProject('CURRENT')
+#         # Set starting variables as empty for logical comparison later on, prior to updating layout
+#         farmNum = ''
+#         trNum = ''
+#         county = ''
+#         state = ''
 
-        # end function if lookup table from tool parameters does not exist
-        if not Exists(lu_table):
-            return False
+#         # end function if lookup table from tool parameters does not exist
+#         if not Exists(lu_table):
+#             return False
 
-        # Get CLU information from first row of the cluLayer.
-        # All CLU records should have this info, so break after one record.
-        with SearchCursor(fieldDetermination, ['statecd', 'countycd', 'farmnbr', 'tractnbr']) as cursor:
-            for row in cursor:
-                stCD = row[0]
-                coCD = row[1]
-                farmNum = row[2]
-                trNum = row[3]
-                break
+#         # Get CLU information from first row of the cluLayer.
+#         # All CLU records should have this info, so break after one record.
+#         with SearchCursor(fieldDetermination, ['statecd', 'countycd', 'farmnbr', 'tractnbr']) as cursor:
+#             for row in cursor:
+#                 stCD = row[0]
+#                 coCD = row[1]
+#                 farmNum = row[2]
+#                 trNum = row[3]
+#                 break
 
-        # Lookup state and county name
-        stco_code = str(stCD) + str(coCD)
-        expression = ("{} = '" + stco_code + "'").format(AddFieldDelimiters(lu_table, 'GEOID'))
-        with SearchCursor(lu_table, ['GEOID', 'NAME', 'STPOSTAL'], where_clause=expression) as cursor:
-            for row in cursor:
-                county = row[1]
-                state = row[2]
-                # We should only get one result if using installed lookup table from US Census Tiger table, so break
-                break
+#         # Lookup state and county name
+#         stco_code = str(stCD) + str(coCD)
+#         expression = ("{} = '" + stco_code + "'").format(AddFieldDelimiters(lu_table, 'GEOID'))
+#         with SearchCursor(lu_table, ['GEOID', 'NAME', 'STPOSTAL'], where_clause=expression) as cursor:
+#             for row in cursor:
+#                 county = row[1]
+#                 state = row[2]
+#                 # We should only get one result if using installed lookup table from US Census Tiger table, so break
+#                 break
 
-        # Find and hook map layout elements to variables
-        for elm in ListLayoutElements(mxd):
-        #for elm in project.listLayouts() #pro
-            if elm.name == 'farm_txt':
-                farm_ele = elm
-            if elm.name == 'tract_txt':
-                tract_ele = elm
-            if elm.name == 'customer_txt':
-                customer_ele = elm
-            if elm.name == 'county_txt':
-                county_ele = elm
-            if elm.name == 'state_txt':
-                state_ele = elm #Not used anywhere?
+#         # Find and hook map layout elements to variables
+#         for elm in ListLayoutElements(mxd):
+#         #for elm in project.listLayouts() #pro
+#             if elm.name == 'farm_txt':
+#                 farm_ele = elm
+#             if elm.name == 'tract_txt':
+#                 tract_ele = elm
+#             if elm.name == 'customer_txt':
+#                 customer_ele = elm
+#             if elm.name == 'county_txt':
+#                 county_ele = elm
+#             if elm.name == 'state_txt':
+#                 state_ele = elm #Not used anywhere?
 
-        # Configure the text boxes
-        # If any of the info is missing, the script still runs and boxes are reset to a manual entry prompt
-        if farmNum != '':
-            farm_ele.text = f"Farm: {str(farmNum)}"
-        else:
-            farm_ele.text = 'Farm: <dbl-click to enter>'
-        if trNum != '':
-            tract_ele.text = f"Tract: {str(trNum)}"
-        else:
-            tract_ele.text = 'Tract: <dbl-click to enter>'
-        if input_cust != '':
-            customer_ele.text = f"Customer(s): {str(input_cust)}"
-        else:
-            customer_ele.text = 'Customer(s): <dbl-click to enter>'
-        if county != '':
-            county_ele.text = f"County: {str(county)}, {str(state)}"
-        else:
-            county_ele.text = 'County: <dbl-click to enter>'
+#         # Configure the text boxes
+#         # If any of the info is missing, the script still runs and boxes are reset to a manual entry prompt
+#         if farmNum != '':
+#             farm_ele.text = f"Farm: {str(farmNum)}"
+#         else:
+#             farm_ele.text = 'Farm: <dbl-click to enter>'
+#         if trNum != '':
+#             tract_ele.text = f"Tract: {str(trNum)}"
+#         else:
+#             tract_ele.text = 'Tract: <dbl-click to enter>'
+#         if input_cust != '':
+#             customer_ele.text = f"Customer(s): {str(input_cust)}"
+#         else:
+#             customer_ele.text = 'Customer(s): <dbl-click to enter>'
+#         if county != '':
+#             county_ele.text = f"County: {str(county)}, {str(state)}"
+#         else:
+#             county_ele.text = 'County: <dbl-click to enter>'
 
-        return True
-    except:
-        return False
+#         return True
+#     except:
+#         return False
