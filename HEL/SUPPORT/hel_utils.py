@@ -311,151 +311,157 @@ def removeScratchLayers(scratchLayers):
 
 
 # TODO: Needs to be converted to Pro
-# def AddLayersToArcMap():
-#     """ Adds necessary layers to ArcMap. If no PHEL Values were present only 2 layers will be added: Initial HEL Summary
-#         and Field Determination. If PHEL values were processed than all 4 layers will be added. This function does not
-#         utilize the setParameterastext function to add layers to arcmap through the toolbox."""
-#     try:
-#         # Add 3 fields to the field determination layer and populate them
-#         # from ogCLUinfoDict and 4 fields to the Final HEL Summary layer that
-#         # otherwise would've been added after geoprocessing was successful.
-#         if bNoPHELvalues or bSkipGeoprocessing:
+def AddLayersToArcMap():
+    """ Adds necessary layers to ArcMap. If no PHEL Values were present only 2 layers will be added: Initial HEL Summary
+        and Field Determination. If PHEL values were processed than all 4 layers will be added. This function does not
+        utilize the setParameterastext function to add layers to arcmap through the toolbox."""
+    try:
+        # Add 3 fields to the field determination layer and populate them
+        # from ogCLUinfoDict and 4 fields to the Final HEL Summary layer that
+        # otherwise would've been added after geoprocessing was successful.
+        if bNoPHELvalues or bSkipGeoprocessing:
+            # TODO: Need to include AddFields
+            # Add 3 fields to fieldDetermination layer
+            fieldList = ['HEL_YES', 'HEL_Acres', 'HEL_Pct']
+            for field in fieldList:
+                if not FindField(fieldDetermination, field):
+                    if field == 'HEL_YES':
+                        AddField(fieldDetermination, field, 'TEXT', '', '', 5)
+                    else:
+                        AddField(fieldDetermination, field, 'FLOAT')
+            fieldList.append(cluNumberFld)
 
-#             # Add 3 fields to fieldDetermination layer
-#             fieldList = ['HEL_YES', 'HEL_Acres', 'HEL_Pct']
-#             for field in fieldList:
-#                 if not FindField(fieldDetermination, field):
-#                     if field == 'HEL_YES':
-#                         AddField(fieldDetermination, field, 'TEXT', '', '', 5)
-#                     else:
-#                         AddField(fieldDetermination, field, 'FLOAT')
-#             fieldList.append(cluNumberFld)
+            # Update new fields using ogCLUinfoDict
+            with UpdateCursor(fieldDetermination, fieldList) as cursor:
+                for row in cursor:
+                    row[0] = ogCLUinfoDict.get(row[3])[0]   # "HEL_YES" value
+                    row[1] = ogCLUinfoDict.get(row[3])[1]   # "HEL_Acres" value
+                    row[2] = ogCLUinfoDict.get(row[3])[2]   # "HEL_Pct" value
+                    cursor.updateRow(row)
 
-#             # Update new fields using ogCLUinfoDict
-#             with UpdateCursor(fieldDetermination, fieldList) as cursor:
-#                 for row in cursor:
-#                     row[0] = ogCLUinfoDict.get(row[3])[0]   # "HEL_YES" value
-#                     row[1] = ogCLUinfoDict.get(row[3])[1]   # "HEL_Acres" value
-#                     row[2] = ogCLUinfoDict.get(row[3])[2]   # "HEL_Pct" value
-#                     cursor.updateRow(row)
+            # Add 4 fields to Final HEL Summary layer
+            # TODO: Need to include
+            newFields = ['Polygon_Acres', 'Final_HEL_Value', 'Final_HEL_Acres', 'Final_HEL_Percent']
+            for fld in newFields:
+                if not len(ListFields(finalHELSummary, fld)) > 0:
+                    if fld == 'Final_HEL_Value':
+                        AddField(finalHELSummary, 'Final_HEL_Value', 'TEXT', '', '', 5)
+                    else:
+                        AddField(finalHELSummary, fld, 'DOUBLE')
+            newFields.append(helFld)
+            newFields.append(cluNumberFld)
+            newFields.append('SHAPE@AREA')
 
-#             # Add 4 fields to Final HEL Summary layer
-#             newFields = ['Polygon_Acres', 'Final_HEL_Value', 'Final_HEL_Acres', 'Final_HEL_Percent']
-#             for fld in newFields:
-#                 if not len(ListFields(finalHELSummary, fld)) > 0:
-#                     if fld == 'Final_HEL_Value':
-#                         AddField(finalHELSummary, 'Final_HEL_Value', 'TEXT', '', '', 5)
-#                     else:
-#                         AddField(finalHELSummary, fld, 'DOUBLE')
-#             newFields.append(helFld)
-#             newFields.append(cluNumberFld)
-#             newFields.append('SHAPE@AREA')
+            # [polyAcres,finalHELvalue,finalHELacres,finalHELpct,MUHELCL,'CLUNBR',"SHAPE@AREA"]
+            # TODO: Need to include
+            with UpdateCursor(finalHELSummary, newFields) as cursor:
+                for row in cursor:
+                    # Calculate polygon acres;
+                    # TODO: change to GIS calc acres, remove dict
+                    row[0] = row[6] / acreConversionDict.get(Describe(finalHELSummary).SpatialReference.LinearUnitName)
+                    # Final_HEL_Value will be set to the initial HEL value
+                    row[1] = row[4]
+                    # set Final HEL Acres to 0 for PHEL and NHEL; othewise set to polyAcres
+                    if row[4] in ('NHEL', 'PHEL'):
+                        row[2] = 0.0
+                    else:
+                        row[2] = row[0]
+                    # Calculate percent of polygon relative to CLU
+                    cluAcres = ogCLUinfoDict.get(row[5])[1]
+                    pct = (row[0] / cluAcres) * 100
+                    if pct > 100.0: pct = 100.0
+                    row[3] = pct
+                    del cluAcres,pct
+                    cursor.updateRow(row)
+            del cursor
 
-#             # [polyAcres,finalHELvalue,finalHELacres,finalHELpct,MUHELCL,'CLUNBR',"SHAPE@AREA"]
-#             with UpdateCursor(finalHELSummary, newFields) as cursor:
-#                 for row in cursor:
-#                     # Calculate polygon acres;
-#                     row[0] = row[6] / acreConversionDict.get(Describe(finalHELSummary).SpatialReference.LinearUnitName)
-#                     # Final_HEL_Value will be set to the initial HEL value
-#                     row[1] = row[4]
-#                     # set Final HEL Acres to 0 for PHEL and NHEL; othewise set to polyAcres
-#                     if row[4] in ('NHEL', 'PHEL'):
-#                         row[2] = 0.0
-#                     else:
-#                         row[2] = row[0]
-#                     # Calculate percent of polygon relative to CLU
-#                     cluAcres = ogCLUinfoDict.get(row[5])[1]
-#                     pct = (row[0] / cluAcres) * 100
-#                     if pct > 100.0: pct = 100.0
-#                     row[3] = pct
-#                     del cluAcres,pct
-#                     cursor.updateRow(row)
-#             del cursor
+        # Put this section in a try-except. It will fail if run from ArcCatalog
+        # TODO: use derived output parameters 
+        mxd = MapDocument('CURRENT')
+        #aprx = ArcGISProject('CURRENT') #pro
+        df = ListDataFrames(mxd)[0]
+        #maps = aprx.listMaps()[0] #pro
 
-#         # Put this section in a try-except. It will fail if run from ArcCatalog
-#         mxd = MapDocument('CURRENT')
-#         #aprx = ArcGISProject('CURRENT') #pro
-#         df = ListDataFrames(mxd)[0]
-#         #maps = aprx.listMaps()[0] #pro
+        # Workaround:  ListLayers returns a list of layer objects. Need to create a list of layer name Strings
+        currentLayersObj = ListLayers(mxd)
+        #currentLayersObj = maps.listLayers() #pro
+        currentLayersStr = [str(x) for x in ListLayers(mxd)]
+        #currentLayersStr = [str(x) for x in maps.listLayers()] #pro
 
-#         # Workaround:  ListLayers returns a list of layer objects. Need to create a list of layer name Strings
-#         currentLayersObj = ListLayers(mxd)
-#         #currentLayersObj = maps.listLayers() #pro
-#         currentLayersStr = [str(x) for x in ListLayers(mxd)]
-#         #currentLayersStr = [str(x) for x in maps.listLayers()] #pro
+        # List of layers to add to Arcmap (layer path, arcmap layer name)
+        if bNoPHELvalues or bSkipGeoprocessing:
+            addToArcMap = [(helSummary, 'Initial HEL Summary'), (fieldDetermination, 'Field Determination')]
+            # Remove these layers from arcmap if they are present since they were not produced
+            if 'LiDAR HEL Summary' in currentLayersStr:
+                RemoveLayer(df, currentLayersObj[currentLayersStr.index('LiDAR HEL Summary')])
+                #LayerFile.removeLayer(currentLayersObj[currentLayersStr.index('LiDAR HEL Summary')]) #pro
+            if 'Final HEL Summary' in currentLayersStr:
+                RemoveLayer(df, currentLayersObj[currentLayersStr.index('Final HEL Summary')])
+                #LayerFile.removeLayer(currentLayersObj[currentLayersStr.index('Final HEL Summary')]) #pro
+        else:
+            addToArcMap = [(lidarHEL, 'LiDAR HEL Summary'), (helSummary, 'Initial HEL Summary'), (finalHELSummary, 'Final HEL Summary'), (fieldDetermination, 'Field Determination')]
 
-#         # List of layers to add to Arcmap (layer path, arcmap layer name)
-#         if bNoPHELvalues or bSkipGeoprocessing:
-#             addToArcMap = [(helSummary, 'Initial HEL Summary'), (fieldDetermination, 'Field Determination')]
-#             # Remove these layers from arcmap if they are present since they were not produced
-#             if 'LiDAR HEL Summary' in currentLayersStr:
-#                 RemoveLayer(df, currentLayersObj[currentLayersStr.index('LiDAR HEL Summary')])
-#                 #LayerFile.removeLayer(currentLayersObj[currentLayersStr.index('LiDAR HEL Summary')]) #pro
-#             if 'Final HEL Summary' in currentLayersStr:
-#                 RemoveLayer(df, currentLayersObj[currentLayersStr.index('Final HEL Summary')])
-#                 #LayerFile.removeLayer(currentLayersObj[currentLayersStr.index('Final HEL Summary')]) #pro
-#         else:
-#             addToArcMap = [(lidarHEL, 'LiDAR HEL Summary'), (helSummary, 'Initial HEL Summary'), (finalHELSummary, 'Final HEL Summary'), (fieldDetermination, 'Field Determination')]
-
-#         for layer in addToArcMap:
-#             # remove layer from ArcMap if it exists
-#             if layer[1] in currentLayersStr:
-#                 RemoveLayer(df, currentLayersObj[currentLayersStr.index(layer[1])])
-#                 #LayerFile.removeLayer(currentLayersObj[currentLayersStr.index(layer[1])]) #pro
-#             # Raster Layers need to be handled differently than vector layers
-#             if layer[1] == 'LiDAR HEL Summary':
-#                 rasterLayer = MakeRasterLayer(layer[0], layer[1])
-#                 tempLayer = rasterLayer.getOutput(0)
-#                 AddLayer(df, tempLayer, 'TOP')
-#                 #maps.addLayer(tempLayer, 'TOP') #pro
-#                 # define the symbology layer and convert it to a layer object
+        for layer in addToArcMap:
+            # remove layer from ArcMap if it exists
+            if layer[1] in currentLayersStr:
+                RemoveLayer(df, currentLayersObj[currentLayersStr.index(layer[1])])
+                #LayerFile.removeLayer(currentLayersObj[currentLayersStr.index(layer[1])]) #pro
+            # Raster Layers need to be handled differently than vector layers
+            if layer[1] == 'LiDAR HEL Summary':
+                rasterLayer = MakeRasterLayer(layer[0], layer[1])
+                tempLayer = rasterLayer.getOutput(0)
+                AddLayer(df, tempLayer, 'TOP')
+                #maps.addLayer(tempLayer, 'TOP') #pro
+                # define the symbology layer and convert it to a layer object
                 
-#                 #This section below to UpdateLayer I don't think is necessary because of how pro updates.
-#                 updateLayer = ListLayers(mxd, layer[1], df)[0]
-#                 #updateLayer = maps.listLayers(layer[1]) #pro
-#                 symbologyLyr = path.join(path.dirname(argv[0]), layer[1].lower().replace(' ', '') + '.lyr')
-#                 sourceLayer = Layer(symbologyLyr) #this should work the same in pro after removing the .mapping imports
-#                 UpdateLayer(df, updateLayer, sourceLayer) #I don't think this is necessary in Pro
-#             else:
-#                 # add layer to arcmap
-#                 symbologyLyr = path.join(path.dirname(argv[0]), layer[1].lower().replace(' ', '') + '.lyr')
-#                 AddLayer(df, Layer(symbologyLyr.strip("'")), 'TOP')
-#                 #maps.addLayer(Layer(symbologyLyr.strip("'")), 'TOP') #pro
+                #This section below to UpdateLayer I don't think is necessary because of how pro updates.
+                updateLayer = ListLayers(mxd, layer[1], df)[0]
+                #updateLayer = maps.listLayers(layer[1]) #pro
+                symbologyLyr = path.join(path.dirname(argv[0]), layer[1].lower().replace(' ', '') + '.lyr')
+                sourceLayer = Layer(symbologyLyr) #this should work the same in pro after removing the .mapping imports
+                UpdateLayer(df, updateLayer, sourceLayer) #I don't think this is necessary in Pro
+            else:
+                # add layer to arcmap
+                symbologyLyr = path.join(path.dirname(argv[0]), layer[1].lower().replace(' ', '') + '.lyr')
+                AddLayer(df, Layer(symbologyLyr.strip("'")), 'TOP')
+                #maps.addLayer(Layer(symbologyLyr.strip("'")), 'TOP') #pro
 
-#             # This layer should be turned on if no PHEL values were processed. Symbology should also be updated to reflect current values.
-#             if layer[1] in ('Initial HEL Summary') and bNoPHELvalues:
-#                 for lyr in ListLayers(mxd, layer[1]):
-#                 #for lyr in maps.listLayers(layer[1]): #pro
-#                     lyr.visible = True
+            # This layer should be turned on if no PHEL values were processed. Symbology should also be updated to reflect current values.
+            if layer[1] in ('Initial HEL Summary') and bNoPHELvalues:
+                for lyr in ListLayers(mxd, layer[1]):
+                #for lyr in maps.listLayers(layer[1]): #pro
+                    lyr.visible = True
 
-#             # these 2 layers should be turned off by default if full processing happens
-#             if layer[1] in ('Initial HEL Summary', 'LiDAR HEL Summary') and not bNoPHELvalues:
-#                 for lyr in ListLayers(mxd, layer[1]):
-#                 #for lyr in ListLayers(layer[1]): #pro
-#                     lyr.visible = False
+            # these 2 layers should be turned off by default if full processing happens
+            if layer[1] in ('Initial HEL Summary', 'LiDAR HEL Summary') and not bNoPHELvalues:
+                for lyr in ListLayers(mxd, layer[1]):
+                #for lyr in ListLayers(layer[1]): #pro
+                    lyr.visible = False
 
-#             AddMsgAndPrint(f"Added {layer[1]} to your ArcMap Session")
+            AddMsgAndPrint(f"Added {layer[1]} to your ArcMap Session")
 
-#         # Unselect CLU polygons; Looks goofy after processed layers have been added to ArcMap. Turn it off as well
-#         for lyr in ListLayers(mxd, '*' + str(Describe(cluLayer).nameString).split('\\')[-1], df):
-#         #for lyr in maps.listLayers('*' + str(Describe(cluLayer).nameString).split('\\')[-1]): #pro
-#             SelectLayerByAttribute(lyr, 'CLEAR_SELECTION')
-#             lyr.visible = False
+        # Unselect CLU polygons; Looks goofy after processed layers have been added to ArcMap. Turn it off as well
+        for lyr in ListLayers(mxd, '*' + str(Describe(cluLayer).nameString).split('\\')[-1], df):
+        #for lyr in maps.listLayers('*' + str(Describe(cluLayer).nameString).split('\\')[-1]): #pro
+            SelectLayerByAttribute(lyr, 'CLEAR_SELECTION')
+            #TODO: clear selection on original input CLU Layer
+            lyr.visible = False
 
-#         # Turn off the original HEL layer to put the outputs into focus
-#         helLyr = ListLayers(mxd, Describe(helLayer).nameString, df)[0]
-#         #helLyr = maps.listLayers(Describe(helLayer).nameString)[0] #pro
-#         helLyr.visible = False
-#         # set dataframe extent to the extent of the Field Determintation layer buffered by 50 meters.
-#         fieldDeterminationBuffer = path.join('in_memory', path.basename(CreateScratchName('fdBuffer', data_type='FeatureClass', workspace=scratchWS)))
-#         Buffer(fieldDetermination, fieldDeterminationBuffer, '50 Meters', 'FULL', '', 'ALL', '')
-#         df.extent = Describe(fieldDeterminationBuffer).extent
-#         Delete(fieldDeterminationBuffer)
-#         RefreshTOC() # No longer needed as changes in Pro are immediate
-#         RefreshActiveView() # No longer needed as changes in Pro are immediate
+        # Turn off the original HEL layer to put the outputs into focus
+        helLyr = ListLayers(mxd, Describe(helLayer).nameString, df)[0]
+        #helLyr = maps.listLayers(Describe(helLayer).nameString)[0] #pro
+        helLyr.visible = False
+        # set dataframe extent to the extent of the Field Determintation layer buffered by 50 meters.
+        # NOTE: no need to try and zoom to tract in map frame
+        fieldDeterminationBuffer = path.join('in_memory', path.basename(CreateScratchName('fdBuffer', data_type='FeatureClass', workspace=scratchWS)))
+        Buffer(fieldDetermination, fieldDeterminationBuffer, '50 Meters', 'FULL', '', 'ALL', '')
+        df.extent = Describe(fieldDeterminationBuffer).extent
+        Delete(fieldDeterminationBuffer)
+        RefreshTOC() # No longer needed as changes in Pro are immediate
+        RefreshActiveView() # No longer needed as changes in Pro are immediate
 
-#     except:
-#         errorMsg()
+    except:
+        errorMsg()
 
 
 def populateForm(fieldDetermination, lu_table, dcSignature, input_cust, helDatabase):

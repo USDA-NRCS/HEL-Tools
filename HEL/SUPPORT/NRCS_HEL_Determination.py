@@ -2,8 +2,7 @@ from math import pi
 from os import path
 from sys import exit
 
-from arcpy import CheckExtension, CheckOutExtension, CreateScratchName, Describe, env, Exists, GetParameter, \
-    GetParameterAsText, ListFields, Reclassify_3d, SetProgressorLabel
+from arcpy import CreateScratchName, Describe, env, Exists, GetParameter, GetParameterAsText, ListFields, Reclassify_3d, SetProgressorLabel
 
 from arcpy.analysis import Clip as Clip_a, Intersect, Statistics
 from arcpy.conversion import FeatureToRaster, RasterToPolygon
@@ -17,6 +16,7 @@ from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, Fo
 
 from hel_utils import AddMsgAndPrint, createTextFile, errorMsg, extractDEM, FindField, removeScratchLayers
 
+#TODO: check that aprx has 'HEL Determination' map name, bail if not
 
 try:
     cluLayer = GetParameter(0)
@@ -102,7 +102,7 @@ try:
         exit()
 
     # Create Text file to log info to
-    textFilePath = createTextFile(uniqueTracts[0], uniqueFarm[0], uniqueFields)
+    textFilePath = createTextFile(uniqueTracts[0], uniqueFarm[0])
 
     # Update the map layout for the current site being run
     # TODO: make into separate tool
@@ -125,6 +125,7 @@ try:
 
     # Z-factor conversion Lookup table
     # lookup dictionary to convert XY units to area. Key = XY unit of DEM; Value = conversion factor to sq.meters
+    # TODO: need to use GIS acres and remove all references of this dict
     acreConversionDict = {'Meter':4046.8564224, 'Foot':43560, 'Foot_US':43560, 'Centimeter':40470000, 'Inch':6273000}
 
     # Assign Z-factor based on XY and Z units of DEM
@@ -276,6 +277,19 @@ try:
     maxAcreLength.sort(reverse=True)
     bSkipGeoprocessing = True             # Skip processing until a field is neither HEL >= 33.33% or NHEL > 66.67%
 
+    # Change any nulls to 0 in the pivot table
+    fieldList = [fld.name for fld in ListFields(ogHelSummaryStatsPivot)]
+    cursor = UpdateCursor(ogHelSummaryStatsPivot, fieldList)
+    for row in cursor:
+        index = 0
+        while index <= numOfhelValues:
+            if row[index] == None:
+                row[index] = 0
+                index += 1
+            else:
+                index += 1
+        cursor.updateRow(row)
+
     # This dictionary will only be used if FINAL results are all HEL or all NHEL to reference original
     # acres and not use tabulate area acres.  It will also be used when there are no PHEL Values.
     # {cluNumber:(HEL value, cluAcres, HEL Pct} -- HEL value is determined by the 33.33% or 50 acre rule
@@ -400,11 +414,11 @@ try:
     # Use Set Null statement to change things with value of 0 to NoData
     whereClause = 'VALUE = 0'
     setNull = SetNull(dem, dem, whereClause)
-    scratchLayers.append(SetNull)
+    # scratchLayers.append(SetNull)
 
     # Use IsNull to convert NoData values in the DEM to 1 and all other values to 0
     demNull = IsNull(setNull)
-    scratchLayers.append(demNull)
+    # scratchLayers.append(demNull)
 
     # Convert the IsNull raster to a vector layer
     try:
@@ -412,6 +426,9 @@ try:
     except:
         RasterToPolygon(demNull, vectorNull, 'SIMPLIFY', 'Value')
     scratchLayers.append(vectorNull)
+    # TODO: see if this fixes the SetNull Failed error
+    Delete(setNull)
+    Delete(demNull)
 
     # Clip the IsNull vector layer by the field determination layer
     Clip_a(vectorNull, fieldDetermination, demCheck)
