@@ -41,16 +41,15 @@ try:
     if not Exists(helDatabase):
         AddMsgAndPrint('\nSUPPORT.gdb does not exist in the same path as HEL Tools', 2)
         exit()
-    # Also define the lu_table, but it's still ok to continue if it's not present
-    lu_table = path.join(helDatabase, r'lut_census_fips')
 
-    # Establish path to access database layers
-    fieldDetermination = path.join(helDatabase, r'Field_Determination')
-    helSummary = path.join(helDatabase, r'Initial_HEL_Summary')
-    lidarHEL = path.join(helDatabase, r'LiDAR_HEL_Summary')
-    finalHELSummary = path.join(helDatabase, r'Final_HEL_Summary')
-    accessLayers = [fieldDetermination, helSummary, lidarHEL, finalHELSummary]
-    for layer in accessLayers:
+    # Establish path to database layers
+    lu_table = path.join(helDatabase, 'lut_census_fips')
+    fieldDetermination = path.join(helDatabase, 'Field_Determination')
+    helSummary = path.join(helDatabase, 'Initial_HEL_Summary')
+    lidarHEL = path.join(helDatabase, 'LiDAR_HEL_Summary')
+    finalHELSummary = path.join(helDatabase, 'Final_HEL_Summary')
+    dataLayers = [fieldDetermination, helSummary, lidarHEL, finalHELSummary]
+    for layer in dataLayers:
         if Exists(layer):
             try:
                 Delete(layer)
@@ -63,9 +62,9 @@ try:
     env.overwriteOutput = True
 
     # define and set the scratch workspace
-    scratchWS = path.join(base_dir, r'scratch.gdb')
+    scratchWS = path.join(base_dir, 'scratch.gdb')
     if not Exists(scratchWS):
-        CreateFileGDB(base_dir, r'scratch.gdb')
+        CreateFileGDB(base_dir, 'scratch.gdb')
 
     if not scratchWS:
         AddMsgAndPrint('\nCould Not set scratchWorkspace!')
