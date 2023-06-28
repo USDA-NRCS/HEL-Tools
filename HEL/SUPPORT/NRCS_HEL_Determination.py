@@ -2,7 +2,8 @@ from math import pi
 from os import path
 from sys import exit
 
-from arcpy import CreateScratchName, Describe, env, Exists, GetParameter, GetParameterAsText, ListFields, Reclassify_3d, SetProgressorLabel
+from arcpy import CreateScratchName, Describe, env, Exists, GetParameter, GetParameterAsText, ListFields, \
+    Reclassify_3d, SetParameterAsText, SetParameterSymbology, SetProgressorLabel
 
 from arcpy.analysis import Clip as Clip_a, Intersect, Statistics
 from arcpy.conversion import FeatureToRaster, RasterToPolygon
@@ -28,7 +29,7 @@ except Exception:
     exit()
 
 
-### Input and Output Parameters ###
+### Input Parameters ###
 cluLayer = GetParameter(0)
 helLayer = GetParameter(1)
 inputDEM = GetParameter(2)
@@ -821,6 +822,16 @@ try:
     # TODO: make into separate tool
     # if not populateForm(fieldDetermination, lu_table, dcSignature, input_cust, support_gdb):
     #     AddMsgAndPrint('\nFailed to correclty populate NRCS-CPA-026 form', 2, textFilePath=textFilePath)
+
+    # Add output layers to map and symbolize
+    SetParameterAsText(5, lidarHEL)
+    SetParameterSymbology(5, lidar_hel_summary_lyrx)
+    SetParameterAsText(6, helSummary)
+    SetParameterSymbology(6, initial_hel_summary_lyrx)
+    SetParameterAsText(7, finalHELSummary)
+    SetParameterSymbology(7, final_hel_summary_lyrx)
+    SetParameterAsText(8, fieldDetermination)
+    SetParameterSymbology(8, field_determination_lyrx)
 
     # Clean up time
     removeScratchLayers(scratchLayers)
