@@ -11,12 +11,22 @@ from arcpy.da import SearchCursor, UpdateCursor
 from arcpy.management import AddField, CalculateField, CopyFeatures, CreateFileGDB, Delete, DeleteField, \
     Dissolve, JoinField, MultipartToSinglepart, PivotTable
 
+from arcpy.mp import ArcGISProject
+
 from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, FocalStatistics, IsNull, NbrRectangle, \
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
 from hel_utils import AddMsgAndPrint, createTextFile, errorMsg, extractDEM, FindField, removeScratchLayers
 
-#TODO: check that aprx has 'HEL Determination' map name, bail if not
+
+### Initial Tool Validation ###
+try:
+    aprx = ArcGISProject('CURRENT')
+    aprx.listMaps('HEL Determination')[0]
+except Exception:
+    AddMsgAndPrint('This tool must be run from an ArcGIS Pro project that was developed from the template distributed with this toolbox. Exiting...', 2)
+    exit()
+
 
 try:
     cluLayer = GetParameter(0)
