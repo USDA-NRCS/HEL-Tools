@@ -414,19 +414,17 @@ try:
     # Use Set Null statement to change things with value of 0 to NoData
     whereClause = 'VALUE = 0'
     setNull = SetNull(dem, dem, whereClause)
-    # scratchLayers.append(SetNull)
 
     # Use IsNull to convert NoData values in the DEM to 1 and all other values to 0
     demNull = IsNull(setNull)
-    # scratchLayers.append(demNull)
 
     # Convert the IsNull raster to a vector layer
     try:
         RasterToPolygon(demNull, vectorNull, 'SIMPLIFY', 'Value', 'MULTIPLE_OUTER_PART')
     except:
         RasterToPolygon(demNull, vectorNull, 'SIMPLIFY', 'Value')
+
     scratchLayers.append(vectorNull)
-    # TODO: see if this fixes the SetNull Failed error
     Delete(setNull)
     Delete(demNull)
 
