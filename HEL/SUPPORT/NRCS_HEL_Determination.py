@@ -47,17 +47,17 @@ try:
 
     # TODO: Outputs need to go in project output gdb, read others from SUPPORT
     base_dir = path.abspath(path.dirname(__file__)) #\SUPPORT
-    helDatabase = path.join(base_dir, 'SUPPORT.gdb')
-    if not Exists(helDatabase):
+    support_gdb = path.join(base_dir, 'SUPPORT.gdb')
+    if not Exists(support_gdb):
         AddMsgAndPrint('\nSUPPORT.gdb does not exist in the same path as HEL Tools', 2)
         exit()
 
     # Establish path to database layers
-    lu_table = path.join(helDatabase, 'lut_census_fips')
-    fieldDetermination = path.join(helDatabase, 'Field_Determination')
-    helSummary = path.join(helDatabase, 'Initial_HEL_Summary')
-    lidarHEL = path.join(helDatabase, 'LiDAR_HEL_Summary')
-    finalHELSummary = path.join(helDatabase, 'Final_HEL_Summary')
+    lu_table = path.join(support_gdb, 'lut_census_fips')
+    fieldDetermination = path.join(support_gdb, 'Field_Determination')
+    helSummary = path.join(support_gdb, 'Initial_HEL_Summary')
+    lidarHEL = path.join(support_gdb, 'LiDAR_HEL_Summary')
+    finalHELSummary = path.join(support_gdb, 'Final_HEL_Summary')
     dataLayers = [fieldDetermination, helSummary, lidarHEL, finalHELSummary]
     for layer in dataLayers:
         if Exists(layer):
@@ -66,7 +66,7 @@ try:
             except:
                 AddMsgAndPrint(f"\tCould not delete the {path.basename(layer)} feature class in the HEL access database. Creating an additional layer", 2)
                 newName = str(layer)
-                newName = CreateScratchName(path.basename(layer), data_type='FeatureClass', workspace=helDatabase)
+                newName = CreateScratchName(path.basename(layer), data_type='FeatureClass', workspace=support_gdb)
 
     # Set overwrite option
     env.overwriteOutput = True
@@ -393,7 +393,7 @@ try:
         # AddLayersToArcMap()
 
         # TODO: make into separate tool
-        # if not populateForm(fieldDetermination, lu_table, dcSignature, input_cust, helDatabase):
+        # if not populateForm(fieldDetermination, lu_table, dcSignature, input_cust, support_gdb):
         #     AddMsgAndPrint('\nFailed to correclty populate NRCS-CPA-026 form', 2, textFilePath=textFilePath)
 
         # Clean up time
@@ -813,7 +813,7 @@ try:
     # AddLayersToArcMap()
 
     # TODO: make into separate tool
-    # if not populateForm(fieldDetermination, lu_table, dcSignature, input_cust, helDatabase):
+    # if not populateForm(fieldDetermination, lu_table, dcSignature, input_cust, support_gdb):
     #     AddMsgAndPrint('\nFailed to correclty populate NRCS-CPA-026 form', 2, textFilePath=textFilePath)
 
     # Clean up time
