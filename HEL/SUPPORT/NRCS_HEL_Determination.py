@@ -28,61 +28,67 @@ except Exception:
     exit()
 
 
+### Input and Output Parameters ###
+cluLayer = GetParameter(0)
+helLayer = GetParameter(1)
+inputDEM = GetParameter(2)
+zUnits = GetParameterAsText(3)
+use_runoff_ls = GetParameter(4)
+# dcSignature = GetParameterAsText(4) #TODO: Move these to forms and letters tool
+# input_cust = GetParameterAsText(5)
+
+
+### Set Local Variables and Paths ###
+kFactorFld = 'K'
+tFactorFld = 'T'
+rFactorFld = 'R'
+helFld = 'MUHELCL'
+scratchLayers = list()
+base_dir = path.abspath(path.dirname(__file__)) #\SUPPORT
+scratch_gdb = path.join(base_dir, 'scratch.gdb')
+
+layer_files_dir = path.join(base_dir, 'layer_files')
+field_determination_lyrx = path.join(layer_files_dir, 'Field_Determination.lyrx')
+final_hel_summary_lyrx = path.join(layer_files_dir, 'Final_HEL_Summary.lyrx')
+initial_hel_summary_lyrx = path.join(layer_files_dir, 'Initial_HEL_Summary.lyrx')
+lidar_hel_summary_lyrx = path.join(layer_files_dir, 'LiDAR_HEL_Summary.lyrx')
+
+support_gdb = path.join(base_dir, 'SUPPORT.gdb')
+# TODO: Outputs need to go in project output gdb once established
+lu_table = path.join(support_gdb, 'lut_census_fips')
+fieldDetermination = path.join(support_gdb, 'Field_Determination')
+helSummary = path.join(support_gdb, 'Initial_HEL_Summary')
+lidarHEL = path.join(support_gdb, 'LiDAR_HEL_Summary')
+finalHELSummary = path.join(support_gdb, 'Final_HEL_Summary')
+
+
+### Geodatabase Validation and Cleanup ###
+if not Exists(support_gdb):
+    AddMsgAndPrint('\nSUPPORT.gdb does not exist in the same path as HEL Tools', 2)
+    exit()
+
+if not Exists(scratch_gdb):
+    CreateFileGDB(base_dir, 'scratch.gdb')
+
+output_layers = [fieldDetermination, helSummary, lidarHEL, finalHELSummary]
+for layer in output_layers:
+    if Exists(layer):
+        try:
+            Delete(layer)
+        except:
+            AddMsgAndPrint(f"\tCould not delete the {path.basename(layer)} feature class in the HEL access database. Creating an additional layer", 2)
+            newName = str(layer)
+            newName = CreateScratchName(path.basename(layer), data_type='FeatureClass', workspace=support_gdb)
+
+
+### ESRI Environment Settings ###
+env.workspace = support_gdb
+env.scratchWorkspace = scratch_gdb
+env.overwriteOutput = True
+
+
+### HEL Determination Procedure ###
 try:
-    cluLayer = GetParameter(0)
-    helLayer = GetParameter(1)
-    inputDEM = GetParameter(2)
-    zUnits = GetParameterAsText(3)
-    # dcSignature = GetParameterAsText(4) #TODO: Move these to forms and letters tool
-    # input_cust = GetParameterAsText(5)
-    use_runoff_ls = GetParameter(4)
-
-    kFactorFld = 'K'
-    tFactorFld = 'T'
-    rFactorFld = 'R'
-    helFld = 'MUHELCL'
-
-    SetProgressorLabel('Checking input values and environments')
-    AddMsgAndPrint('\nChecking input values and environments')
-
-    # TODO: Outputs need to go in project output gdb, read others from SUPPORT
-    base_dir = path.abspath(path.dirname(__file__)) #\SUPPORT
-    support_gdb = path.join(base_dir, 'SUPPORT.gdb')
-    if not Exists(support_gdb):
-        AddMsgAndPrint('\nSUPPORT.gdb does not exist in the same path as HEL Tools', 2)
-        exit()
-
-    # Establish path to database layers
-    lu_table = path.join(support_gdb, 'lut_census_fips')
-    fieldDetermination = path.join(support_gdb, 'Field_Determination')
-    helSummary = path.join(support_gdb, 'Initial_HEL_Summary')
-    lidarHEL = path.join(support_gdb, 'LiDAR_HEL_Summary')
-    finalHELSummary = path.join(support_gdb, 'Final_HEL_Summary')
-    dataLayers = [fieldDetermination, helSummary, lidarHEL, finalHELSummary]
-    for layer in dataLayers:
-        if Exists(layer):
-            try:
-                Delete(layer)
-            except:
-                AddMsgAndPrint(f"\tCould not delete the {path.basename(layer)} feature class in the HEL access database. Creating an additional layer", 2)
-                newName = str(layer)
-                newName = CreateScratchName(path.basename(layer), data_type='FeatureClass', workspace=support_gdb)
-
-    # Set overwrite option
-    env.overwriteOutput = True
-
-    # define and set the scratch workspace
-    scratchWS = path.join(base_dir, 'scratch.gdb')
-    if not Exists(scratchWS):
-        CreateFileGDB(base_dir, 'scratch.gdb')
-
-    if not scratchWS:
-        AddMsgAndPrint('\nCould Not set scratchWorkspace!')
-        exit()
-
-    env.scratchWorkspace = scratchWS
-    scratchLayers = list()
-
     # Stamp CLU into field determination fc. Exit if no CLU fields selected
     cluDesc = Describe(cluLayer)
     if cluDesc.FIDset == '':
@@ -156,7 +162,7 @@ try:
     # Intersect fieldDetermination (CLU & AOI) with soils (helLayer) -> finalHELSummary
     AddMsgAndPrint('\nComputing summary of original HEL Values', textFilePath=textFilePath)
     SetProgressorLabel('Computing summary of original HEL Values')
-    cluHELintersect_pre = path.join('in_memory', path.basename(CreateScratchName('cluHELintersect_pre', data_type='FeatureClass', workspace=scratchWS)))
+    cluHELintersect_pre = path.join('in_memory', path.basename(CreateScratchName('cluHELintersect_pre', data_type='FeatureClass', workspace=scratch_gdb)))
 
     # Use the catalog path of the hel layer to avoid using a selection
     helLayerPath = Describe(helLayer).catalogPath
@@ -268,8 +274,8 @@ try:
     AddMsgAndPrint('\n\tSummary by CLU:', textFilePath=textFilePath)
 
     # Create 2 temporary tables to capture summary statistics
-    ogHelSummaryStats = path.join('in_memory', path.basename(CreateScratchName('ogHELSummaryStats', data_type='ArcInfoTable', workspace=scratchWS)))
-    ogHelSummaryStatsPivot = path.join('in_memory', path.basename(CreateScratchName('ogHELSummaryStatsPivot', data_type='ArcInfoTable', workspace=scratchWS)))
+    ogHelSummaryStats = path.join('in_memory', path.basename(CreateScratchName('ogHELSummaryStats', data_type='ArcInfoTable', workspace=scratch_gdb)))
+    ogHelSummaryStatsPivot = path.join('in_memory', path.basename(CreateScratchName('ogHELSummaryStatsPivot', data_type='ArcInfoTable', workspace=scratch_gdb)))
 
     stats = [[HELacres, 'SUM']]
     caseField = [cluNumberFld, helFld]
@@ -409,7 +415,7 @@ try:
         AddMsgAndPrint('\nDEM is required to process PHEL values. Exiting!', textFilePath=textFilePath)
         exit()
 
-    units, zFactor, dem = extractDEM(cluLayer, inputDEM, fieldDetermination, scratchWS, zFactorList, unitLookUpDict, zUnits)
+    units, zFactor, dem = extractDEM(cluLayer, inputDEM, fieldDetermination, scratch_gdb, zFactorList, unitLookUpDict, zUnits)
     if not zFactor or not dem:
         removeScratchLayers(scratchLayers)
         exit()
@@ -417,8 +423,8 @@ try:
 
     # Check DEM for NoData overlaps with input CLU fields
     AddMsgAndPrint('\nChecking input DEM for site coverage...', textFilePath=textFilePath)
-    vectorNull = path.join('in_memory', path.basename(CreateScratchName('vectorNull', data_type='FeatureClass', workspace=scratchWS)))
-    demCheck = path.join('in_memory', path.basename(CreateScratchName('demCheck', data_type='FeatureClass', workspace=scratchWS)))
+    vectorNull = path.join('in_memory', path.basename(CreateScratchName('vectorNull', data_type='FeatureClass', workspace=scratch_gdb)))
+    demCheck = path.join('in_memory', path.basename(CreateScratchName('demCheck', data_type='FeatureClass', workspace=scratch_gdb)))
 
     # Use Set Null statement to change things with value of 0 to NoData
     whereClause = 'VALUE = 0'
@@ -568,10 +574,10 @@ try:
     cellSize = Describe(dem).MeanCellWidth
 
     # This works in 10.5 AND works in 10.6.1 and 10.7 but slows processing
-    kFactor = CreateScratchName('kFactor', data_type='RasterDataset', workspace=scratchWS)
-    tFactor = CreateScratchName('tFactor', data_type='RasterDataset', workspace=scratchWS)
-    rFactor = CreateScratchName('rFactor', data_type='RasterDataset', workspace=scratchWS)
-    helValue = CreateScratchName('helValue', data_type='RasterDataset', workspace=scratchWS)
+    kFactor = CreateScratchName('kFactor', data_type='RasterDataset', workspace=scratch_gdb)
+    tFactor = CreateScratchName('tFactor', data_type='RasterDataset', workspace=scratch_gdb)
+    rFactor = CreateScratchName('rFactor', data_type='RasterDataset', workspace=scratch_gdb)
+    helValue = CreateScratchName('helValue', data_type='RasterDataset', workspace=scratch_gdb)
 
     # 12 Convert KFactor to raster
     SetProgressorLabel('Converting K Factor field to a raster')
@@ -626,7 +632,7 @@ try:
     AddMsgAndPrint('\nComputing summary of LiDAR HEL Values:\n', textFilePath=textFilePath)
 
     # Summarize new values between HEL soil polygon and lidarHEL raster
-    outPolyTabulate = path.join('in_memory', path.basename(CreateScratchName('HEL_Polygon_Tabulate', data_type='ArcInfoTable', workspace=scratchWS)))
+    outPolyTabulate = path.join('in_memory', path.basename(CreateScratchName('HEL_Polygon_Tabulate', data_type='ArcInfoTable', workspace=scratch_gdb)))
     zoneFld = Describe(finalHELSummary).OIDFieldName
     TabulateArea(finalHELSummary, zoneFld, lidarHEL, 'VALUE', outPolyTabulate, cellSize)
     tabulateFields = [fld.name for fld in ListFields(outPolyTabulate)][2:]
