@@ -1,13 +1,12 @@
 import sys
+sys.dont_write_bytecode=True
+scriptPath = path.dirname(sys.argv[0])
+sys.path.append(scriptPath)
 
 from datetime import datetime
 from os import mkdir, path
 from sys import exit
 from uuid import uuid4
-
-sys.dont_write_bytecode=True
-scriptPath = path.dirname(sys.argv[0])
-sys.path.append(scriptPath)
 
 from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, env, Exists, GetParameter, GetParameterAsText, \
     ListFeatureClasses, SetParameterAsText, SetProgressorLabel, SpatialReference
@@ -18,37 +17,36 @@ from arcpy.management import AddField, AlterDomain, Append, Compact, CreateFeatu
 from arcpy.mp import ArcGISProject
 
 from extract_CLU_by_Tract import getPortalTokenInfo, start
-from hel_utils import AddMsgAndPrint, errorMsg, logBasicSettings, queryIntersect, removeScratchLayers
+from hel_utils import AddMsgAndPrint, errorMsg, logBasicSettings
 
 
-#### Inputs
-AddMessage('Reading inputs...\n')
-SetProgressorLabel('Reading inputs...')
-projectType = GetParameterAsText(0)
-existingFolder = GetParameterAsText(1)
-sourceState = GetParameterAsText(4)
-sourceCounty = GetParameterAsText(6)
-tractNumber = GetParameterAsText(7)
-owFlag = GetParameter(8)
-map_name = GetParameterAsText(11)
-specific_sr = GetParameterAsText(12)
-nwiURL = GetParameterAsText(13)
-
-
-#### Update Environments
-AddMessage('Setting Environments...\n')
-SetProgressorLabel('Setting Environments...')
-
-# Test for Pro project.
+### Initial Tool Validation ###
 try:
     aprx = ArcGISProject('CURRENT')
-    m = aprx.listMaps('HEL Determination')[0]
-except:
-    AddError('\nThis tool must be run from an active ArcGIS Pro project that was developed from the template distributed with this toolbox. Exiting...\n')
+    map = aprx.listMaps('HEL Determination')[0]
+except Exception:
+    AddMsgAndPrint('This tool must be run from an ArcGIS Pro project that was developed from the template distributed with this toolbox. Exiting...', 2)
     exit()
 
-# Check for a projected, WGS 1984 UTM coordinate system for the Determinations map
-mapSR = m.spatialReference
+
+### Input Parameters ###
+sourceState = GetParameterAsText(0)
+sourceCounty = GetParameterAsText(1)
+tractNumber = GetParameterAsText(2)
+
+# projectType = GetParameterAsText(0)
+# existingFolder = GetParameterAsText(1)
+# sourceState = GetParameterAsText(4)
+# sourceCounty = GetParameterAsText(6)
+# tractNumber = GetParameterAsText(7)
+# owFlag = GetParameter(8)
+# map_name = GetParameterAsText(11)
+# specific_sr = GetParameterAsText(12)
+# nwiURL = GetParameterAsText(13)
+
+
+### Validate Spatial Reference ###
+mapSR = map.spatialReference
 if mapSR.type != 'Projected':
     AddError('\nThe Determinations map is not set to a Projected coordinate system.')
     AddError('\nPlease assign a WGS 1984 UTM coordinate system to the Determinations map that is appropriate for your site.')
@@ -65,35 +63,11 @@ if 'WGS' not in mapSR.name or '1984' not in mapSR.name or 'UTM' not in mapSR.nam
     AddError('\nExiting...')
     exit()
 
-# Set output Pro map
-if map_name != '':
-    activeMap = aprx.listMaps(map_name)[0]
-else:
-    activeMap = aprx.activeMap
 
-# Set output spatial reference
-if specific_sr != '':
-    sr = SpatialReference()
-    sr.loadFromString(specific_sr)
-    outSpatialRef = sr
-else:
-    try:
-        activeMapName = activeMap.name
-        activeMapSR = activeMap.getDefinition('V2').spatialReference['latestWkid']
-        outSpatialRef = SpatialReference(activeMapSR)
-    except:
-        AddError('Could not get a spatial reference! Please run the tool from the Catalog Pane with an active ArcGIS Pro Map open! Exiting...')
-        exit()
-
-env.outputCoordinateSystem = outSpatialRef
-
-# Set transformation (replace with assignment from Transformation lookup from cim object of active map object in the future)
+### ESRI Environment Settings ###
+env.outputCoordinateSystem = mapSR
 env.geographicTransformations = 'WGS_1984_(ITRF00)_To_NAD_1983'
-
-# Set overwrite flag
 env.overwriteOutput = True
-
-# Update the default aprx workspace to be the installed SCRATCH.gdb in case script validation didn't work or wasn't set
 aprx.defaultGeodatabase = path.join(path.dirname(sys.argv[0]), 'SCRATCH.gdb')
 
 
@@ -171,17 +145,17 @@ try:
     else:
         finalmonth = themonth
 
-    # Build project folder path
-    if projectType == 'New':
-        projectFolder = path.join(workspacePath, f"{postal}{adminCounty}_t{tractname}_{theyear}_{finalmonth}")
-        
-    else:
-        # Get project folder path from user input. Validation was done during script validations on the input
-        if existingFolder != '':
-            projectFolder = existingFolder
-        else:
-            AddError('Project type was specified as Existing, but no existing project folder was selected. Exiting...')
-            exit()
+    # # Build project folder path
+    # if projectType == 'New':
+    projectFolder = path.join(workspacePath, f"{postal}{adminCounty}_t{tractname}_{theyear}_{finalmonth}")
+
+    # else:
+    #     # Get project folder path from user input. Validation was done during script validations on the input
+    #     if existingFolder != '':
+    #         projectFolder = existingFolder
+    #     else:
+    #         AddError('Project type was specified as Existing, but no existing project folder was selected. Exiting...')
+    #         exit()
 
     #### Set additional variables based on constructed path
     folderName = path.basename(projectFolder)
@@ -199,16 +173,16 @@ try:
     projectTract = path.join(basedataFD, 'Site_Tract')
     DAOIname = 'Site_Define_AOI'
     projectDAOI = path.join(basedataFD, DAOIname)
-    wetlandsFolder = path.join(projectFolder, 'Wetlands')
-    wetDir = wetlandsFolder
+    helFolder = path.join(projectFolder, 'HEL')
+    wetDir = helFolder
     wcGDB_name = f"{folderName}_WC.gdb"
-    wcGDB_path = path.join(wetlandsFolder, wcGDB_name)
+    wcGDB_path = path.join(helFolder, wcGDB_name)
     wcFD = path.join(wcGDB_path, 'WC_Data')
-    NWI_name = 'Site_NWI'
-    projectNWI = path.join(basedataFD, 'Site_NWI')
-    intNWI = path.join(basedataGDB_path, 'Intersected_NWI')
-    tempLayers = [intNWI]
-    removeScratchLayers(tempLayers)
+    # NWI_name = 'Site_NWI'
+    # projectNWI = path.join(basedataFD, 'Site_NWI')
+    # intNWI = path.join(basedataGDB_path, 'Intersected_NWI')
+    # tempLayers = []
+    # removeScratchLayers(tempLayers)
 
     scratchGDB = path.join(path.dirname(sys.argv[0]), 'SCRATCH.gdb')
     jobid = uuid4()
@@ -249,10 +223,10 @@ try:
     #### Continue creating sub-directories
     SetProgressorLabel('Creating project contents...')
     # Check if the Wetlands folder exists within the projectFolder, else create it
-    if not path.exists(wetlandsFolder):
+    if not path.exists(helFolder):
         try:
             SetProgressorLabel('Creating wetlands folder...')
-            mkdir(wetlandsFolder)
+            mkdir(helFolder)
             AddMsgAndPrint(f"\nThe Wetlands folder has been created within {projectFolder}")
         except:
             AddMsgAndPrint('\nCould not access C:\Determinations. Check your permissions for C:\Determinations. Exiting...\n', 2)
@@ -268,17 +242,17 @@ try:
     if not Exists(basedataFD):
         AddMsgAndPrint('\nCreating Base Data feature dataset...')
         SetProgressorLabel('Creating Base Date feature dataset...')
-        CreateFeatureDataset(basedataGDB_path, 'Layers', outSpatialRef)
+        CreateFeatureDataset(basedataGDB_path, 'Layers', mapSR)
 
     if not Exists(wcGDB_path):
         AddMsgAndPrint('\nCreating Wetlands geodatabase...')
         SetProgressorLabel('Creating Wetlands geodatabase...')
-        CreateFileGDB(wetlandsFolder, wcGDB_name, '10.0')
+        CreateFileGDB(helFolder, wcGDB_name, '10.0')
 
     if not Exists(wcFD):
         AddMsgAndPrint('\nCreating Wetlands feature dataset...')
         SetProgressorLabel('Creating Wetlands feature dataset...')
-        CreateFeatureDataset(wcGDB_path, 'WC_Data', outSpatialRef)
+        CreateFeatureDataset(wcGDB_path, 'WC_Data', mapSR)
 
 
     #### Add or validate the attribute domains for the geodatabases
@@ -286,49 +260,49 @@ try:
     SetProgressorLabel('Checking attribute domains of wetlands geodatabase...')
 
     # Wetlands Domains
-    descGDB = Describe(wcGDB_path)
-    domains = descGDB.domains
+    # descGDB = Describe(wcGDB_path)
+    # domains = descGDB.domains
 
-    if not 'Evaluation Status' in domains:
-        evalTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_evaluation_status')
-        TableToDomain(evalTable, 'Code', 'Description', wcGDB_path, 'Evaluation Status', 'Choices for evaluation workflow status', 'REPLACE')
-        AlterDomain(wcGDB_path, 'Evaluation Status', '', '', 'DUPLICATE')
-    if not 'Line Type' in domains:
-        lineTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_line_type')
-        TableToDomain(lineTable, 'Code', 'Description', wcGDB_path, 'Line Type', 'Drainage line types', 'REPLACE')
-        AlterDomain(wcGDB_path, 'Line Type', '', '', 'DUPLICATE')
-    if not 'Method' in domains:
-        methodTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_method')
-        TableToDomain(methodTable, 'Code', 'Description', wcGDB_path, 'Method', 'Choices for wetland determination method', 'REPLACE')
-        AlterDomain(wcGDB_path, 'Method', '', '', 'DUPLICATE')
-    if not 'Pre Post' in domains:
-        prepostTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_pre_post')
-        TableToDomain(prepostTable, 'Code', 'Description', wcGDB_path, 'Pre Post', 'Choices for date relative to 1985', 'REPLACE')
-        AlterDomain(wcGDB_path, 'Pre Post', '', '', 'DUPLICATE')
-    if not 'Request Type' in domains:
-        requestTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_request_type')
-        TableToDomain(requestTable, 'Code', 'Description', wcGDB_path, 'Request Type', 'Choices for request type form', 'REPLACE')
-        AlterDomain(wcGDB_path, 'Request Type', '', '', 'DUPLICATE')
-    if not 'Wetland Labels' in domains:
-        wetTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_wetland_labels')
-        TableToDomain(wetTable, 'Code', 'Description', wcGDB_path, 'Wetland Labels', 'Choices for wetland determination labels', 'REPLACE')
-        AlterDomain(wcGDB_path, 'Wetland Labels', '', '', 'DUPLICATE')
-    if not 'Yes No' in domains:
-        yesnoTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_yesno')
-        TableToDomain(yesnoTable, 'Code', 'Description', wcGDB_path, 'Yes No', 'Yes or no options', 'REPLACE')
-        AlterDomain(wcGDB_path, 'Yes No', '', '', 'DUPLICATE')
-    if not 'YN' in domains:
-        ynTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_yn')
-        TableToDomain(ynTable, 'Code', 'Description', wcGDB_path, 'YN', 'Y or N options', 'REPLACE')
-        AlterDomain(wcGDB_path, 'YN', '', '', 'DUPLICATE')
+    # if not 'Evaluation Status' in domains:
+    #     evalTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_evaluation_status')
+    #     TableToDomain(evalTable, 'Code', 'Description', wcGDB_path, 'Evaluation Status', 'Choices for evaluation workflow status', 'REPLACE')
+    #     AlterDomain(wcGDB_path, 'Evaluation Status', '', '', 'DUPLICATE')
+    # if not 'Line Type' in domains:
+    #     lineTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_line_type')
+    #     TableToDomain(lineTable, 'Code', 'Description', wcGDB_path, 'Line Type', 'Drainage line types', 'REPLACE')
+    #     AlterDomain(wcGDB_path, 'Line Type', '', '', 'DUPLICATE')
+    # if not 'Method' in domains:
+    #     methodTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_method')
+    #     TableToDomain(methodTable, 'Code', 'Description', wcGDB_path, 'Method', 'Choices for wetland determination method', 'REPLACE')
+    #     AlterDomain(wcGDB_path, 'Method', '', '', 'DUPLICATE')
+    # if not 'Pre Post' in domains:
+    #     prepostTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_pre_post')
+    #     TableToDomain(prepostTable, 'Code', 'Description', wcGDB_path, 'Pre Post', 'Choices for date relative to 1985', 'REPLACE')
+    #     AlterDomain(wcGDB_path, 'Pre Post', '', '', 'DUPLICATE')
+    # if not 'Request Type' in domains:
+    #     requestTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_request_type')
+    #     TableToDomain(requestTable, 'Code', 'Description', wcGDB_path, 'Request Type', 'Choices for request type form', 'REPLACE')
+    #     AlterDomain(wcGDB_path, 'Request Type', '', '', 'DUPLICATE')
+    # if not 'Wetland Labels' in domains:
+    #     wetTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_wetland_labels')
+    #     TableToDomain(wetTable, 'Code', 'Description', wcGDB_path, 'Wetland Labels', 'Choices for wetland determination labels', 'REPLACE')
+    #     AlterDomain(wcGDB_path, 'Wetland Labels', '', '', 'DUPLICATE')
+    # if not 'Yes No' in domains:
+    #     yesnoTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_yesno')
+    #     TableToDomain(yesnoTable, 'Code', 'Description', wcGDB_path, 'Yes No', 'Yes or no options', 'REPLACE')
+    #     AlterDomain(wcGDB_path, 'Yes No', '', '', 'DUPLICATE')
+    # if not 'YN' in domains:
+    #     ynTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_yn')
+    #     TableToDomain(ynTable, 'Code', 'Description', wcGDB_path, 'YN', 'Y or N options', 'REPLACE')
+    #     AlterDomain(wcGDB_path, 'YN', '', '', 'DUPLICATE')
 
-    del descGDB, domains
+    # del descGDB, domains
 
 
     #### Remove the existing projectCLU layer from the Map
     AddMsgAndPrint('\nRemoving CLU layer from project maps, if present...\n')
     SetProgressorLabel('Removing CLU layer from project maps, if present...')
-    mapLayersToRemove = [cluOut, DAOIOut, NWI_name]
+    mapLayersToRemove = [cluOut, DAOIOut]
     try:
         for maps in aprx.listMaps():
             for lyr in maps.listLayers():
@@ -339,23 +313,23 @@ try:
 
     
     #### If overwrite was selected, delete everything and start over
-    if owFlag == True:
-        AddMsgAndPrint('\nOverwrite selected. Deleting existing project data...')
-        SetProgressorLabel('Overwrite selected. Deleting existing project data...')
-        if Exists(basedataFD):
-            ws = env.workspace
-            env.workspace = basedataGDB_path
-            fcs = ListFeatureClasses(feature_dataset='Layers')
-            for fc in fcs:
-                try:
-                    path = path.join(basedataFD, fc)
-                    Delete(path)
-                except:
-                    pass
-            Delete(basedataFD)
-            CreateFeatureDataset(basedataGDB_path, 'Layers', outSpatialRef)
-            env.workspace = ws
-            del ws
+    # if owFlag == True:
+    #     AddMsgAndPrint('\nOverwrite selected. Deleting existing project data...')
+    #     SetProgressorLabel('Overwrite selected. Deleting existing project data...')
+    #     if Exists(basedataFD):
+    #         ws = env.workspace
+    #         env.workspace = basedataGDB_path
+    #         fcs = ListFeatureClasses(feature_dataset='Layers')
+    #         for fc in fcs:
+    #             try:
+    #                 path = path.join(basedataFD, fc)
+    #                 Delete(path)
+    #             except:
+    #                 pass
+    #         Delete(basedataFD)
+    #         CreateFeatureDataset(basedataGDB_path, 'Layers', mapSR)
+    #         env.workspace = ws
+    #         del ws
             
 
     #### Download the CLU
@@ -363,7 +337,7 @@ try:
     if not Exists(projectCLU):
         AddMsgAndPrint('\nDownloading latest CLU data...')
         SetProgressorLabel('Downloading latest CLU data...')
-        cluTempPath = start(adminState, adminCounty, tractNumber, outSpatialRef, basedataGDB_path)
+        cluTempPath = start(adminState, adminCounty, tractNumber, mapSR, basedataGDB_path)
 
         # Convert feature class to the projectTempCLU layer in the project's feature dataset
         # This should work because the input CLU feature class coming from the download should have the same spatial reference as the target feature dataset
@@ -449,43 +423,43 @@ try:
         AddMsgAndPrint('\nCreating the Site Define AOI layer...')
         SetProgressorLabel('Creating the Site Define AOI layer...')
         FeatureClassToFeatureClass(projectCLU, basedataFD, DAOIname)
-    if owFlag == True:
-        AddMsgAndPrint('\nCLU overwrite was selected. Resetting the Site Define AOI layer...')
-        SetProgressorLabel('CLU overwrite was selected. Resetting the Site Define AOI layer...')
-        FeatureClassToFeatureClass(projectCLU, basedataFD, DAOIname)
+    # if owFlag == True:
+    #     AddMsgAndPrint('\nCLU overwrite was selected. Resetting the Site Define AOI layer...')
+    #     SetProgressorLabel('CLU overwrite was selected. Resetting the Site Define AOI layer...')
+    #     FeatureClassToFeatureClass(projectCLU, basedataFD, DAOIname)
 
 
     #### Create the NWI layer
-    AddMsgAndPrint('\nCreating NWI layer...')
-    SetProgressorLabel('Creating NWI layer...')
+    # AddMsgAndPrint('\nCreating NWI layer...')
+    # SetProgressorLabel('Creating NWI layer...')
 
-    query_results_fc = queryIntersect(scratchGDB, userWorkspace, projectCLU, nwiURL, intNWI, portalToken)
+    # query_results_fc = queryIntersect(scratchGDB, userWorkspace, projectCLU, nwiURL, intNWI, portalToken)
 
-    if query_results_fc == False:
-        AddMsgAndPrint('\nCould not download NWI data. Either no features were found on the tract or the NWI service may be offline. Continuing...', 1)
+    # if query_results_fc == False:
+    #     AddMsgAndPrint('\nCould not download NWI data. Either no features were found on the tract or the NWI service may be offline. Continuing...', 1)
         
-    else:
-        if Exists(intNWI):
-            # This section runs if any intersecting geometry is returned from the query
-            AddMsgAndPrint('\tNWI data found within current Tract! Processing...')
-            SetProgressorLabel('NWI data found within current Tract! Processing...')
+    # else:
+    #     if Exists(intNWI):
+    #         # This section runs if any intersecting geometry is returned from the query
+    #         AddMsgAndPrint('\tNWI data found within current Tract! Processing...')
+    #         SetProgressorLabel('NWI data found within current Tract! Processing...')
 
-            nwi_count = int(GetCount(query_results_fc).getOutput(0))
-            if nwi_count > 0:
-                # Confirm multi part to single part with results and create projectNWI in doing so.
-                MultipartToSinglepart(query_results_fc, projectNWI)
-                Delete(query_results_fc)
-            else:
-                AddMsgAndPrint('\tNo NWI data found! Finishing up...')
-                Delete(query_results_fc)
+    #         nwi_count = int(GetCount(query_results_fc).getOutput(0))
+    #         if nwi_count > 0:
+    #             # Confirm multi part to single part with results and create projectNWI in doing so.
+    #             MultipartToSinglepart(query_results_fc, projectNWI)
+    #             Delete(query_results_fc)
+    #         else:
+    #             AddMsgAndPrint('\tNo NWI data found! Finishing up...')
+    #             Delete(query_results_fc)
 
-        else:
-            AddMsgAndPrint('\tNo NWI data found! Finishing up...')
-            SetProgressorLabel('No NWI data found! Finishing up...')
-            try:
-                Delete(query_results_fc)
-            except:
-                pass
+    #     else:
+    #         AddMsgAndPrint('\tNo NWI data found! Finishing up...')
+    #         SetProgressorLabel('No NWI data found! Finishing up...')
+    #         try:
+    #             Delete(query_results_fc)
+    #         except:
+    #             pass
 
 
     #### Prepare to add to map
@@ -493,9 +467,9 @@ try:
         SetParameterAsText(9, projectCLU)
     if not Exists(DAOIOut):
         SetParameterAsText(10, projectDAOI)
-    if not Exists(NWI_name):
-        if Exists(projectNWI):
-            SetParameterAsText(14, projectNWI)
+    # if not Exists(NWI_name):
+    #     if Exists(projectNWI):
+    #         SetParameterAsText(14, projectNWI)
 
     
     #### Compact FGDB
