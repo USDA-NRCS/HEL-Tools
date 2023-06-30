@@ -204,7 +204,7 @@ def createOutputFC(metadata,outputWS,shape="POLYGON"):
         # Delete newFC if it exists
         if arcpy.Exists(newFC):
             arcpy.Delete_management(newFC)
-            AddMsgAndPrint("\t" + os.path.basename(newFC) + " exists.  Deleted")
+            AddMsgAndPrint("\t" + path.basename(newFC) + " exists. Deleted")
 
         # Create empty polygon featureclass with coordinate system that matches AOI.
         arcpy.CreateFeatureclass_management(outputWS, path.basename(newFC), shape, "", "DISABLED", "DISABLED", outputCS)
