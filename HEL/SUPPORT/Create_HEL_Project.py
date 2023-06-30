@@ -1,12 +1,11 @@
-import sys
-sys.dont_write_bytecode=True
-scriptPath = path.dirname(sys.argv[0])
-sys.path.append(scriptPath)
-
 from datetime import datetime
 from os import mkdir, path
 from sys import exit
 from uuid import uuid4
+
+import sys
+sys.dont_write_bytecode=True
+sys.path.append(path.dirname(sys.argv[0]))
 
 from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, env, Exists, GetParameter, GetParameterAsText, \
     ListFeatureClasses, SetParameterAsText, SetProgressorLabel, SpatialReference
@@ -17,7 +16,7 @@ from arcpy.management import AddField, AlterDomain, Append, Compact, CreateFeatu
 from arcpy.mp import ArcGISProject
 
 from extract_CLU_by_Tract import getPortalTokenInfo, start
-from hel_utils import AddMsgAndPrint, errorMsg, logBasicSettings
+from hel_utils import AddMsgAndPrint, errorMsg
 
 
 ### Initial Tool Validation ###
@@ -218,7 +217,7 @@ try:
 
     #### Project folder now exists. Set up log file path and start logging
     textFilePath = path.join(projectFolder, folderName, '_log.txt')
-    logBasicSettings()
+    # logBasicSettings()
 
     #### Continue creating sub-directories
     SetProgressorLabel('Creating project contents...')
@@ -256,8 +255,8 @@ try:
 
 
     #### Add or validate the attribute domains for the geodatabases
-    AddMsgAndPrint('\nChecking attribute domains of wetlands geodatabase...')
-    SetProgressorLabel('Checking attribute domains of wetlands geodatabase...')
+    # AddMsgAndPrint('\nChecking attribute domains of wetlands geodatabase...')
+    # SetProgressorLabel('Checking attribute domains of wetlands geodatabase...')
 
     # Wetlands Domains
     # descGDB = Describe(wcGDB_path)
