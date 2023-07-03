@@ -3,7 +3,12 @@ from os import path
 from time import gmtime, sleep, strftime
 from urllib import parse, request
 
-import arcpy
+from arcpy import Describe, env, Exists, GetActivePortalURL, GetSigninToken, ListPortalURLs, ListTransformations, \
+    ResetProgressor, SetProgressor, SetProgressorLabel, SetProgressorPosition, SpatialReference
+
+from arcpy.da import InsertCursor
+from arcpy.management import AddField, CreateFeatureclass, Delete, GetCount, Project, Rename
+from arcpy.mp import ArcGISProject
 
 from hel_utils import AddMsgAndPrint, errorMsg
 
@@ -11,35 +16,35 @@ from hel_utils import AddMsgAndPrint, errorMsg
 def getPortalTokenInfo(portalURL):
     try:
         # i.e. 'https://gis.sc.egov.usda.gov/portal/'
-        activePortal = arcpy.GetActivePortalURL()
+        activePortal = GetActivePortalURL()
 
         # targeted portal is NOT set as default
         if activePortal != portalURL:
             # List of managed portals
-            managedPortals = arcpy.ListPortalURLs()
+            managedPortals = ListPortalURLs()
 
             # portalURL is available in managed list
             if activePortal in managedPortals:
-                AddMsgAndPrint("\nYour Active portal is set to: " + activePortal,2)
-                AddMsgAndPrint("Set your active portal and sign into: " + portalURL,2)
+                AddMsgAndPrint(f"\nYour Active portal is set to: {activePortal}", 2)
+                AddMsgAndPrint(f"Set your active portal and sign into: {portalURL}", 2)
                 return False
 
             # portalURL must first be added to list of managed portals
             else:
-                AddMsgAndPrint("\nYou must add " + portalURL + " to your list of managed portals",2)
-                AddMsgAndPrint("Open the Portals Tab to manage portal connections",2)
-                AddMsgAndPrint("For more information visit the following ArcGIS Pro documentation:",2)
-                AddMsgAndPrint("https://pro.arcgis.com/en/pro-app/help/projects/manage-portal-connections-from-arcgis-pro.htm",1)
+                AddMsgAndPrint(f"\nYou must add {portalURL} to your list of managed portals", 2)
+                AddMsgAndPrint('Open the Portals Tab to manage portal connections', 2)
+                AddMsgAndPrint('For more information visit the following ArcGIS Pro documentation:', 2)
+                AddMsgAndPrint('https://pro.arcgis.com/en/pro-app/help/projects/manage-portal-connections-from-arcgis-pro.htm', 2)
                 return False
 
         # targeted Portal is correct; try to generate token
         else:
             # Get Token information
-            tokenInfo = arcpy.GetSigninToken()
+            tokenInfo = GetSigninToken()
 
             # Not signed in.  Token results are empty
             if not tokenInfo:
-                AddMsgAndPrint("\nYou are not signed into: " + portalURL,2)
+                AddMsgAndPrint(f"\nYou are not signed into: {portalURL}", 2)
                 return False
 
             # Token generated successfully
@@ -51,7 +56,7 @@ def getPortalTokenInfo(portalURL):
         return False
 
 
-def submitFSquery(url,INparams):
+def submitFSquery(url, INparams):
     """ This function will send a spatial query to a web feature service and convert
         the results into a python structure.  If the results from the service is an
         error due to an invalid token then a second attempt will be sent with using
@@ -66,7 +71,7 @@ def submitFSquery(url,INparams):
 
     try:
         INparams = INparams.encode('ascii')
-        resp = request.urlopen(url,INparams)  # A failure here will probably throw an HTTP exception
+        resp = request.urlopen(url, INparams)  # A failure here will probably throw an HTTP exception
         responseStatus = resp.getcode()
         responseMsg = resp.msg
         jsonString = resp.read()
@@ -77,10 +82,10 @@ def submitFSquery(url,INparams):
         # Check for expired token; Update if expired and try again
         if 'error' in results.keys():
             if results['error']['message'] == 'Invalid Token':
-                AddMsgAndPrint("\tRegenerating ArcGIS Token Information")
+                AddMsgAndPrint('\tRegenerating ArcGIS Token Information')
 
                 # Get new ArcPro Token, update the original portalToken
-                newToken = arcpy.GetSigninToken()
+                newToken = GetSigninToken()
                 global portalToken
                 portalToken = newToken
 
@@ -96,7 +101,7 @@ def submitFSquery(url,INparams):
 
                 # update incoming parameters just in case a 2nd attempt is needed
                 INparams = newParams
-                resp = request.urlopen(url,newParams)  # A failure here will probably throw an HTTP exception
+                resp = request.urlopen(url, newParams)  # A failure here will probably throw an HTTP exception
                 responseStatus = resp.getcode()
                 responseMsg = resp.msg
                 jsonString = resp.read()
@@ -105,14 +110,14 @@ def submitFSquery(url,INparams):
         # Check results before returning them; Attempt a 2nd request if results are bad.
         if 'error' in results.keys() or len(results) == 0:
             sleep(5)
-            resp = request.urlopen(url,INparams)  # A failure here will probably throw an HTTP exception
+            resp = request.urlopen(url, INparams)  # A failure here will probably throw an HTTP exception
             responseStatus = resp.getcode()
             responseMsg = resp.msg
             jsonString = resp.read()
             results = json_loads(jsonString)
 
             if 'error' in results.keys() or len(results) == 0:
-                AddMsgAndPrint("\t2nd Request Attempt Failed - Error Code: " + str(responseStatus) + " -- " + responseMsg + " -- " + str(results),2)
+                AddMsgAndPrint(f"\t2nd Request Attempt Failed - Error Code: {str(responseStatus)} -- {responseMsg} -- {str(results)}", 2)
                 return False
             else:
                 return results
@@ -126,14 +131,14 @@ def submitFSquery(url,INparams):
         elif int(e.code) >= 400:
             pass
         else:
-            AddMsgAndPrint('HTTP ERROR = ' + str(e.code),2)
+            AddMsgAndPrint(f"HTTP ERROR = {str(e.code)}", 2)
 
     except:
         errorMsg()
         return False
 
 
-def createOutputFC(metadata,outputWS,shape="POLYGON"):
+def createOutputFC(metadata, outputWS, shape='POLYGON'):
     """ This function will create an empty polygon feature class within the outputWS
         The feature class will be set to the same spatial reference as the Web Feature
         Service. All fields part of the WFS will also be added to the new feature class.
@@ -151,8 +156,8 @@ def createOutputFC(metadata,outputWS,shape="POLYGON"):
         # output FC will have the 'CLU_' as a prefix along with the state, county and tract number
         newFC = path.join(outputWS, f"CLU_{str(adminState)}_{str(adminCounty)}_{str(tractNumber)}")
 
-        AddMsgAndPrint("\nCreating New Feature Class: " + path.basename(newFC))
-        arcpy.SetProgressorLabel("Creating New Feature Class: " + path.basename(newFC))
+        AddMsgAndPrint(f"\nCreating New Feature Class: {path.basename(newFC)}")
+        SetProgressorLabel(f"Creating New Feature Class: {path.basename(newFC)}")
 
         # set the spatial Reference to same as WFS
         # Probably WGS_1984_Web_Mercator_Auxiliary_Sphere
@@ -163,7 +168,7 @@ def createOutputFC(metadata,outputWS,shape="POLYGON"):
         else:
             sr = spatialReferences['wkid']
 
-        outputCS = arcpy.SpatialReference(sr)
+        outputCS = SpatialReference(sr)
 
         # fields associated with feature service
         fsFields = metadata['fields']   # {u'alias':u'land_unit_id',u'domain': None, u'name': u'land_unit_id', u'nullable': True, u'editable': True, u'alias': u'LAND_UNIT_ID', u'length': 38, u'type': u'esriFieldTypeString'}
@@ -174,9 +179,10 @@ def createOutputFC(metadata,outputWS,shape="POLYGON"):
         dateFields = list()
 
         # cross-reference portal attribute description with ArcGIS attribute description
-        fldTypeDict = {'esriFieldTypeString':'TEXT','esriFieldTypeDouble':'DOUBLE','esriFieldTypeSingle':'FLOAT',
-                       'esriFieldTypeInteger':'LONG','esriFieldTypeSmallInteger':'SHORT','esriFieldTypeDate':'DATE',
-                       'esriFieldTypeGUID':'GUID','esriFieldTypeGlobalID':'GUID'}
+        fldTypeDict = {
+            'esriFieldTypeString':'TEXT','esriFieldTypeDouble':'DOUBLE','esriFieldTypeSingle':'FLOAT','esriFieldTypeInteger':'LONG',
+            'esriFieldTypeSmallInteger':'SHORT','esriFieldTypeDate':'DATE','esriFieldTypeGUID':'GUID','esriFieldTypeGlobalID':'GUID'
+        }
 
         # Collect field info to pass to new fc
         for fieldInfo in fsFields:
@@ -189,7 +195,7 @@ def createOutputFC(metadata,outputWS,shape="POLYGON"):
             fldName = fieldInfo['name']
 
             # skip the SHAPE_STArea__ and SHAPE_STLength__ fields
-            if fldName.find("SHAPE_ST") > -1:
+            if fldName.find('SHAPE_ST') > -1:
                continue
 
             if fldType == 'TEXT':
@@ -197,20 +203,20 @@ def createOutputFC(metadata,outputWS,shape="POLYGON"):
             elif fldType == 'DATE':
                  dateFields.append(fldName)
             else:
-               fldLength = ""
+               fldLength = ''
 
-            fieldDict[fldName] = (fldType,fldLength,fldAlias)
+            fieldDict[fldName] = (fldType, fldLength, fldAlias)
 
         # Delete newFC if it exists
-        if arcpy.Exists(newFC):
-            arcpy.Delete_management(newFC)
-            AddMsgAndPrint("\t" + path.basename(newFC) + " exists. Deleted")
+        if Exists(newFC):
+            Delete(newFC)
+            AddMsgAndPrint(f"\t{path.basename(newFC)} exists. Deleted")
 
         # Create empty polygon featureclass with coordinate system that matches AOI.
-        arcpy.CreateFeatureclass_management(outputWS, path.basename(newFC), shape, "", "DISABLED", "DISABLED", outputCS)
+        CreateFeatureclass(outputWS, path.basename(newFC), shape, '', 'DISABLED', 'DISABLED', outputCS)
 
         # Add fields from fieldDict to mimic WFS
-        arcpy.SetProgressor("step", "Adding Fields to " + path.basename(newFC),0,len(fieldDict),1)
+        SetProgressor('step', f"Adding Fields to {path.basename(newFC)}", 0, len(fieldDict), 1)
         for field,params in fieldDict.items():
             try:
                 fldLength = params[1]
@@ -219,37 +225,39 @@ def createOutputFC(metadata,outputWS,shape="POLYGON"):
                 fldLength = 0
                 pass
 
-            arcpy.SetProgressorLabel("Adding Field: " + field)
-            arcpy.AddField_management(newFC,field,params[0],"#","#",fldLength,fldAlias)
-            arcpy.SetProgressorPosition()
+            SetProgressorLabel(f"Adding Field: {field}")
+            AddField(newFC, field, params[0], '#', '#', fldLength, fldAlias)
+            SetProgressorPosition()
 
-        arcpy.ResetProgressor()
-        arcpy.SetProgressorLabel("")
-        return fieldDict,newFC
+        ResetProgressor()
+        SetProgressorLabel('')
+        return fieldDict, newFC
 
     except:
         errorMsg()
-        AddMsgAndPrint("\tFailed to create scratch " + newFC + " Feature Class",2)
+        AddMsgAndPrint(f"\tFailed to create scratch {newFC} Feature Class", 2)
         return False
 
 
-def getCLUgeometryByTractQuery(sqlQuery,fc,RESTurl):
+def getCLUgeometryByTractQuery(sqlQuery, fc, RESTurl):
     """ This funciton will retrieve CLU geometry from the CLU WFS and assemble
         into the CLU fc along with the attributes associated with it.
         It is intended to receive requests that will return records that are
         below the WFS record limit"""
 
     try:
-        params = urllibEncode({'f': 'json',
-                               'where':sqlQuery,
-                               'geometryType':'esriGeometryPolygon',
-                               'returnGeometry':'true',
-                               'outFields': '*',
-                               'token': portalToken['token']})
+        params = urllibEncode({
+            'f': 'json',
+            'where': sqlQuery,
+            'geometryType': 'esriGeometryPolygon',
+            'returnGeometry': 'true',
+            'outFields': '*',
+            'token': portalToken['token']
+        })
 
         # Send request to feature service; The following dict keys are returned:
         # ['objectIdFieldName', 'globalIdFieldName', 'geometryType', 'spatialReference', 'fields', 'features']
-        geometry = submitFSquery(RESTurl,params)
+        geometry = submitFSquery(RESTurl, params)
 
         # Error from sumbitFSquery function
         if not geometry:
@@ -257,32 +265,32 @@ def getCLUgeometryByTractQuery(sqlQuery,fc,RESTurl):
 
         # make sure the request returned geometry; otherwise return False
         if not len(geometry['features']):
-            AddMsgAndPrint("\nThere were no CLU fields associated with tract Number " + str(tractNumber),1)
+            AddMsgAndPrint(f"\nThere were no CLU fields associated with tract Number {str(tractNumber)}", 1)
             return False
 
         # Insert Geometry
-        with arcpy.da.InsertCursor(fc, [fld for fld in fields]) as cur:
-            arcpy.SetProgressor("step", "Assembling Geometry", 0, len(geometry['features']),1)
+        with InsertCursor(fc, [fld for fld in fields]) as cur:
+            SetProgressor('step', 'Assembling Geometry', 0, len(geometry['features']), 1)
 
             # Iterenate through the 'features' key in geometry dict 'features' contains geometry and attributes
             for rec in geometry['features']:
-                arcpy.SetProgressorLabel("Assembling Geometry")
-                values = list()    # list of attributes
+                SetProgressorLabel('Assembling Geometry')
+                values = list()
                 polygon = json_dumps(rec['geometry'])   # u'geometry': {u'rings': [[[-89.407702228, 43.334059191999984], [-89.40769642800001, 43.33560779300001]}
                 attributes = rec['attributes']          # u'attributes': {u'land_unit_id': u'73F53BC1-E3F8-4747-B51F-E598EE445E47'}}
 
                 for fld in fields:
-                    if fld == "SHAPE@JSON":
+                    if fld == 'SHAPE@JSON':
                         continue
 
                     # DATE values need to be converted from Unix Epoch format
                     # to dd/mm/yyyy format so that it can be inserted into fc.
                     elif fldsDict[fld][0] == 'DATE':
                         dateVal = attributes[fld]
-                        if not dateVal in (None,'null','','Null'):
+                        if not dateVal in (None, 'null', '', 'Null'):
                             epochFormat = float(attributes[fld]) # 1609459200000
                             # Convert to seconds from milliseconds and reformat
-                            localFormat = strftime('%m/%d/%Y',gmtime(epochFormat/1000))   # 01/01/2021
+                            localFormat = strftime('%m/%d/%Y', gmtime(epochFormat/1000))   # 01/01/2021
                             values.append(localFormat)
                         else:
                             values.append(None)
@@ -293,10 +301,10 @@ def getCLUgeometryByTractQuery(sqlQuery,fc,RESTurl):
                 # geometry goes at the the end
                 values.append(polygon)
                 cur.insertRow(values)
-                arcpy.SetProgressorPosition()
+                SetProgressorPosition()
 
-        arcpy.ResetProgressor()
-        arcpy.SetProgressorLabel("")
+        ResetProgressor()
+        SetProgressorLabel("")
         del cur
         return True
 
@@ -308,10 +316,10 @@ def getCLUgeometryByTractQuery(sqlQuery,fc,RESTurl):
         return False
 
 
-def start(state,county,trctNmbr,outSR,outWS,addCLUtoSoftware=False):
+def start(state, county, trctNmbr, outSR, outWS, addCLUtoSoftware=False):
     try:
         # Use most of the cores on the machine where ever possible
-        arcpy.env.parallelProcessingFactor = "75%"
+        env.parallelProcessingFactor = '75%'
 
         global adminState, adminCounty, tractNumber, outSpatialRef, outputWS
         global bUserDefinedSR
@@ -330,7 +338,7 @@ def start(state,county,trctNmbr,outSR,outWS,addCLUtoSoftware=False):
 
             # Using a well-known text string representation convert it to a SR object
             if type(outSpatialRef) is str:
-                sr = arcpy.SpatialReference()
+                sr = SpatialReference()
                 sr.loadFromString(outSpatialRef)
                 outSpatialRef = sr
             bUserDefinedSR = True
@@ -341,7 +349,7 @@ def start(state,county,trctNmbr,outSR,outWS,addCLUtoSoftware=False):
         # Get the spatial reference of the Active Map from which the tool was invoked
         # and set the WKID as the env.outputCoordSystem
         if not bUserDefinedSR:
-            aprx = arcpy.mp.ArcGISProject("CURRENT")
+            aprx = ArcGISProject('CURRENT')
             activeMap = aprx.activeMap
 
             # If the tool is invoked by the catalog view vs the catalog pane
@@ -350,35 +358,35 @@ def start(state,county,trctNmbr,outSR,outWS,addCLUtoSoftware=False):
             try:
                 activeMapName = activeMap.name
                 activeMapSR = activeMap.getDefinition('V2').spatialReference['latestWkid']
-                outSpatialRef = arcpy.SpatialReference(activeMapSR)
-                arcpy.env.outputCoordinateSystem = outSpatialRef
+                outSpatialRef = SpatialReference(activeMapSR)
+                env.outputCoordinateSystem = outSpatialRef
             except:
-                AddMsgAndPrint("Could not obtain Spatial Reference from the ArcGIS Pro Map",2)
-                AddMsgAndPrint("Run the tool from an active map or provide a Coordinate System. Exiting!",2)
+                AddMsgAndPrint('Could not obtain Spatial Reference from the ArcGIS Pro Map', 2)
+                AddMsgAndPrint('Run the tool from an active map or provide a Coordinate System. Exiting!', 2)
                 exit()
 
-        arcpy.env.overwriteOutput = True
-        arcpy.env.geographicTransformations = "WGS_1984_(ITRF00)_To_NAD_1983"
+        env.overwriteOutput = True
+        env.geographicTransformations = 'WGS_1984_(ITRF00)_To_NAD_1983'
 
         nrcsPortal = 'https://gis.sc.egov.usda.gov/portal/'
         portalToken = getPortalTokenInfo(nrcsPortal)
 
         if not portalToken:
-           AddMsgAndPrint("Could not generate Portal Token. Exiting!",2)
+           AddMsgAndPrint('Could not generate Portal Token. Exiting!', 2)
            exit()
 
-        # URL for Feature Service Metadata (Service Definition) - Dictionary of ;
-        cluRESTurl_Metadata = """https://gis.sc.egov.usda.gov/appserver/rest/services/common_land_units/common_land_units/FeatureServer/0"""
+        # URL for Feature Service Metadata (Service Definition)
+        cluRESTurl_Metadata = 'https://gis.sc.egov.usda.gov/appserver/rest/services/common_land_units/common_land_units/FeatureServer/0'
 
         # Used for admin or feature service info; Send POST request
         params = urllibEncode({'f': 'json','token': portalToken['token']})
 
         # request info about the feature service
-        fsMetadata = submitFSquery(cluRESTurl_Metadata,params)
+        fsMetadata = submitFSquery(cluRESTurl_Metadata, params)
 
         # Create empty CLU FC with necessary fields
         # fldsDict - {'clu_number': ('TEXT', 7, 'clu_number')}
-        fldsDict,cluFC = createOutputFC(fsMetadata,outputWS)
+        fldsDict, cluFC = createOutputFC(fsMetadata, outputWS)
 
         # Isolate the fields that were inserted into new fc
         fields = fldsDict.keys()
@@ -389,27 +397,27 @@ def start(state,county,trctNmbr,outSR,outWS,addCLUtoSoftware=False):
         fields.append('SHAPE@JSON')
 
         # query by Admin State, Admin County and Tract Number
-        cluRESTurl = """https://gis.sc.egov.usda.gov/appserver/rest/services/common_land_units/common_land_units/FeatureServer/0/query"""
+        cluRESTurl = 'https://gis.sc.egov.usda.gov/appserver/rest/services/common_land_units/common_land_units/FeatureServer/0/query'
 
         # ADMIN_STATE = 29 AND ADMIN_COUNTY = 017 AND TRACT_NUMBER = 1207
         # This was updated for Alaska purpose only b/c Alaska doesn't use Admin_county, they use county_ansi_code
         if adminState == '02':
-            whereClause = "ADMIN_STATE = " + str(adminState) + " AND COUNTY_ANSI_CODE = " + str(adminCounty) + " AND TRACT_NUMBER = " + str(tractNumber)
+            whereClause = f"ADMIN_STATE = {str(adminState)} AND COUNTY_ANSI_CODE = {str(adminCounty)} AND TRACT_NUMBER = {str(tractNumber)}"
         else:
-            whereClause = "ADMIN_STATE = " + str(adminState) + " AND ADMIN_COUNTY = " + str(adminCounty) + " AND TRACT_NUMBER = " + str(tractNumber)
+            whereClause = f"ADMIN_STATE = {str(adminState)} AND ADMIN_COUNTY = {str(adminCounty)} AND TRACT_NUMBER = {str(tractNumber)}"
 
-        AddMsgAndPrint("Querying USDA-NRCS GeoPortal for CLU fields where: " + whereClause)
+        AddMsgAndPrint(f"Querying USDA-NRCS GeoPortal for CLU fields where: {whereClause}")
 
         # Send geometry request to cluREST API
-        if not getCLUgeometryByTractQuery(whereClause,cluFC,cluRESTurl):
+        if not getCLUgeometryByTractQuery(whereClause, cluFC, cluRESTurl):
             try:
-                arcpy.Delete_management(cluFC)
+                Delete(cluFC)
             except:
                 pass
 
             # Script executed directly from ArcGIS Pro
             if addCLUtoSoftware:
-                AddMsgAndPrint("Exiting",1)
+                AddMsgAndPrint('Exiting', 1)
                 exit()
 
             # Script executed from another script
@@ -417,17 +425,17 @@ def start(state,county,trctNmbr,outSR,outWS,addCLUtoSoftware=False):
                 return False
 
         # Report # of fields assembled
-        numOfCLUs = int(arcpy.GetCount_management(cluFC)[0])
+        numOfCLUs = int(GetCount(cluFC)[0])
         if numOfCLUs > 1:
-            AddMsgAndPrint("\nThere are " + str(numOfCLUs) + " CLU fields associated with tract number " + str(tractNumber))
+            AddMsgAndPrint(f"\nThere are {str(numOfCLUs)} CLU fields associated with tract number {str(tractNumber)}")
         else:
-            AddMsgAndPrint("\nThere is " + str(numOfCLUs) + " CLU field associated with tract number " + str(tractNumber))
+            AddMsgAndPrint(f"\nThere is {str(numOfCLUs)} CLU field associated with tract number {str(tractNumber)}")
 
         # Project cluFC to user-defined spatial reference or the spatial reference set in the AcrGIS Pro Map
-        fromSR = arcpy.Describe(cluFC).spatialReference
+        fromSR = Describe(cluFC).spatialReference
         toSR = outSpatialRef
 
-        geoTransformation = arcpy.ListTransformations(fromSR,toSR)
+        geoTransformation = ListTransformations(fromSR, toSR)
         if len(geoTransformation):
             geoTransformation = geoTransformation[0]
             msg = 1
@@ -435,23 +443,22 @@ def start(state,county,trctNmbr,outSR,outWS,addCLUtoSoftware=False):
             geoTransformation = None
             msg = 0
 
-        projected_CLU = cluFC + "_prj"
-        arcpy.Project_management(cluFC,projected_CLU,toSR,geoTransformation)
+        projected_CLU = f"{cluFC}_prj"
+        Project(cluFC, projected_CLU, toSR, geoTransformation)
 
-        arcpy.Delete_management(cluFC)
-        arcpy.Rename_management(projected_CLU,projected_CLU[0:-4])
+        Delete(cluFC)
+        Rename(projected_CLU, projected_CLU[0:-4])
         cluFC = projected_CLU[0:-4]
 
-        AddMsgAndPrint(" ",msg)
-        AddMsgAndPrint("\nProjecting CLU Feature class",msg)
-        AddMsgAndPrint("FROM: " + str(fromSR.name),msg)
-        AddMsgAndPrint("TO: " + str(toSR.name),msg)
-        AddMsgAndPrint("Geographic Transformation used: " + str(geoTransformation),msg)
+        AddMsgAndPrint(' ', msg)
+        AddMsgAndPrint('\nProjecting CLU Feature class', msg)
+        AddMsgAndPrint(f"FROM: {str(fromSR.name)}", msg)
+        AddMsgAndPrint(f"TO: {str(toSR.name)}", msg)
+        AddMsgAndPrint(f"Geographic Transformation used: {str(geoTransformation)}", msg)
 
-        # Add final CLU layer to either ArcPro or ArcMap
+        # Add final CLU layer to Project
         if addCLUtoSoftware:
-            # Add the data to the first ArcPro Map found
-            aprx = arcpy.mp.ArcGISProject("CURRENT")
+            aprx = ArcGISProject('CURRENT')
             aprxMaps = aprx.listMaps()
 
             try:
@@ -460,13 +467,13 @@ def start(state,county,trctNmbr,outSR,outWS,addCLUtoSoftware=False):
                 for map in aprxMaps:
                     if map.name == activeMapName:
                         map.addDataFromPath(cluFC)
-                        AddMsgAndPrint(path.basename(cluFC) + " added to " + map.name + " Map")
+                        AddMsgAndPrint(f"{path.basename(cluFC)} added to {map.name} map")
                         break
 
             except:
                 map = aprx.listMaps()[0]
                 map.addDataFromPath(cluFC)
-                AddMsgAndPrint(path.basename(cluFC) + " added to " + map.name + " Map")
+                AddMsgAndPrint(f"{path.basename(cluFC)} added to {map.name} map")
 
         else:
             return cluFC
