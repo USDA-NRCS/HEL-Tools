@@ -170,29 +170,16 @@ try:
     cluName = 'Site_CLU'
     projectCLU = path.join(basedataFD, cluName)
     projectTract = path.join(basedataFD, 'Site_Tract')
-    DAOIname = 'Site_Define_AOI'
-    projectDAOI = path.join(basedataFD, DAOIname)
     helFolder = path.join(projectFolder, 'HEL')
-    wetDir = helFolder
-    wcGDB_name = f"{folderName}_WC.gdb"
-    wcGDB_path = path.join(helFolder, wcGDB_name)
-    wcFD = path.join(wcGDB_path, 'WC_Data')
-    # NWI_name = 'Site_NWI'
-    # projectNWI = path.join(basedataFD, 'Site_NWI')
-    # intNWI = path.join(basedataGDB_path, 'Intersected_NWI')
-    # tempLayers = []
-    # removeScratchLayers(tempLayers)
-
+    helcGDB_name = f"{folderName}_HELC.gdb"
+    helcGDB_path = path.join(helFolder, helcGDB_name)
+    helcFD = path.join(helcGDB_path, 'HELC_Data')
+    cluOut = 'Site_CLU'
     scratchGDB = path.join(path.dirname(sys.argv[0]), 'SCRATCH.gdb')
     jobid = uuid4()
 
-    # Map Layer Names
-    cluOut = 'Site_CLU'
-    DAOIOut = 'Site_Define_AOI'
-
 
     #### Create the project directory
-    # Check if C:\Determinations exists, else create it
     AddMessage('\nChecking project directories...')
     SetProgressorLabel('Checking project directories...')
     if not path.exists(workspacePath):
@@ -209,7 +196,7 @@ try:
         try:
             SetProgressorLabel('Creating project folder...')
             mkdir(projectFolder)
-            AddMessage('\nThe project folder has been created within Determinations.')
+            AddMessage('\nThe project folder has been created within C:\Determinations.')
         except:
             AddError('\nThe project folder cannot be created. Please check your permissions to C:\Determinations. Exiting...\n')
             exit()
@@ -221,12 +208,12 @@ try:
 
     #### Continue creating sub-directories
     SetProgressorLabel('Creating project contents...')
-    # Check if the Wetlands folder exists within the projectFolder, else create it
+    # Check if the HEL folder exists within the projectFolder, else create it
     if not path.exists(helFolder):
         try:
-            SetProgressorLabel('Creating wetlands folder...')
+            SetProgressorLabel('Creating HEL folder...')
             mkdir(helFolder)
-            AddMsgAndPrint(f"\nThe Wetlands folder has been created within {projectFolder}")
+            AddMsgAndPrint(f"\nThe HEL folder has been created within {projectFolder}")
         except:
             AddMsgAndPrint('\nCould not access C:\Determinations. Check your permissions for C:\Determinations. Exiting...\n', 2)
             exit()
@@ -243,65 +230,21 @@ try:
         SetProgressorLabel('Creating Base Date feature dataset...')
         CreateFeatureDataset(basedataGDB_path, 'Layers', mapSR)
 
-    if not Exists(wcGDB_path):
-        AddMsgAndPrint('\nCreating Wetlands geodatabase...')
-        SetProgressorLabel('Creating Wetlands geodatabase...')
-        CreateFileGDB(helFolder, wcGDB_name, '10.0')
+    if not Exists(helcGDB_path):
+        AddMsgAndPrint('\nCreating HEL geodatabase...')
+        SetProgressorLabel('Creating HEL geodatabase...')
+        CreateFileGDB(helFolder, helcGDB_name, '10.0')
 
-    if not Exists(wcFD):
-        AddMsgAndPrint('\nCreating Wetlands feature dataset...')
-        SetProgressorLabel('Creating Wetlands feature dataset...')
-        CreateFeatureDataset(wcGDB_path, 'WC_Data', mapSR)
-
-
-    #### Add or validate the attribute domains for the geodatabases
-    # AddMsgAndPrint('\nChecking attribute domains of wetlands geodatabase...')
-    # SetProgressorLabel('Checking attribute domains of wetlands geodatabase...')
-
-    # Wetlands Domains
-    # descGDB = Describe(wcGDB_path)
-    # domains = descGDB.domains
-
-    # if not 'Evaluation Status' in domains:
-    #     evalTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_evaluation_status')
-    #     TableToDomain(evalTable, 'Code', 'Description', wcGDB_path, 'Evaluation Status', 'Choices for evaluation workflow status', 'REPLACE')
-    #     AlterDomain(wcGDB_path, 'Evaluation Status', '', '', 'DUPLICATE')
-    # if not 'Line Type' in domains:
-    #     lineTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_line_type')
-    #     TableToDomain(lineTable, 'Code', 'Description', wcGDB_path, 'Line Type', 'Drainage line types', 'REPLACE')
-    #     AlterDomain(wcGDB_path, 'Line Type', '', '', 'DUPLICATE')
-    # if not 'Method' in domains:
-    #     methodTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_method')
-    #     TableToDomain(methodTable, 'Code', 'Description', wcGDB_path, 'Method', 'Choices for wetland determination method', 'REPLACE')
-    #     AlterDomain(wcGDB_path, 'Method', '', '', 'DUPLICATE')
-    # if not 'Pre Post' in domains:
-    #     prepostTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_pre_post')
-    #     TableToDomain(prepostTable, 'Code', 'Description', wcGDB_path, 'Pre Post', 'Choices for date relative to 1985', 'REPLACE')
-    #     AlterDomain(wcGDB_path, 'Pre Post', '', '', 'DUPLICATE')
-    # if not 'Request Type' in domains:
-    #     requestTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_request_type')
-    #     TableToDomain(requestTable, 'Code', 'Description', wcGDB_path, 'Request Type', 'Choices for request type form', 'REPLACE')
-    #     AlterDomain(wcGDB_path, 'Request Type', '', '', 'DUPLICATE')
-    # if not 'Wetland Labels' in domains:
-    #     wetTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_wetland_labels')
-    #     TableToDomain(wetTable, 'Code', 'Description', wcGDB_path, 'Wetland Labels', 'Choices for wetland determination labels', 'REPLACE')
-    #     AlterDomain(wcGDB_path, 'Wetland Labels', '', '', 'DUPLICATE')
-    # if not 'Yes No' in domains:
-    #     yesnoTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_yesno')
-    #     TableToDomain(yesnoTable, 'Code', 'Description', wcGDB_path, 'Yes No', 'Yes or no options', 'REPLACE')
-    #     AlterDomain(wcGDB_path, 'Yes No', '', '', 'DUPLICATE')
-    # if not 'YN' in domains:
-    #     ynTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_yn')
-    #     TableToDomain(ynTable, 'Code', 'Description', wcGDB_path, 'YN', 'Y or N options', 'REPLACE')
-    #     AlterDomain(wcGDB_path, 'YN', '', '', 'DUPLICATE')
-
-    # del descGDB, domains
+    if not Exists(helcFD):
+        AddMsgAndPrint('\nCreating HEL feature dataset...')
+        SetProgressorLabel('Creating HEL feature dataset...')
+        CreateFeatureDataset(helcGDB_path, 'HELC_Data', mapSR)
 
 
     #### Remove the existing projectCLU layer from the Map
     AddMsgAndPrint('\nRemoving CLU layer from project maps, if present...\n')
     SetProgressorLabel('Removing CLU layer from project maps, if present...')
-    mapLayersToRemove = [cluOut, DAOIOut]
+    mapLayersToRemove = [cluOut]
     try:
         for maps in aprx.listMaps():
             for lyr in maps.listLayers():
@@ -332,7 +275,6 @@ try:
             
 
     #### Download the CLU
-    # If the CLU doesn't exist, download it
     if not Exists(projectCLU):
         AddMsgAndPrint('\nDownloading latest CLU data...')
         SetProgressorLabel('Downloading latest CLU data...')
@@ -408,7 +350,6 @@ try:
 
     
     #### Create the Tract layer by dissolving the CLU layer.
-    # If the Tract layer doesn't exist, create it
     if not Exists(projectTract):
         AddMsgAndPrint('\nCreating Tract data...')
         SetProgressorLabel('Creating Tract data...')
@@ -417,67 +358,18 @@ try:
         del dis_fields
 
 
-    #### Create the Site Define AOI layer as a copy of the CLU layer
-    if not Exists(projectDAOI):
-        AddMsgAndPrint('\nCreating the Site Define AOI layer...')
-        SetProgressorLabel('Creating the Site Define AOI layer...')
-        FeatureClassToFeatureClass(projectCLU, basedataFD, DAOIname)
-    # if owFlag == True:
-    #     AddMsgAndPrint('\nCLU overwrite was selected. Resetting the Site Define AOI layer...')
-    #     SetProgressorLabel('CLU overwrite was selected. Resetting the Site Define AOI layer...')
-    #     FeatureClassToFeatureClass(projectCLU, basedataFD, DAOIname)
-
-
-    #### Create the NWI layer
-    # AddMsgAndPrint('\nCreating NWI layer...')
-    # SetProgressorLabel('Creating NWI layer...')
-
-    # query_results_fc = queryIntersect(scratchGDB, userWorkspace, projectCLU, nwiURL, intNWI, portalToken)
-
-    # if query_results_fc == False:
-    #     AddMsgAndPrint('\nCould not download NWI data. Either no features were found on the tract or the NWI service may be offline. Continuing...', 1)
-        
-    # else:
-    #     if Exists(intNWI):
-    #         # This section runs if any intersecting geometry is returned from the query
-    #         AddMsgAndPrint('\tNWI data found within current Tract! Processing...')
-    #         SetProgressorLabel('NWI data found within current Tract! Processing...')
-
-    #         nwi_count = int(GetCount(query_results_fc).getOutput(0))
-    #         if nwi_count > 0:
-    #             # Confirm multi part to single part with results and create projectNWI in doing so.
-    #             MultipartToSinglepart(query_results_fc, projectNWI)
-    #             Delete(query_results_fc)
-    #         else:
-    #             AddMsgAndPrint('\tNo NWI data found! Finishing up...')
-    #             Delete(query_results_fc)
-
-    #     else:
-    #         AddMsgAndPrint('\tNo NWI data found! Finishing up...')
-    #         SetProgressorLabel('No NWI data found! Finishing up...')
-    #         try:
-    #             Delete(query_results_fc)
-    #         except:
-    #             pass
-
-
     #### Prepare to add to map
     if not Exists(cluOut):
         SetParameterAsText(3, projectCLU)
-    if not Exists(DAOIOut):
-        SetParameterAsText(4, projectDAOI)
-    # if not Exists(NWI_name):
-    #     if Exists(projectNWI):
-    #         SetParameterAsText(14, projectNWI)
 
-    
+
     #### Compact FGDB
     try:
         AddMsgAndPrint('\nCompacting File Geodatabases...')
         SetProgressorLabel('Compacting File Geodatabases...')
         Compact(basedataGDB_path)
-        Compact(wcGDB_path)
-        AddMsgAndPrint('\tSuccessful', 0)
+        Compact(helcGDB_path)
+        AddMsgAndPrint('\tSuccessful')
     except:
         pass
 
