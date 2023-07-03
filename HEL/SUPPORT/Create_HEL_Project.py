@@ -463,9 +463,9 @@ try:
 
     #### Prepare to add to map
     if not Exists(cluOut):
-        SetParameterAsText(9, projectCLU)
+        SetParameterAsText(3, projectCLU)
     if not Exists(DAOIOut):
-        SetParameterAsText(10, projectDAOI)
+        SetParameterAsText(4, projectDAOI)
     # if not Exists(NWI_name):
     #     if Exists(projectNWI):
     #         SetParameterAsText(14, projectNWI)

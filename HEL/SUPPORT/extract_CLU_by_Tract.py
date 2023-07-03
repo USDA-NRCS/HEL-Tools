@@ -88,7 +88,7 @@ def submitFSquery(url,INparams):
                 # by parsing the encoded query strting into list of (name, value pairs)
                 # i.e [('f', 'json'),('token','U62uXB9Qcd1xjyX1)]
                 # convert to dictionary and update the token in dictionary
-                queryString = parseQueryString(params) ##NOTE: undefined params variable
+                queryString = parseQueryString(INparams)
                 requestDict = dict(queryString)
                 requestDict.update(token=newToken['token'])
                 newParams = urllibEncode(requestDict)
@@ -234,13 +234,12 @@ def createOutputFC(metadata,outputWS,shape="POLYGON"):
 
 
 def getCLUgeometryByTractQuery(sqlQuery,fc,RESTurl):
-    """ This funciton will will retrieve CLU geometry from the CLU WFS and assemble
+    """ This funciton will retrieve CLU geometry from the CLU WFS and assemble
         into the CLU fc along with the attributes associated with it.
         It is intended to receive requests that will return records that are
         below the WFS record limit"""
 
     try:
-
         params = urllibEncode({'f': 'json',
                                'where':sqlQuery,
                                'geometryType':'esriGeometryPolygon',
