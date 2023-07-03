@@ -7,12 +7,10 @@ import sys
 sys.dont_write_bytecode=True
 sys.path.append(path.dirname(sys.argv[0]))
 
-from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, env, Exists, GetParameter, GetParameterAsText, \
-    ListFeatureClasses, SetParameterAsText, SetProgressorLabel, SpatialReference
+from arcpy import AddError, AddFieldDelimiters, AddMessage, env, Exists, GetParameterAsText, SetParameterAsText, SetProgressorLabel
 from arcpy.conversion import FeatureClassToFeatureClass
 from arcpy.da import SearchCursor, UpdateCursor
-from arcpy.management import AddField, AlterDomain, Append, Compact, CreateFeatureclass, CreateFeatureDataset, CreateFileGDB, \
-    Delete, Dissolve, GetCount, MultipartToSinglepart, TableToDomain
+from arcpy.management import AddField, Append, Compact, CreateFeatureclass, CreateFeatureDataset, CreateFileGDB, Delete, Dissolve  
 from arcpy.mp import ArcGISProject
 
 from extract_CLU_by_Tract import getPortalTokenInfo, start
@@ -29,19 +27,11 @@ except Exception:
 
 
 ### Input Parameters ###
-sourceState = GetParameterAsText(0)
-sourceCounty = GetParameterAsText(1)
-tractNumber = GetParameterAsText(2)
-
-# projectType = GetParameterAsText(0)
-# existingFolder = GetParameterAsText(1)
-# sourceState = GetParameterAsText(4)
-# sourceCounty = GetParameterAsText(6)
-# tractNumber = GetParameterAsText(7)
-# owFlag = GetParameter(8)
-# map_name = GetParameterAsText(11)
-# specific_sr = GetParameterAsText(12)
-# nwiURL = GetParameterAsText(13)
+projectType = GetParameterAsText(0)
+existingFolder = GetParameterAsText(1)
+sourceState = GetParameterAsText(2)
+sourceCounty = GetParameterAsText(3)
+tractNumber = GetParameterAsText(4)
 
 
 ### Validate Spatial Reference ###
@@ -65,7 +55,6 @@ if 'WGS' not in mapSR.name or '1984' not in mapSR.name or 'UTM' not in mapSR.nam
 
 ### ESRI Environment Settings ###
 env.outputCoordinateSystem = mapSR
-env.geographicTransformations = 'WGS_1984_(ITRF00)_To_NAD_1983'
 env.overwriteOutput = True
 aprx.defaultGeodatabase = path.join(path.dirname(sys.argv[0]), 'SCRATCH.gdb')
 
@@ -144,17 +133,16 @@ try:
     else:
         finalmonth = themonth
 
-    # # Build project folder path
-    # if projectType == 'New':
-    projectFolder = path.join(workspacePath, f"{postal}{adminCounty}_t{tractname}_{theyear}_{finalmonth}")
-
-    # else:
-    #     # Get project folder path from user input. Validation was done during script validations on the input
-    #     if existingFolder != '':
-    #         projectFolder = existingFolder
-    #     else:
-    #         AddError('Project type was specified as Existing, but no existing project folder was selected. Exiting...')
-    #         exit()
+    # Build project folder path
+    if projectType == 'New':
+        projectFolder = path.join(workspacePath, f"{postal}{adminCounty}_t{tractname}_{theyear}_{finalmonth}")
+    else:
+        # Get project folder path from user input. Validation was done during script validations on the input
+        if existingFolder != '':
+            projectFolder = existingFolder
+        else:
+            AddError('Project type was specified as Existing, but no existing project folder was selected. Exiting...')
+            exit()
 
     #### Set additional variables based on constructed path
     folderName = path.basename(projectFolder)
@@ -253,26 +241,6 @@ try:
     except:
         pass
 
-    
-    #### If overwrite was selected, delete everything and start over
-    # if owFlag == True:
-    #     AddMsgAndPrint('\nOverwrite selected. Deleting existing project data...')
-    #     SetProgressorLabel('Overwrite selected. Deleting existing project data...')
-    #     if Exists(basedataFD):
-    #         ws = env.workspace
-    #         env.workspace = basedataGDB_path
-    #         fcs = ListFeatureClasses(feature_dataset='Layers')
-    #         for fc in fcs:
-    #             try:
-    #                 path = path.join(basedataFD, fc)
-    #                 Delete(path)
-    #             except:
-    #                 pass
-    #         Delete(basedataFD)
-    #         CreateFeatureDataset(basedataGDB_path, 'Layers', mapSR)
-    #         env.workspace = ws
-    #         del ws
-            
 
     #### Download the CLU
     if not Exists(projectCLU):
@@ -360,7 +328,7 @@ try:
 
     #### Prepare to add to map
     if not Exists(cluOut):
-        SetParameterAsText(3, projectCLU)
+        SetParameterAsText(5, projectCLU)
 
 
     #### Compact FGDB
