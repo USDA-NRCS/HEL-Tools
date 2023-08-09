@@ -265,7 +265,7 @@ def getCLUgeometryByTractQuery(sqlQuery, fc, RESTurl):
 
         # make sure the request returned geometry; otherwise return False
         if not len(geometry['features']):
-            AddMsgAndPrint(f"\nThere were no CLU fields associated with tract Number {str(tractNumber)}", 1)
+            AddMsgAndPrint(f"\nThere were no CLU fields associated with tract Number {str(tractNumber)}. Please review Admin State, County, and Tract Number entered.", 1)
             return False
 
         # Insert Geometry
