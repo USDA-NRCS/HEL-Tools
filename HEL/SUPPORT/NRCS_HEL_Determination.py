@@ -174,6 +174,7 @@ try:
     scratchLayers.append(cluHELintersect_pre)
 
     # Test intersection --- Should we check the percentage of intersection here? what if only 50% overlap
+    # TODO: Explore better method for intersection check, Count Overlap?
     # No modification needed for these acres. The total is used only for this check.
     totalIntAcres = sum([row[0] for row in SearchCursor(finalHELSummary, ('SHAPE@AREA'))]) / acreConversionDict.get(Describe(finalHELSummary).SpatialReference.LinearUnitName)
     if not totalIntAcres:
