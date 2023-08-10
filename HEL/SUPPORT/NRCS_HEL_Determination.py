@@ -98,10 +98,9 @@ try:
     else:
         fieldDetermination = CopyFeatures(cluLayer, fieldDetermination)
 
-    # Make sure TRACTNBR and FARMNBR  are unique; exit otherwise
-    uniqueTracts = list(set([row[0] for row in SearchCursor(fieldDetermination, ('TRACTNBR'))]))
-    uniqueFarm   = list(set([row[0] for row in SearchCursor(fieldDetermination, ('FARMNBR'))]))
-    uniqueFields = list(set([row[0] for row in SearchCursor(fieldDetermination, ('CLUNBR'))]))
+    # Make sure tract_number and farm_number  are unique; exit otherwise
+    uniqueTracts = list(set([row[0] for row in SearchCursor(fieldDetermination, ('tract_number'))]))
+    uniqueFarm   = list(set([row[0] for row in SearchCursor(fieldDetermination, ('farm_number'))]))
 
     if len(uniqueTracts) != 1:
         AddMsgAndPrint(f"\n\tThere are {str(len(uniqueTracts))} different Tract Numbers. Exiting!", 2)
@@ -127,7 +126,7 @@ try:
     AddMsgAndPrint(f"\nNumber of CLU fields selected: {len(cluDesc.FIDset.split(';'))}", textFilePath=textFilePath)
 
     # Add Calcacre field if it doesn't exist. Should be part of the CLU layer.
-    calcAcreFld = 'CALCACRES'
+    calcAcreFld = 'clu_calculated_acres'
     if not len(ListFields(fieldDetermination, calcAcreFld)) > 0:
         AddField(fieldDetermination, calcAcreFld, 'DOUBLE')
 
@@ -183,8 +182,8 @@ try:
         exit()
 
     # Dissolve intersection output by the following fields -> helSummary
-    cluNumberFld = 'CLUNBR'
-    dissovleFlds = [cluNumberFld, 'TRACTNBR', 'FARMNBR', 'COUNTYCD', 'CALCACRES', helFld]
+    cluNumberFld = 'clu_number'
+    dissovleFlds = [cluNumberFld, 'tract_number', 'farm_number', 'county_code', 'clu_calculated_acres', helFld]
 
     # Dissolve the finalHELSummary to report input summary
     Dissolve(finalHELSummary, helSummary, dissovleFlds, '', 'MULTI_PART', 'DISSOLVE_LINES')
@@ -211,7 +210,7 @@ try:
     maxAcreLength = list()      ## Stores the number of acre digits for formatting purposes
     bNoPHELvalues = False       ## Boolean flag to indicate PHEL values are missing
 
-    # HEL Field, Og_HELcode, Og_HEL_Acres, Og_HEL_AcrePct, "SHAPE@AREA", "CALCACRES"
+    # HEL Field, Og_HELcode, Og_HEL_Acres, Og_HEL_AcrePct, "SHAPE@AREA", "clu_calculated_acres"
     with UpdateCursor(helSummary, [helFld, HELrasterCode, HELacres, HELacrePct, 'SHAPE@AREA', calcAcreFld]) as cursor:
         for row in cursor:
             # Update HEL value field; Continue if NULL HEL value
@@ -285,11 +284,11 @@ try:
     sumHELacreFld = [fld.name for fld in ListFields(ogHelSummaryStats, '*' + HELacres)][0]
     scratchLayers.append(ogHelSummaryStats)
 
-    # Pivot table will have CLUNBR & any HEL values present (HEL,NHEL,PHEL)
+    # Pivot table will have clu_number & any HEL values present (HEL,NHEL,PHEL)
     PivotTable(ogHelSummaryStats, cluNumberFld, helFld, sumHELacreFld, ogHelSummaryStatsPivot)
     scratchLayers.append(ogHelSummaryStatsPivot)
 
-    pivotFields = [fld.name for fld in ListFields(ogHelSummaryStatsPivot)][1:]  # ['CLUNBR','HEL','NHEL','PHEL']
+    pivotFields = [fld.name for fld in ListFields(ogHelSummaryStatsPivot)][1:]  # ['clu_number','HEL','NHEL','PHEL']
     numOfhelValues = len(pivotFields)                                                 # Number of Pivot table fields; Min 2 fields
     maxAcreLength.sort(reverse=True)
     bSkipGeoprocessing = True             # Skip processing until a field is neither HEL >= 33.33% or NHEL > 66.67%
@@ -312,7 +311,7 @@ try:
     # {cluNumber:(HEL value, cluAcres, HEL Pct} -- HEL value is determined by the 33.33% or 50 acre rule
     ogCLUinfoDict = dict()
 
-    # Iterate through the pivot table and report HEL values by CLU - ['CLUNBR','HEL','NHEL','PHEL']
+    # Iterate through the pivot table and report HEL values by CLU - ['clu_number','HEL','NHEL','PHEL']
     with SearchCursor(ogHelSummaryStatsPivot, pivotFields) as cursor:
         for row in cursor:
             og_cluHELrating = None         # original field HEL Rating
@@ -688,7 +687,7 @@ try:
     # this will be used for field determination
     fieldDeterminationDict = dict()
 
-    # [polyAcres,finalHELvalue,finalHELacres,finalHELpct,"VALUE_2","SHAPE@AREA","CLUNBR"]
+    # [polyAcres,finalHELvalue,finalHELacres,finalHELpct,"VALUE_2","SHAPE@AREA","clu_number"]
     with UpdateCursor(finalHELSummary, newFields) as cursor:
         for row in cursor:
             # Calculate polygon acres
@@ -728,7 +727,7 @@ try:
 
     # Delete unwanted fields from the finalHELSummary Layer
     newFields.remove('VALUE_2')
-    validFlds = [cluNumberFld, 'STATECD', 'TRACTNBR', 'FARMNBR', 'COUNTYCD', 'CALCACRES', helFld, 'MUSYM', 'MUNAME', 'MUWATHEL', 'MUWNDHEL'] + newFields
+    validFlds = [cluNumberFld, 'state_code', 'tract_number', 'farm_number', 'county_code', 'clu_calculated_acres', helFld, 'MUSYM', 'MUNAME', 'MUWATHEL', 'MUWNDHEL'] + newFields
 
     deleteFlds = list()
     for fld in [f.name for f in ListFields(finalHELSummary)]:
@@ -750,9 +749,9 @@ try:
 
     fieldList.append(cluNumberFld)
     fieldList.append(calcAcreFld)
-    cluDict = dict()  # Strictly for formatting; ClUNBR: (len of clu, helAcres, helPct, len of Acres, len of pct,is it HEL?)
+    cluDict = dict()  # Strictly for formatting; clu_number: (len of clu, helAcres, helPct, len of Acres, len of pct,is it HEL?)
 
-    # ['HEL_YES','HEL_Acres','HEL_Pct','CLUNBR','CALCACRES']
+    # ['HEL_YES','HEL_Acres','HEL_Pct','clu_number','clu_calculated_acres']
     with UpdateCursor(fieldDetermination, fieldList) as cursor:
         for row in cursor:
             # if results are completely HEL or NHEL then get total clu acres from ogCLUinfoDict
@@ -769,7 +768,7 @@ try:
                     nhelPct = 100.0
             else:
                 helAcres = fieldDeterminationDict[row[3]]    # total HEL acres for field
-                helPct = (helAcres / row[4]) * 100           # helAcres / CALCACRES
+                helPct = (helAcres / row[4]) * 100           # helAcres / clu_calculated_acres
                 nhelAcres = row[4] - helAcres
                 nhelPct = 100 - helPct
                 # set pct to 100 if its greater; rounding issue
