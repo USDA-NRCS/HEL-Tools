@@ -1,5 +1,6 @@
 from math import pi
-from os import path
+from os import listdir, path
+from pathlib import Path
 from sys import exit
 
 from arcpy import CreateScratchName, Describe, env, Exists, GetParameter, GetParameterAsText, ListFields, \
@@ -38,7 +39,6 @@ use_runoff_ls = GetParameter(4)
 # dcSignature = GetParameterAsText(4) #TODO: Move these to forms and letters tool
 # input_cust = GetParameterAsText(5)
 
-
 ### Set Local Variables and Paths ###
 kFactorFld = 'K'
 tFactorFld = 'T'
@@ -55,15 +55,25 @@ initial_hel_summary_lyrx = path.join(layer_files_dir, 'Initial_HEL_Summary.lyrx'
 lidar_hel_summary_lyrx = path.join(layer_files_dir, 'LiDAR_HEL_Summary.lyrx')
 
 support_gdb = path.join(base_dir, 'SUPPORT.gdb')
-# TODO: Outputs need to go in project output gdb once established
 lu_table = path.join(support_gdb, 'lut_census_fips')
-fieldDetermination = path.join(support_gdb, 'Field_Determination')
-helSummary = path.join(support_gdb, 'Initial_HEL_Summary')
-lidarHEL = path.join(support_gdb, 'LiDAR_HEL_Summary')
-finalHELSummary = path.join(support_gdb, 'Final_HEL_Summary')
 
+base_data_gdb = Path(Describe(cluLayer).catalogPath)
+hel_dir = path.join(base_data_gdb.parent.parent.parent, 'HEL')
+for file in listdir(hel_dir):
+    if file.endswith('.gdb'):
+        helc_gdb = path.join(hel_dir, file)
+AddMsgAndPrint(helc_gdb)
+
+fieldDetermination = path.join(helc_gdb, 'Field_Determination')
+helSummary = path.join(helc_gdb, 'Initial_HEL_Summary')
+lidarHEL = path.join(helc_gdb, 'LiDAR_HEL_Summary')
+finalHELSummary = path.join(helc_gdb, 'Final_HEL_Summary')
 
 ### Geodatabase Validation and Cleanup ###
+if not Exists(helc_gdb):
+    AddMsgAndPrint('\Failed to locate the project HELC.gdb', 2)
+    exit()
+
 if not Exists(support_gdb):
     AddMsgAndPrint('\nSUPPORT.gdb does not exist in the same path as HEL Tools', 2)
     exit()
@@ -77,7 +87,7 @@ for layer in output_layers:
         try:
             Delete(layer)
         except:
-            AddMsgAndPrint(f"\tCould not delete the {path.basename(layer)} feature class in the HEL access database. Creating an additional layer", 2)
+            AddMsgAndPrint(f"\tCould not delete the {path.basename(layer)} feature class in the HELC geodatabase. Creating an additional layer", 2)
             newName = str(layer)
             newName = CreateScratchName(path.basename(layer), data_type='FeatureClass', workspace=support_gdb)
 
@@ -119,10 +129,6 @@ try:
     # Create Text file to log info to
     textFilePath = createTextFile(uniqueTracts[0], uniqueFarm[0])
 
-    # Update the map layout for the current site being run
-    # TODO: make into separate tool
-    # configLayout(lu_table, fieldDetermination, input_cust)
-
     AddMsgAndPrint(f"\nNumber of CLU fields selected: {len(cluDesc.FIDset.split(';'))}", textFilePath=textFilePath)
 
     # Add Calcacre field if it doesn't exist. Should be part of the CLU layer.
@@ -140,7 +146,6 @@ try:
 
     # Z-factor conversion Lookup table
     # lookup dictionary to convert XY units to area. Key = XY unit of DEM; Value = conversion factor to sq.meters
-    # TODO: need to use GIS acres and remove all references of this dict
     acreConversionDict = {'Meter':4046.8564224, 'Foot':43560, 'Foot_US':43560, 'Centimeter':40470000, 'Inch':6273000}
 
     # Assign Z-factor based on XY and Z units of DEM
