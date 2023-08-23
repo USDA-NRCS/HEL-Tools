@@ -1,4 +1,5 @@
 from os import path
+from pathlib import Path
 from sys import argv, exit
 
 from arcpy import AddError, AddMessage, Describe, env, Exists, GetParameterAsText, SetParameterAsText
@@ -15,7 +16,15 @@ number_of_DEMs = len(source_DEMs)
 # Paths to SCRATCH.gdb features
 scratch_gdb = path.join(path.dirname(argv[0]), 'SCRATCH.gdb')
 clu_buffer = path.join(scratch_gdb, 'CLU_Buffer')
-merged_DEM = path.join(scratch_gdb, 'Merged_DEM')
+
+# Output to project base data GDB
+base_data_gdb = Path(Describe(source_clu).catalogPath).parent.parent
+merged_DEM = path.join(base_data_gdb, 'Merged_DEM')
+
+# Project Base Data GDB validation
+if not Exists(base_data_gdb):
+    AddError('\Failed to locate the project Base Data GDB... Exiting')
+    exit()
 
 # Create SCRATCH.gdb if needed, clear any existing features otherwise
 if not Exists(scratch_gdb):
@@ -25,7 +34,7 @@ if not Exists(scratch_gdb):
         AddError('Failed to create SCRATCH.gdb in install location... Exiting')
         exit()
 else:
-    scratch_features = [clu_buffer, merged_DEM]
+    scratch_features = [clu_buffer]
     for feature in scratch_features:
         if Exists(feature):
             Delete(feature)

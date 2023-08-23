@@ -1,7 +1,8 @@
 from os import path
+from pathlib import Path
 from sys import argv, exit
 
-from arcpy import AddError, AddMessage, env, Exists, GetParameterAsText, ListFields, SetParameterAsText
+from arcpy import AddError, AddMessage, Describe, env, Exists, GetParameterAsText, ListFields, SetParameterAsText
 from arcpy.analysis import Clip
 from arcpy.management import CreateFileGDB, Delete, Merge
 
@@ -13,7 +14,15 @@ source_soils = GetParameterAsText(1).split(';')
 # Paths to SCRATCH.gdb features
 scratch_gdb = path.join(path.dirname(argv[0]), 'SCRATCH.gdb')
 temp_soil = path.join(scratch_gdb, 'temp_soil')
-merged_soil = path.join(scratch_gdb, 'Merged_HEL_Soil')
+
+# Output to project base data GDB
+base_data_gdb = Path(Describe(source_clu).catalogPath).parent
+merged_soil = path.join(base_data_gdb, 'Merged_HEL_Soil')
+
+# Project Base Data GDB validation
+if not Exists(base_data_gdb):
+    AddError('\Failed to locate the project Base Data GDB... Exiting')
+    exit()
 
 # Create SCRATCH.gdb if needed, clear any existing features otherwise
 if not Exists(scratch_gdb):
@@ -23,7 +32,7 @@ if not Exists(scratch_gdb):
         AddError('Failed to create SCRATCH.gdb in install location... Exiting')
         exit()
 else:
-    scratch_features = [temp_soil, merged_soil]
+    scratch_features = [temp_soil]
     for feature in scratch_features:
         if Exists(feature):
             Delete(feature)
