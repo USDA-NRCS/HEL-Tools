@@ -64,10 +64,10 @@ for file in listdir(hel_dir):
         helc_gdb = path.join(hel_dir, file)
 AddMsgAndPrint(helc_gdb)
 
-fieldDetermination = path.join(helc_gdb, 'Field_Determination')
-helSummary = path.join(helc_gdb, 'Initial_HEL_Summary')
-lidarHEL = path.join(helc_gdb, 'LiDAR_HEL_Summary')
-finalHELSummary = path.join(helc_gdb, 'Final_HEL_Summary')
+fieldDetermination = path.join(helc_gdb, 'HELC_Data', 'Field_Determination')
+helSummary = path.join(helc_gdb, 'HELC_Data', 'Initial_HEL_Summary')
+lidarHEL = path.join(helc_gdb, 'HELC_Data', 'LiDAR_HEL_Summary')
+finalHELSummary = path.join(helc_gdb, 'HELC_Data', 'Final_HEL_Summary')
 
 ### Geodatabase Validation and Cleanup ###
 if not Exists(helc_gdb):
