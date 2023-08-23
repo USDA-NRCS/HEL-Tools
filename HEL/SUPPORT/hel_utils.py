@@ -8,7 +8,7 @@ from traceback import format_exception
 from urllib import parse, request
 
 from arcpy import AddError, AddFieldDelimiters, AddMessage, AddWarning, CreateScratchName, Describe, env, Exists, \
-    ListFields, ParseFieldName, SetProgressor, SetProgressorLabel, SpatialReference
+    ListFields, ParseFieldName, SetParameterAsText, SetProgressor, SetProgressorLabel, SpatialReference
 
 from arcpy.analysis import Buffer
 from arcpy.conversion import JSONToFeatures
@@ -396,6 +396,14 @@ def queryIntersect(ws, temp_dir, fc, RESTurl, outFC, portalToken):
             Delete(wmas_fc)
             Delete(wmas_dis)
             return outFC
+
+
+def addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination):
+    SetParameterAsText(5, lidarHEL)
+    SetParameterAsText(6, helSummary)
+    SetParameterAsText(7, finalHELSummary)
+    SetParameterAsText(8, fieldDetermination)
+    return True
 
 
 # TODO: Needs to be converted to Pro

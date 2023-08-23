@@ -4,7 +4,7 @@ from pathlib import Path
 from sys import exit
 
 from arcpy import CreateScratchName, Describe, env, Exists, GetParameter, GetParameterAsText, ListFields, \
-    Reclassify_3d, SetParameterAsText, SetParameterSymbology, SetProgressorLabel
+    Reclassify_3d, SetProgressorLabel
 
 from arcpy.analysis import Clip as Clip_a, Intersect, Statistics
 from arcpy.conversion import FeatureToRaster, RasterToPolygon
@@ -18,7 +18,7 @@ from arcpy.mp import ArcGISProject
 from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, FocalStatistics, IsNull, NbrRectangle, \
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
-from hel_utils import AddMsgAndPrint, createTextFile, errorMsg, extractDEM, FindField, removeScratchLayers
+from hel_utils import AddMsgAndPrint, addOutputLayers, createTextFile, errorMsg, extractDEM, FindField, removeScratchLayers
 
 
 ### Initial Tool Validation ###
@@ -66,8 +66,8 @@ AddMsgAndPrint(helc_gdb)
 
 fieldDetermination = path.join(helc_gdb, 'HELC_Data', 'Field_Determination')
 helSummary = path.join(helc_gdb, 'HELC_Data', 'Initial_HEL_Summary')
-lidarHEL = path.join(helc_gdb, 'HELC_Data', 'LiDAR_HEL_Summary')
 finalHELSummary = path.join(helc_gdb, 'HELC_Data', 'Final_HEL_Summary')
+lidarHEL = path.join(helc_gdb, 'LiDAR_HEL_Summary')
 
 ### Geodatabase Validation and Cleanup ###
 if not Exists(helc_gdb):
@@ -402,7 +402,7 @@ try:
             AddMsgAndPrint('\n\tHEL values are >= 33.33% or more than 50 acres, or NHEL values are > 66.67%', 1, textFilePath=textFilePath)
             AddMsgAndPrint('\tNo Geoprocessing is required\n', textFilePath=textFilePath)
 
-        # AddLayersToArcMap()
+        addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination)
 
         # TODO: make into separate tool
         # if not populateForm(fieldDetermination, lu_table, dcSignature, input_cust, support_gdb):
@@ -821,22 +821,12 @@ try:
 
     del fieldList, cluDict, maxHelAcreLength, maxNHelAcreLength
 
-    # Prepare Symboloby for ArcMap and 1026 form
-    # AddLayersToArcMap()
-
     # TODO: make into separate tool
     # if not populateForm(fieldDetermination, lu_table, dcSignature, input_cust, support_gdb):
     #     AddMsgAndPrint('\nFailed to correclty populate NRCS-CPA-026 form', 2, textFilePath=textFilePath)
 
     # Add output layers to map and symbolize
-    SetParameterAsText(5, lidarHEL)
-    SetParameterSymbology(5, lidar_hel_summary_lyrx)
-    SetParameterAsText(6, helSummary)
-    SetParameterSymbology(6, initial_hel_summary_lyrx)
-    SetParameterAsText(7, finalHELSummary)
-    SetParameterSymbology(7, final_hel_summary_lyrx)
-    SetParameterAsText(8, fieldDetermination)
-    SetParameterSymbology(8, field_determination_lyrx)
+    addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination)
 
     # Clean up time
     removeScratchLayers(scratchLayers)
