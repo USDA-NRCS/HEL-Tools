@@ -152,7 +152,7 @@ try:
     userWorkspace = path.dirname(basedataGDB_path)
     basedataFD = path.join(basedataGDB_path, 'Layers')
     outputWS = basedataGDB_path
-    templateCLU = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'master_clu')
+    templateCLU = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'Site_CLU_template')
     cluTempName = 'CLU_Temp_' + projectName
     projectCLUTemp = path.join(basedataFD, cluTempName)
     cluName = 'Site_CLU'
