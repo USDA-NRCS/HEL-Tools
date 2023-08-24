@@ -463,10 +463,7 @@ try:
 
     # If no data warning is True, show error messages
     if nd_warning == True:
-        AddMsgAndPrint('\nInput DEM problem detected! The input DEM may have null data areas covering the input CLU fields!', 2, textFilePath=textFilePath)
-        AddMsgAndPrint('\nPHEL map unit and slope analysis is likely to be invalid!', 2, textFilePath=textFilePath)
-        AddMsgAndPrint('\nPlease review input DEM data for actual coverage over the site.', 2, textFilePath=textFilePath)
-        AddMsgAndPrint('\nIf input DEM does not cover the site, the determination must be made with traditional methods.', 2, textFilePath=textFilePath)
+        AddMsgAndPrint('\nThe input DEM may have null data within the input CLU fields. Please review the \ninput DEM for coverage of the site, as well as the results layers, to determine \nif they are reasonable to use for this determination. If the DEM is insufficient \nfor the site, this determination should be made onsite. \n\nA DEM with a few missing pixels is usually sufficient, but a DEM with large null areas is not.', 1, textFilePath=textFilePath)
     else:
         AddMsgAndPrint('\nDEM values in site extent are not null. Continuing...', textFilePath=textFilePath)
 
@@ -829,8 +826,8 @@ try:
     addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination)
 
     # Clean up time
+    SetProgressorLabel('Finishing up...')
     removeScratchLayers(scratchLayers)
-    SetProgressorLabel('')
     AddMsgAndPrint('\n', textFilePath=textFilePath)
 
 except:

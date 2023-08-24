@@ -399,11 +399,14 @@ def queryIntersect(ws, temp_dir, fc, RESTurl, outFC, portalToken):
 
 
 def addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination):
-    SetParameterAsText(5, lidarHEL)
-    SetParameterAsText(6, helSummary)
-    SetParameterAsText(7, finalHELSummary)
-    SetParameterAsText(8, fieldDetermination)
-    return True
+    """ Adds output layers from determinitaion procedure to map. """
+    try:
+        SetParameterAsText(5, lidarHEL)
+        SetParameterAsText(6, helSummary)
+        SetParameterAsText(7, finalHELSummary)
+        SetParameterAsText(8, fieldDetermination)
+    except:
+        errorMsg()
 
 
 # TODO: Needs to be converted to Pro
