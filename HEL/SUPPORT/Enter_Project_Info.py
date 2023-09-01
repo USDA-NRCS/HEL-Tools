@@ -5,7 +5,7 @@ from time import ctime
 
 from arcpy import Describe, env, Exists, GetParameterAsText, SetProgressorLabel
 from arcpy.conversion import TableToTable
-from arcpy.da import InsertCursor, SearchCursor, UpdateCursor
+from arcpy.da import InsertCursor, SearchCursor
 from arcpy.management import Compact, CreateFeatureDataset, CreateFileGDB, CreateTable, Delete, DeleteRows, GetCount
 from arcpy.mp import ArcGISProject
 
@@ -108,13 +108,9 @@ try:
     # Get count of the records in the table, delete all rows
     SetProgressorLabel('Updating project table...')
     recordsCount = int(GetCount(projectTable)[0])
-    if recordsCount > 1:
+    if recordsCount > 0:
         DeleteRows(projectTable)
-
-    # If record count is zero, create a new row
-    if recordsCount == 0:
-        with InsertCursor(projectTable, ['*']) as cursor:
-            cursor.insertRow()
+        AddMsgAndPrint('Deleted row from project table')
 
     # Update entries to the row in the table. This tool always overwrites
     # Use a search cursor to get the tract location info from the CLU layer
@@ -136,41 +132,18 @@ try:
             tractNumber = row[9]
             break
 
-    # Use an update cursor to update all values in the admin table at once. Always overwrite.
+    # Use an insert cursor to add all values in the admin table at once
     AddMsgAndPrint('\nUpdating the administrative table...')
     SetProgressorLabel('Updating the administrative table...')
     field_names = ['admin_state','admin_state_name','admin_county','admin_county_name','state_code','state_name',
                    'county_code','county_name','farm_number','tract_number','client','deter_staff',
                    'dig_staff','request_date','request_type','street','street_2','city','state','zip','job_id']
-    with UpdateCursor(projectTable, field_names) as cursor:
-        for row in cursor:
-            row[0] = adminState
-            row[1] = adminStateName
-            row[2] = adminCounty
-            row[3] = adminCountyName
-            row[4] = stateCode
-            row[5] = stateName
-            row[6] = countyCode
-            row[7] = countyName
-            row[8] = farmNumber
-            row[9] = tractNumber
-            row[10] = client
-            row[11] = delineator
-            row[12] = digitizer
-            row[13] = requestDate
-            row[14] = requestType
-            if clientStreet != '':
-                row[15] = clientStreet
-            if clientStreet2 != '':
-                row[16] = clientStreet2
-            if clientCity != '':
-                row[17] = clientCity
-            if clientState != '':
-                row[18] = clientState
-            if clientZip != '':
-                row[19] = clientZip
-            row[20] = jobid
-            cursor.updateRow(row)
+    row = (adminState, adminStateName, adminCounty, adminCountyName, stateCode, stateName, countyCode,
+           countyName, farmNumber, tractNumber, client, delineator, digitizer, requestDate, requestType,
+           clientStreet if clientStreet else None, clientStreet2 if clientStreet2 else None, clientCity if clientCity else None,
+           clientState if clientState else None, clientZip if clientZip else None, jobid)
+    with InsertCursor(projectTable, field_names) as cursor:
+        cursor.insertRow(row)
 
     # Create a text file output version of the admin table for consumption by external data collection forms
     # Set a file name and export to the user workspace folder for the project
@@ -237,7 +210,7 @@ try:
         AddMsgAndPrint('\nCompacting File Geodatabase...')
         SetProgressorLabel('Compacting File Geodatabase...')
         Compact(basedataGDB_path)
-        AddMsgAndPrint('\tDone')
+        AddMsgAndPrint('\nFinished Script')
     except:
         pass
     
