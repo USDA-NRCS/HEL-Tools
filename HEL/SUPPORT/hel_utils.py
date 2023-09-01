@@ -738,3 +738,33 @@ def populateForm(fieldDetermination, lu_table, dcSignature, input_cust, helDatab
 #         return True
 #     except:
 #         return False
+
+
+def getLayout(aprx, lyt_name):
+    try:
+        layout = aprx.listLayouts(lyt_name)[0]
+        return layout
+    except:
+        AddMsgAndPrint(f"\t{lyt_name} layout missing from project. Skipping layout automation for {lyt_name}", 1)
+        AddMsgAndPrint(f"\tImporting the missing {lyt_name} layout from the install directory is recommended. Continuing...", 1)
+        return False
+
+
+def updateLayoutText(layout_object, layout_farm, layout_tract, layout_CoName, layout_adminName, layout_client):
+    """ Updates various text elements specific to the current request """
+    try:
+        Farm_ele = layout_object.listElements('TEXT_ELEMENT', 'Farm')[0]
+        Tract_ele = layout_object.listElements('TEXT_ELEMENT', 'Tract')[0]
+        GeoCo_ele = layout_object.listElements('TEXT_ELEMENT', 'GeoCo')[0]
+        AdminCo_ele = layout_object.listElements('TEXT_ELEMENT', 'AdminCo')[0]
+        Customer_ele = layout_object.listElements('TEXT_ELEMENT', 'Customer')[0]
+    except:
+        AddMsgAndPrint(f"\nOne or more expected elements are missing or had its name changed in the {layout_object.name} layout", 1)
+        AddMsgAndPrint('\nLayout text cannot be updated automatically. Import the appropriate layout from the installation folder and try again', 1)
+        AddMsgAndPrint(f"\nContinuing execution without updating the {layout_object.name} layout...", 1)
+
+    Farm_ele.text = f"Farm: {layout_farm}"
+    Tract_ele.text = f"Tract: {layout_tract}"
+    GeoCo_ele.text = f"Geographic County: {layout_CoName}"
+    AdminCo_ele.text = f"Administrative County: {layout_adminName}"
+    Customer_ele.text = f"Customer: {layout_client}"
