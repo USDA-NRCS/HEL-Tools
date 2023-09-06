@@ -36,8 +36,7 @@ helLayer = GetParameter(1)
 inputDEM = GetParameter(2)
 zUnits = GetParameterAsText(3)
 use_runoff_ls = GetParameter(4)
-# dcSignature = GetParameterAsText(4) #TODO: Move these to forms and letters tool
-# input_cust = GetParameterAsText(5)
+
 
 ### Set Local Variables and Paths ###
 kFactorFld = 'K'
