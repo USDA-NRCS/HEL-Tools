@@ -236,7 +236,7 @@ try:
             row_count += 1
             row_data = {}
             row_data['clu'] = row[0] if row[0] else ''
-            row_data['hel_nhel'] = row[1] if row[1] else ''
+            row_data['hel'] = row[1] if row[1] else ''
             row_data['acres'] = f'{row[2]:.2f}' if row[2] else ''
             if row_count < 19:
                 data_026_pg1.append(row_data)
