@@ -99,20 +99,18 @@ try:
             jobid = row[0]
             break
 
-    # Determine if the job's admin table does not exist, else create the table.
-    if not Exists(projectTable):
-        AddMsgAndPrint('\nCreating administrative table...')
+    # If the job's admin table exists, clear all rows, else create the table
+    if Exists(projectTable):
+        SetProgressorLabel('Located project admin table table...')
+        recordsCount = int(GetCount(projectTable)[0])
+        if recordsCount > 0:
+            DeleteRows(projectTable)
+            AddMsgAndPrint('\nCleared existing row from project admin table...')
+    else:
         SetProgressorLabel('Creating administrative table...')
         CreateTable(basedataGDB_path, tableName, templateTable)
+        AddMsgAndPrint('\nCreated administrative table...')
 
-    # Get count of the records in the table, delete all rows
-    SetProgressorLabel('Updating project table...')
-    recordsCount = int(GetCount(projectTable)[0])
-    if recordsCount > 0:
-        DeleteRows(projectTable)
-        AddMsgAndPrint('Deleted row from project table')
-
-    # Update entries to the row in the table. This tool always overwrites
     # Use a search cursor to get the tract location info from the CLU layer
     AddMsgAndPrint('\nImporting tract data from the CLU...')
     SetProgressorLabel('Importing tract data from the CLU...')
@@ -132,7 +130,7 @@ try:
             tractNumber = row[9]
             break
 
-    # Use an insert cursor to add all values in the admin table at once
+    # Use an insert cursor to add record to the admin table
     AddMsgAndPrint('\nUpdating the administrative table...')
     SetProgressorLabel('Updating the administrative table...')
     field_names = ['admin_state','admin_state_name','admin_county','admin_county_name','state_code','state_name',
