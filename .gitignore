@@ -8,3 +8,4 @@ venv/
 .backups/
 .vscode/
 *.lock
+test.py
