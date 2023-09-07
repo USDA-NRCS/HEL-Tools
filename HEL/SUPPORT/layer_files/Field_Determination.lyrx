@@ -3,18 +3,16 @@
   "version" : "3.1.0",
   "build" : 41833,
   "layers" : [
-    "CIMPATH=hel_determination/field_determination.json"
+    "CIMPATH=HEL_Determination/0641040be1fa40bbbdbfc7d9d373295b.json"
   ],
   "layerDefinitions" : [
     {
       "type" : "CIMFeatureLayer",
       "name" : "Field_Determination",
-      "uRI" : "CIMPATH=hel_determination/field_determination.json",
+      "uRI" : "CIMPATH=HEL_Determination/0641040be1fa40bbbdbfc7d9d373295b.json",
       "sourceModifiedTime" : {
-        "type" : "TimeInstant",
-        "start" : 978307200000
+        "type" : "TimeInstant"
       },
-      "metadataURI" : "CIMPATH=Metadata/c20f5d3b5b30d0f4a5ba323997e2dcea.xml",
       "useSourceMetadata" : true,
       "description" : "Field_Determination",
       "layerElevation" : {
@@ -36,7 +34,7 @@
       "autoGenerateFeatureTemplates" : true,
       "featureTable" : {
         "type" : "CIMFeatureTable",
-        "displayField" : "CLUID",
+        "displayField" : "admin_state_name",
         "editable" : true,
         "fieldDescriptions" : [
           {
@@ -63,71 +61,99 @@
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "CLUID",
-            "fieldName" : "CLUID",
+            "alias" : "Global Id",
+            "fieldName" : "GlobalId",
             "visible" : true,
             "searchMode" : "Exact"
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "CLUNBR",
-            "fieldName" : "CLUNBR",
-            "numberFormat" : {
-              "type" : "CIMNumericFormat",
-              "alignmentOption" : "esriAlignRight",
-              "alignmentWidth" : 0,
-              "roundingOption" : "esriRoundNumberOfDecimals",
-              "roundingValue" : 0
-            },
+            "alias" : "Job ID",
+            "fieldName" : "job_id",
             "visible" : true,
             "searchMode" : "Exact"
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "TRACTNBR",
-            "fieldName" : "TRACTNBR",
-            "numberFormat" : {
-              "type" : "CIMNumericFormat",
-              "alignmentOption" : "esriAlignRight",
-              "alignmentWidth" : 0,
-              "roundingOption" : "esriRoundNumberOfDecimals",
-              "roundingValue" : 0
-            },
+            "alias" : "Admin State",
+            "fieldName" : "admin_state",
             "visible" : true,
             "searchMode" : "Exact"
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "FARMNBR",
-            "fieldName" : "FARMNBR",
-            "numberFormat" : {
-              "type" : "CIMNumericFormat",
-              "alignmentOption" : "esriAlignRight",
-              "alignmentWidth" : 0,
-              "roundingOption" : "esriRoundNumberOfDecimals",
-              "roundingValue" : 0
-            },
+            "alias" : "Admin State Name",
+            "fieldName" : "admin_state_name",
             "visible" : true,
             "searchMode" : "Exact"
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "CLUCLSCD",
-            "fieldName" : "CLUCLSCD",
-            "numberFormat" : {
-              "type" : "CIMNumericFormat",
-              "alignmentOption" : "esriAlignRight",
-              "alignmentWidth" : 0,
-              "roundingOption" : "esriRoundNumberOfDecimals",
-              "roundingValue" : 0
-            },
+            "alias" : "Admin County",
+            "fieldName" : "admin_county",
             "visible" : true,
             "searchMode" : "Exact"
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "CALCACRES",
-            "fieldName" : "CALCACRES",
+            "alias" : "Admin County Name",
+            "fieldName" : "admin_county_name",
+            "visible" : true,
+            "searchMode" : "Exact"
+          },
+          {
+            "type" : "CIMFieldDescription",
+            "alias" : "State Code",
+            "fieldName" : "state_code",
+            "visible" : true,
+            "searchMode" : "Exact"
+          },
+          {
+            "type" : "CIMFieldDescription",
+            "alias" : "State Name",
+            "fieldName" : "state_name",
+            "visible" : true,
+            "searchMode" : "Exact"
+          },
+          {
+            "type" : "CIMFieldDescription",
+            "alias" : "County Code",
+            "fieldName" : "county_code",
+            "visible" : true,
+            "searchMode" : "Exact"
+          },
+          {
+            "type" : "CIMFieldDescription",
+            "alias" : "County Name",
+            "fieldName" : "county_name",
+            "visible" : true,
+            "searchMode" : "Exact"
+          },
+          {
+            "type" : "CIMFieldDescription",
+            "alias" : "Farm Number",
+            "fieldName" : "farm_number",
+            "visible" : true,
+            "searchMode" : "Exact"
+          },
+          {
+            "type" : "CIMFieldDescription",
+            "alias" : "Tract Number",
+            "fieldName" : "tract_number",
+            "visible" : true,
+            "searchMode" : "Exact"
+          },
+          {
+            "type" : "CIMFieldDescription",
+            "alias" : "CLU Number",
+            "fieldName" : "clu_number",
+            "visible" : true,
+            "searchMode" : "Exact"
+          },
+          {
+            "type" : "CIMFieldDescription",
+            "alias" : "CLU Calculated Acreage",
+            "fieldName" : "clu_calculated_acreage",
             "numberFormat" : {
               "type" : "CIMNumericFormat",
               "alignmentOption" : "esriAlignRight",
@@ -140,99 +166,22 @@
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "HELTYPECD",
-            "fieldName" : "HELTYPECD",
+            "alias" : "Highly Erodible Land Type Code",
+            "fieldName" : "highly_erodible_land_type_code",
             "visible" : true,
             "searchMode" : "Exact"
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "COMMENTS",
-            "fieldName" : "COMMENTS",
+            "alias" : "Creation Date",
+            "fieldName" : "creation_date",
             "visible" : true,
             "searchMode" : "Exact"
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "STATECD",
-            "fieldName" : "STATECD",
-            "visible" : true,
-            "searchMode" : "Exact"
-          },
-          {
-            "type" : "CIMFieldDescription",
-            "alias" : "COUNTYCD",
-            "fieldName" : "COUNTYCD",
-            "visible" : true,
-            "searchMode" : "Exact"
-          },
-          {
-            "type" : "CIMFieldDescription",
-            "alias" : "ADMNSTATE",
-            "fieldName" : "ADMNSTATE",
-            "visible" : true,
-            "searchMode" : "Exact"
-          },
-          {
-            "type" : "CIMFieldDescription",
-            "alias" : "ADMNCOUNTY",
-            "fieldName" : "ADMNCOUNTY",
-            "visible" : true,
-            "searchMode" : "Exact"
-          },
-          {
-            "type" : "CIMFieldDescription",
-            "alias" : "CROPLND3CM",
-            "fieldName" : "CROPLND3CM",
-            "numberFormat" : {
-              "type" : "CIMNumericFormat",
-              "alignmentOption" : "esriAlignRight",
-              "alignmentWidth" : 0,
-              "roundingOption" : "esriRoundNumberOfDecimals",
-              "roundingValue" : 0
-            },
-            "visible" : true,
-            "searchMode" : "Exact"
-          },
-          {
-            "type" : "CIMFieldDescription",
-            "alias" : "CRP",
-            "fieldName" : "CRP",
-            "numberFormat" : {
-              "type" : "CIMNumericFormat",
-              "alignmentOption" : "esriAlignRight",
-              "alignmentWidth" : 0,
-              "roundingOption" : "esriRoundNumberOfDecimals",
-              "roundingValue" : 0
-            },
-            "visible" : true,
-            "searchMode" : "Exact"
-          },
-          {
-            "type" : "CIMFieldDescription",
-            "alias" : "STCONGDIST",
-            "fieldName" : "STCONGDIST",
-            "visible" : true,
-            "searchMode" : "Exact"
-          },
-          {
-            "type" : "CIMFieldDescription",
-            "alias" : "CRPCONT",
-            "fieldName" : "CRPCONT",
-            "visible" : true,
-            "searchMode" : "Exact"
-          },
-          {
-            "type" : "CIMFieldDescription",
-            "alias" : "CRPEXP",
-            "fieldName" : "CRPEXP",
-            "visible" : true,
-            "searchMode" : "Exact"
-          },
-          {
-            "type" : "CIMFieldDescription",
-            "alias" : "CRPPRAC",
-            "fieldName" : "CRPPRAC",
+            "alias" : "Last Change Date",
+            "fieldName" : "last_change_date",
             "visible" : true,
             "searchMode" : "Exact"
           },
@@ -263,6 +212,20 @@
               "roundingValue" : 6
             },
             "readOnly" : true,
+            "visible" : true,
+            "searchMode" : "Exact"
+          },
+          {
+            "type" : "CIMFieldDescription",
+            "alias" : "clu_calculated_acres",
+            "fieldName" : "clu_calculated_acres",
+            "numberFormat" : {
+              "type" : "CIMNumericFormat",
+              "alignmentOption" : "esriAlignRight",
+              "alignmentWidth" : 0,
+              "roundingOption" : "esriRoundNumberOfDecimals",
+              "roundingValue" : 6
+            },
             "visible" : true,
             "searchMode" : "Exact"
           },
@@ -315,9 +278,11 @@
           "timeIntervalUnits" : "esriTimeUnitsHours",
           "timeOffsetUnits" : "esriTimeUnitsYears"
         },
+        "selectionSetURI" : "CIMPATH=ObjectIdentifierSet/8a778361987d9273fe86c3fef03d357e.dat",
         "dataConnection" : {
-          "type" : "CIMStandardDataConnection",
-          "workspaceConnectionString" : "DATABASE=..\\SUPPORT.gdb",
+          "type" : "CIMFeatureDatasetDataConnection",
+          "featureDataset" : "HELC_Data",
+          "workspaceConnectionString" : "DATABASE=..\\..\\..\\..\\..\\..\\..\\..\\Determinations\\in091_t0012564_2023_08\\HEL\\in091_t0012564_2023_08_HELC.gdb",
           "workspaceFactory" : "FileGDB",
           "dataset" : "Field_Determination",
           "datasetType" : "esriDTFeatureClass"
@@ -339,7 +304,7 @@
       "labelClasses" : [
         {
           "type" : "CIMLabelClass",
-          "expression" : "\"Field \" & [CLUNBR] & vbNewLine & FormatNumber(round( [CALCACRES],2),2) & \" ac.\" & vbNewLine & [HEL_YES]",
+          "expression" : "\"Field \" & [clu_number] & vbNewLine & FormatNumber(round( [clu_calculated_acreage],2),2) & \" ac.\" & vbNewLine & [HEL_YES]",
           "expressionEngine" : "VBScript",
           "featuresToLabel" : "AllVisibleFeatures",
           "maplexLabelPlacementProperties" : {
@@ -608,8 +573,8 @@
   "binaryReferences" : [
     {
       "type" : "CIMBinaryReference",
-      "uRI" : "CIMPATH=Metadata/c20f5d3b5b30d0f4a5ba323997e2dcea.xml",
-      "data" : "<?xml version=\"1.0\"?>\r\n<metadata xml:lang=\"en\">\r\n\t<Esri>\r\n\t\t<CreaDate>20230614</CreaDate>\r\n\t\t<CreaTime>13162900</CreaTime>\r\n\t\t<ArcGISFormat>1.0</ArcGISFormat>\r\n\t\t<SyncOnce>TRUE</SyncOnce>\r\n\t</Esri>\r\n</metadata>\r\n"
+      "uRI" : "CIMPATH=ObjectIdentifierSet/8a778361987d9273fe86c3fef03d357e.dat",
+      "data" : "CgMKAQE="
     }
   ],
   "rGBColorProfile" : "sRGB IEC61966-2.1",

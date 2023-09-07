@@ -3,13 +3,13 @@
   "version" : "3.1.0",
   "build" : 41833,
   "layers" : [
-    "CIMPATH=hel_determination/final_hel_summary.json"
+    "CIMPATH=HEL_Determination/24594b0179a84246b6e6beaac4ab09a6.json"
   ],
   "layerDefinitions" : [
     {
       "type" : "CIMFeatureLayer",
       "name" : "Final_HEL_Summary",
-      "uRI" : "CIMPATH=hel_determination/final_hel_summary.json",
+      "uRI" : "CIMPATH=HEL_Determination/24594b0179a84246b6e6beaac4ab09a6.json",
       "sourceModifiedTime" : {
         "type" : "TimeInstant"
       },
@@ -61,50 +61,43 @@
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "CLUNBR",
-            "fieldName" : "CLUNBR",
-            "numberFormat" : {
-              "type" : "CIMNumericFormat",
-              "alignmentOption" : "esriAlignRight",
-              "alignmentWidth" : 0,
-              "roundingOption" : "esriRoundNumberOfDecimals",
-              "roundingValue" : 0
-            },
+            "alias" : "State Code",
+            "fieldName" : "state_code",
             "visible" : true,
             "searchMode" : "Exact"
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "TRACTNBR",
-            "fieldName" : "TRACTNBR",
-            "numberFormat" : {
-              "type" : "CIMNumericFormat",
-              "alignmentOption" : "esriAlignRight",
-              "alignmentWidth" : 0,
-              "roundingOption" : "esriRoundNumberOfDecimals",
-              "roundingValue" : 0
-            },
+            "alias" : "County Code",
+            "fieldName" : "county_code",
             "visible" : true,
             "searchMode" : "Exact"
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "FARMNBR",
-            "fieldName" : "FARMNBR",
-            "numberFormat" : {
-              "type" : "CIMNumericFormat",
-              "alignmentOption" : "esriAlignRight",
-              "alignmentWidth" : 0,
-              "roundingOption" : "esriRoundNumberOfDecimals",
-              "roundingValue" : 0
-            },
+            "alias" : "Farm Number",
+            "fieldName" : "farm_number",
             "visible" : true,
             "searchMode" : "Exact"
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "CALCACRES",
-            "fieldName" : "CALCACRES",
+            "alias" : "Tract Number",
+            "fieldName" : "tract_number",
+            "visible" : true,
+            "searchMode" : "Exact"
+          },
+          {
+            "type" : "CIMFieldDescription",
+            "alias" : "CLU Number",
+            "fieldName" : "clu_number",
+            "visible" : true,
+            "searchMode" : "Exact"
+          },
+          {
+            "type" : "CIMFieldDescription",
+            "alias" : "clu_calculated_acres",
+            "fieldName" : "clu_calculated_acres",
             "numberFormat" : {
               "type" : "CIMNumericFormat",
               "alignmentOption" : "esriAlignRight",
@@ -117,20 +110,6 @@
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "STATECD",
-            "fieldName" : "STATECD",
-            "visible" : true,
-            "searchMode" : "Exact"
-          },
-          {
-            "type" : "CIMFieldDescription",
-            "alias" : "COUNTYCD",
-            "fieldName" : "COUNTYCD",
-            "visible" : true,
-            "searchMode" : "Exact"
-          },
-          {
-            "type" : "CIMFieldDescription",
             "alias" : "MUSYM",
             "fieldName" : "MUSYM",
             "visible" : true,
@@ -138,28 +117,28 @@
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "MUNAME",
+            "alias" : "Map Unit Name",
             "fieldName" : "MUNAME",
             "visible" : true,
             "searchMode" : "Exact"
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "MUHELCL",
+            "alias" : "Map Unit HEL Class",
             "fieldName" : "MUHELCL",
             "visible" : true,
             "searchMode" : "Exact"
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "MUWATHEL",
+            "alias" : "Map Unit Water HEL Class",
             "fieldName" : "MUWATHEL",
             "visible" : true,
             "searchMode" : "Exact"
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "MUWNDHEL",
+            "alias" : "Map Unit Wind HEL Class",
             "fieldName" : "MUWNDHEL",
             "visible" : true,
             "searchMode" : "Exact"
@@ -256,9 +235,11 @@
           "timeIntervalUnits" : "esriTimeUnitsHours",
           "timeOffsetUnits" : "esriTimeUnitsYears"
         },
+        "selectionSetURI" : "CIMPATH=ObjectIdentifierSet/8a778361987d9273fe86c3fef03d357e.dat",
         "dataConnection" : {
-          "type" : "CIMStandardDataConnection",
-          "workspaceConnectionString" : "DATABASE=..\\SUPPORT.gdb",
+          "type" : "CIMFeatureDatasetDataConnection",
+          "featureDataset" : "HELC_Data",
+          "workspaceConnectionString" : "DATABASE=..\\..\\..\\..\\..\\..\\..\\..\\Determinations\\in091_t0012564_2023_08\\HEL\\in091_t0012564_2023_08_HELC.gdb",
           "workspaceFactory" : "FileGDB",
           "dataset" : "Final_HEL_Summary",
           "datasetType" : "esriDTFeatureClass"
@@ -280,7 +261,7 @@
       "labelClasses" : [
         {
           "type" : "CIMLabelClass",
-          "expression" : "[STATECD]",
+          "expression" : "[state_code]",
           "expressionEngine" : "VBScript",
           "featuresToLabel" : "AllVisibleFeatures",
           "maplexLabelPlacementProperties" : {
@@ -651,7 +632,8 @@
               }
             ],
             "angleAlignment" : "Map"
-          }
+          },
+          "symbolName" : "Level_1"
         },
         "defaultSymbolPatch" : "Default",
         "fields" : [
@@ -763,6 +745,13 @@
       },
       "scaleSymbols" : true,
       "snappable" : true
+    }
+  ],
+  "binaryReferences" : [
+    {
+      "type" : "CIMBinaryReference",
+      "uRI" : "CIMPATH=ObjectIdentifierSet/8a778361987d9273fe86c3fef03d357e.dat",
+      "data" : "CgMKAQE="
     }
   ],
   "rGBColorProfile" : "sRGB IEC61966-2.1",
