@@ -1,6 +1,7 @@
 from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, Exists, GetParameterAsText, SetProgressorLabel
+from arcpy.analysis import Statistics
 from arcpy.da import SearchCursor
-from arcpy.management import GetCount
+from arcpy.management import AddField, CalculateField, GetCount
 from arcpy.mp import ArcGISProject
 from datetime import date
 from math import ceil
@@ -63,6 +64,8 @@ nad_addresses_table = os_path.join(support_gdb, 'nad_addresses')
 field_det_lyr_path = Describe(field_det_lyr).CatalogPath
 site_gdb = field_det_lyr_path[:field_det_lyr_path.find('.gdb')+4]
 admin_table = os_path.join(site_gdb, 'Admin_Table')
+final_hel_summary_lyr_path = os_path.join(site_gdb, 'Final_HEL_Summary')
+final_hel_stats_table_path = os_path.join(site_gdb, 'Final_HEL_Summary_Statistics')
 
 ### Paths to HEL Project Folder for Outputs ###
 hel_dir = os_path.dirname(site_gdb)
@@ -302,6 +305,68 @@ except Exception as e:
 #             exit()
 
 
+### Create Summary Statistics Table for Planner Summary Data ###
+try:
+    Statistics(
+        in_table = final_hel_summary_lyr_path,
+        out_table = final_hel_stats_table_path,
+        statistics_fields = [['Polygon_Acres', 'SUM'], ['clu_calculated_acres', 'MIN']],
+        case_field = ['clu_number', 'MUSYM', 'MUHELCL', 'Final_HEL_Value'])
+    AddMessage('Created Final HEL Summary Statistics table...')
+except Exception as e:
+    AddError('Error: failed to create Final HEL Summary Statistics table. Exiting...')
+    AddError(e)
+    exit()
+
+
+### Add Field to Stats Table and Calculate Percentage of Field ###
+try:
+    AddField(final_hel_stats_table_path, 'percent_of_field', 'DOUBLE')
+    CalculateField(final_hel_stats_table_path, 'percent_of_field', '(!SUM_Polygon_Acres!/!MIN_clu_calculated_acres!)*100')
+    AddMessage('Calculated percentage of field in Final HEL Summary Statistics table...')
+except Exception as e:
+    AddError('Error: failed to add field and calculate percentage in Final HEL Summary Statistics table. Exiting...')
+    AddError(e)
+    exit()
+
+
+### Package Data into Dictionary for Planner Summary ###
+planner_summary_data = {}
+with SearchCursor(field_det_lyr, ['clu_number', 'clu_calculated_acreage', 'HEL_YES']) as field_cursor:
+    for field_row in field_cursor:
+        if field_row[0] not in planner_summary_data: #Should always be true, clu_number should be unique for each row in Field_Determination
+            planner_summary_data[field_row[0]] = {'acres': field_row[1], 'class': field_row[2]}
+            where_clause = """{0} = '{1}'""".format(AddFieldDelimiters(site_gdb, 'clu_number'), field_row[0])
+            rows = []
+            with SearchCursor(final_hel_stats_table_path, ['MUHELCL', 'MUSYM', 'Final_HEL_Value', 'SUM_Polygon_Acres', 'percent_of_field'], where_clause) as stats_cursor:
+                for stats_row in stats_cursor:
+                    rows.append([stats_row[0], stats_row[1], stats_row[2], f"{round(stats_row[3],2):.2f}", f"{round(stats_row[4],2):.2f}"])
+                    planner_summary_data[field_row[0]]['rows'] = rows
+
+AddMessage(planner_summary_data)
+
+### Generate Planner Summary ### TODO: Create summary stats table and populate Python dict from that
+SetProgressorLabel('Generating Planner_Summary.docx...')
+try:
+    planner_summary_template = DocxTemplate(planner_summary_template_path)
+    context = {
+        'today_date': date.today().strftime('%A, %B %d, %Y'),
+        'farm_number': 821,
+        'tract_number': 12564,
+        'data': planner_summary_data
+    }
+    planner_summary_template.render(context, autoescape=True)
+    planner_summary_template.save(planner_summary_output)
+    AddMessage('Created Planner_Summary.docx...')
+except PermissionError:
+    AddError('Error: Please close any open Word documents and try again. Exiting...')
+    exit()
+except Exception as e:
+    AddError('Error: Failed to create Planner_Summary.docx. Exiting...')
+    AddError(e)
+    exit()
+
+
 # ### Generate Client Report ### TODO: Create summary stats table and populate Python dict from that
 # SetProgressorLabel('Generating Client_Report.docx...')
 # try:
@@ -343,49 +408,6 @@ except Exception as e:
 #     exit()
 
 
-# ### Generate Planner Summary ### TODO: Create summary stats table and populate Python dict from that
-# SetProgressorLabel('Generating Planner_Summary.docx...')
-# try:
-#     planner_summary_template = DocxTemplate(planner_summary_template_path)
-#     context = {
-#         'today_date': date.today().strftime('%A, %B %d, %Y'),
-#         'farm_number': 821,
-#         'tract_number': 12564,
-#         'data': {
-#             '1': {
-#                 'acres': 10,
-#                 'class': 'HEL',
-#                 'rows': [
-#                     ['HEL', 'L80D2', 'HEL', '0.12', '1.19'],
-#                     ['HEL', 'L105D2', 'HEL', '0.21', '1.99'],
-#                     ['NHEL', 'L84A', 'NHEL', '1.82', '17.50'],
-#                     ['PHEL', 'L105C2', 'NHEL', '3.08', '29.65'],
-#                 ]
-#             },
-#             '2': {
-#                 'acres': 26,
-#                 'class': 'NHEL',
-#                 'rows': [
-#                     ['HEL', 'L80D2', 'HEL', '0.12', '1.19'],
-#                     ['HEL', 'L105D2', 'HEL', '0.21', '1.99'],
-#                     ['NHEL', 'L84A', 'NHEL', '1.82', '17.50'],
-#                     ['PHEL', 'L105C2', 'NHEL', '3.08', '29.65'],
-#                 ]
-#             }
-#         }
-#     }
-#     planner_summary_template.render(context, autoescape=True)
-#     planner_summary_template.save(planner_summary_output)
-#     AddMessage('Created Planner_Summary.docx...')
-# except PermissionError:
-#     AddError('Error: Please close any open Word documents and try again. Exiting...')
-#     exit()
-# except Exception as e:
-#     AddError('Error: Failed to create Planner_Summary.docx. Exiting...')
-#     AddError(e)
-#     exit()
-
-
 ### Open Customer Letter, 026 Form ###
 AddMessage('Finished generating forms, opening in Microsoft Word...')
 SetProgressorLabel('Finished generating forms, opening in Microsoft Word...')
@@ -393,7 +415,7 @@ try:
     startfile(customer_letter_output)
     startfile(cpa_026_helc_output)
     # startfile(client_report_output)
-    # startfile(planner_summary_output)
+    startfile(planner_summary_output)
 except Exception as e:
     AddError('Error: Failed to open finished forms in Microsoft Word. End of script.')
     AddError(e)
