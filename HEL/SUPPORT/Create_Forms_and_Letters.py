@@ -203,78 +203,79 @@ except Exception as e:
 AddMessage('Retrieved data from NAD Addresses Table...')
 
 
-# ### Generate Customer Letter ###
-# SetProgressorLabel('Generating HELC_Letter.docx...')
-# try:
-#     customer_letter_template = DocxTemplate(customer_letter_template_path)
-#     context = {
-#         'today_date': date.today().strftime('%A, %B %d, %Y'),
-#         'admin_data': admin_data,
-#         'nrcs_address': nrcs_address,
-#         'fsa_address': fsa_address,
-#         'fsa_county': fsa_county,
-#         'nad_address': nad_address
-#     }
-#     customer_letter_template.render(context, autoescape=True)
-#     customer_letter_template.save(customer_letter_output)
-#     AddMessage('Created HELC_Letter.docx...')
-# except PermissionError:
-#     AddError('Error: Please close any open Word documents and try again. Exiting...')
-#     exit()
-# except Exception as e:
-#     AddError('Error: Failed to create HELC_Letter.docx. Exiting...')
-#     AddError(e)
-#     exit()
+### Generate Customer Letter ###
+SetProgressorLabel('Generating HELC_Letter.docx...')
+try:
+    customer_letter_template = DocxTemplate(customer_letter_template_path)
+    context = {
+        'today_date': date.today().strftime('%A, %B %d, %Y'),
+        'admin_data': admin_data,
+        'nrcs_address': nrcs_address,
+        'fsa_address': fsa_address,
+        'fsa_county': fsa_county,
+        'nad_address': nad_address
+    }
+    customer_letter_template.render(context, autoescape=True)
+    customer_letter_template.save(customer_letter_output)
+    AddMessage('Created HELC_Letter.docx...')
+except PermissionError:
+    AddError('Error: Please close any open Word documents and try again. Exiting...')
+    exit()
+except Exception as e:
+    AddError('Error: Failed to create HELC_Letter.docx. Exiting...')
+    AddError(e)
+    exit()
 
 
-# ### Read and assign values from Field Determination feature class ###
-# SetProgressorLabel('Generating NRCS-CPA-026-HELC-Form.docx...')
-# try:
-#     data_026_pg1 = [] #18 rows
-#     # data_026_pg2 = [] #15 rows #TODO: determine how to handle more than 18 rows of data?
-#     # data_026_extra = []
-#     fields = ['clu_number', 'HEL_YES', 'clu_calculated_acreage']
-#     with SearchCursor(field_det_lyr, fields) as cursor:
-#         row_count = 0
-#         for row in cursor:
-#             row_count += 1
-#             row_data = {}
-#             row_data['clu'] = row[0] if row[0] else ''
-#             row_data['hel'] = row[1] if row[1] else ''
-#             row_data['acres'] = f'{row[2]:.2f}' if row[2] else ''
-#             if row_count < 19:
-#                 data_026_pg1.append(row_data)
-#             # elif row_count > 11 and row_count < 27:
-#             #     data_026_pg2.append(row_data)
-#             # else:
-#             #     data_026_extra.append(row_data)
-# except Exception as e:
-#     AddError('Error: failed while retrieving CLU CWD 026 Table data. Exiting...')
-#     AddError(e)
-#     exit()
+### Read and assign values from Field Determination feature class ###
+SetProgressorLabel('Generating NRCS-CPA-026-HELC-Form.docx...')
+try:
+    data_026_pg1 = [] #18 rows #NOTE: table will overrun page
+    # data_026_pg2 = []
+    # data_026_extra = []
+    fields = ['clu_number', 'HEL_YES', 'clu_calculated_acreage']
+    with SearchCursor(field_det_lyr, fields) as cursor:
+        row_count = 0
+        for row in cursor:
+            row_count += 1
+            row_data = {}
+            row_data['clu'] = row[0] if row[0] else ''
+            row_data['hel'] = row[1] if row[1] else ''
+            row_data['acres'] = f'{row[2]:.2f}' if row[2] else ''
+            data_026_pg1.append(row_data)
+            # if row_count < 19:
+            #     data_026_pg1.append(row_data)
+            # elif row_count > 11 and row_count < 27:
+            #     data_026_pg2.append(row_data)
+            # else:
+            #     data_026_extra.append(row_data)
+except Exception as e:
+    AddError('Error: failed while retrieving CLU CWD 026 Table data. Exiting...')
+    AddError(e)
+    exit()
 
 
-# ### Generate Pages 1 and 2 of 026 Form ###
-# try:
-#     cpa_026_helc_template = DocxTemplate(cpa_026_helc_template_path)
-#     context = {
-#         'admin_data': admin_data,
-#         'hel_map_units': hel_map_units,
-#         'where_completed': where_completed,
-#         'data_026_pg1': add_blank_rows(data_026_pg1, 18)
-#     }
-#     cpa_026_helc_template.render(context, autoescape=True)
-#     cpa_026_helc_template.save(cpa_026_helc_output)
-#     cpa_026_helc_doc = Document(cpa_026_helc_output)
-#     cpa_026_helc_composer = Composer(cpa_026_helc_doc)
-#     AddMessage('Created pages 1 and 2 of NRCS-CPA-026-HELC-Form.docx...')
-# except PermissionError:
-#     AddError('Error: Please close any open Word documents and try again. Exiting...')
-#     exit()
-# except Exception as e:
-#     AddError('Error: Failed to create pages 1 and 2 of NRCS-CPA-026-HELC-Form.docx. Exiting...')
-#     AddError(e)
-#     exit()
+### Generate Pages 1 and 2 of 026 Form ###
+try:
+    cpa_026_helc_template = DocxTemplate(cpa_026_helc_template_path)
+    context = {
+        'admin_data': admin_data,
+        'hel_map_units': hel_map_units,
+        'where_completed': where_completed,
+        'data_026_pg1': add_blank_rows(data_026_pg1, 18) if len(data_026_pg1) < 18 else data_026_pg1
+    }
+    cpa_026_helc_template.render(context, autoescape=True)
+    cpa_026_helc_template.save(cpa_026_helc_output)
+    cpa_026_helc_doc = Document(cpa_026_helc_output)
+    cpa_026_helc_composer = Composer(cpa_026_helc_doc)
+    AddMessage('Created pages 1 and 2 of NRCS-CPA-026-HELC-Form.docx...')
+except PermissionError:
+    AddError('Error: Please close any open Word documents and try again. Exiting...')
+    exit()
+except Exception as e:
+    AddError('Error: Failed to create pages 1 and 2 of NRCS-CPA-026-HELC-Form.docx. Exiting...')
+    AddError(e)
+    exit()
 
 
 # ### Generate 026 Supplemental Pages if Needed ###
@@ -301,98 +302,98 @@ AddMessage('Retrieved data from NAD Addresses Table...')
 #             exit()
 
 
-### Generate Client Report ###
-SetProgressorLabel('Generating Client_Report.docx...')
-try:
-    client_report_template = DocxTemplate(client_report_template_path)
-    context = {
-        'today_date': date.today().strftime('%A, %B %d, %Y'),
-        'farm_number': 821,
-        'tract_number': 12564,
-        'data': {
-            '1': {
-                'acres': 10,
-                'class': 'HEL',
-                'hel': [1, 0.1],
-                'hel_phel': [5, 2.5],
-                'nhel': [2, 5.12],
-                'nhel_phel': [6, 15.2],
-                'na': [0, 0]
-            },
-            '2': {
-                'acres': 26,
-                'class': 'NHEL',
-                'hel': [1, 0.1],
-                'hel_phel': [5, 2.5],
-                'nhel': [2, 5.12],
-                'nhel_phel': [6, 15.2],
-                'na': [0, 0]
-            }
-        }
-    }
-    client_report_template.render(context, autoescape=True)
-    client_report_template.save(client_report_output)
-    AddMessage('Created Client_Report.docx...')
-except PermissionError:
-    AddError('Error: Please close any open Word documents and try again. Exiting...')
-    exit()
-except Exception as e:
-    AddError('Error: Failed to create Client_Report.docx. Exiting...')
-    AddError(e)
-    exit()
+# ### Generate Client Report ### TODO: Create summary stats table and populate Python dict from that
+# SetProgressorLabel('Generating Client_Report.docx...')
+# try:
+#     client_report_template = DocxTemplate(client_report_template_path)
+#     context = {
+#         'today_date': date.today().strftime('%A, %B %d, %Y'),
+#         'farm_number': 821,
+#         'tract_number': 12564,
+#         'data': {
+#             '1': {
+#                 'acres': 10,
+#                 'class': 'HEL',
+#                 'hel': [1, 0.1],
+#                 'hel_phel': [5, 2.5],
+#                 'nhel': [2, 5.12],
+#                 'nhel_phel': [6, 15.2],
+#                 'na': [0, 0]
+#             },
+#             '2': {
+#                 'acres': 26,
+#                 'class': 'NHEL',
+#                 'hel': [1, 0.1],
+#                 'hel_phel': [5, 2.5],
+#                 'nhel': [2, 5.12],
+#                 'nhel_phel': [6, 15.2],
+#                 'na': [0, 0]
+#             }
+#         }
+#     }
+#     client_report_template.render(context, autoescape=True)
+#     client_report_template.save(client_report_output)
+#     AddMessage('Created Client_Report.docx...')
+# except PermissionError:
+#     AddError('Error: Please close any open Word documents and try again. Exiting...')
+#     exit()
+# except Exception as e:
+#     AddError('Error: Failed to create Client_Report.docx. Exiting...')
+#     AddError(e)
+#     exit()
 
 
-### Generate Planner Summary ###
-SetProgressorLabel('Generating Planner_Summary.docx...')
-try:
-    planner_summary_template = DocxTemplate(planner_summary_template_path)
-    context = {
-        'today_date': date.today().strftime('%A, %B %d, %Y'),
-        'farm_number': 821,
-        'tract_number': 12564,
-        'data': {
-            '1': {
-                'acres': 10,
-                'class': 'HEL',
-                'rows': [
-                    ['HEL', 'L80D2', 'HEL', '0.12', '1.19'],
-                    ['HEL', 'L105D2', 'HEL', '0.21', '1.99'],
-                    ['NHEL', 'L84A', 'NHEL', '1.82', '17.50'],
-                    ['PHEL', 'L105C2', 'NHEL', '3.08', '29.65'],
-                ]
-            },
-            '2': {
-                'acres': 26,
-                'class': 'NHEL',
-                'rows': [
-                    ['HEL', 'L80D2', 'HEL', '0.12', '1.19'],
-                    ['HEL', 'L105D2', 'HEL', '0.21', '1.99'],
-                    ['NHEL', 'L84A', 'NHEL', '1.82', '17.50'],
-                    ['PHEL', 'L105C2', 'NHEL', '3.08', '29.65'],
-                ]
-            }
-        }
-    }
-    planner_summary_template.render(context, autoescape=True)
-    planner_summary_template.save(planner_summary_output)
-    AddMessage('Created Planner_Summary.docx...')
-except PermissionError:
-    AddError('Error: Please close any open Word documents and try again. Exiting...')
-    exit()
-except Exception as e:
-    AddError('Error: Failed to create Planner_Summary.docx. Exiting...')
-    AddError(e)
-    exit()
+# ### Generate Planner Summary ### TODO: Create summary stats table and populate Python dict from that
+# SetProgressorLabel('Generating Planner_Summary.docx...')
+# try:
+#     planner_summary_template = DocxTemplate(planner_summary_template_path)
+#     context = {
+#         'today_date': date.today().strftime('%A, %B %d, %Y'),
+#         'farm_number': 821,
+#         'tract_number': 12564,
+#         'data': {
+#             '1': {
+#                 'acres': 10,
+#                 'class': 'HEL',
+#                 'rows': [
+#                     ['HEL', 'L80D2', 'HEL', '0.12', '1.19'],
+#                     ['HEL', 'L105D2', 'HEL', '0.21', '1.99'],
+#                     ['NHEL', 'L84A', 'NHEL', '1.82', '17.50'],
+#                     ['PHEL', 'L105C2', 'NHEL', '3.08', '29.65'],
+#                 ]
+#             },
+#             '2': {
+#                 'acres': 26,
+#                 'class': 'NHEL',
+#                 'rows': [
+#                     ['HEL', 'L80D2', 'HEL', '0.12', '1.19'],
+#                     ['HEL', 'L105D2', 'HEL', '0.21', '1.99'],
+#                     ['NHEL', 'L84A', 'NHEL', '1.82', '17.50'],
+#                     ['PHEL', 'L105C2', 'NHEL', '3.08', '29.65'],
+#                 ]
+#             }
+#         }
+#     }
+#     planner_summary_template.render(context, autoescape=True)
+#     planner_summary_template.save(planner_summary_output)
+#     AddMessage('Created Planner_Summary.docx...')
+# except PermissionError:
+#     AddError('Error: Please close any open Word documents and try again. Exiting...')
+#     exit()
+# except Exception as e:
+#     AddError('Error: Failed to create Planner_Summary.docx. Exiting...')
+#     AddError(e)
+#     exit()
 
 
 ### Open Customer Letter, 026 Form ###
 AddMessage('Finished generating forms, opening in Microsoft Word...')
 SetProgressorLabel('Finished generating forms, opening in Microsoft Word...')
 try:
-    # startfile(customer_letter_output)
-    # startfile(cpa_026_helc_output)
-    startfile(client_report_output)
-    startfile(planner_summary_output)
+    startfile(customer_letter_output)
+    startfile(cpa_026_helc_output)
+    # startfile(client_report_output)
+    # startfile(planner_summary_output)
 except Exception as e:
     AddError('Error: Failed to open finished forms in Microsoft Word. End of script.')
     AddError(e)
