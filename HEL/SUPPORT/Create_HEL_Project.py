@@ -7,10 +7,10 @@ import sys
 sys.dont_write_bytecode=True
 sys.path.append(path.dirname(sys.argv[0]))
 
-from arcpy import AddError, AddFieldDelimiters, AddMessage, env, Exists, GetParameterAsText, SetParameterAsText, SetProgressorLabel
+from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, env, Exists, GetParameterAsText, ListFields, SetParameterAsText, SetProgressorLabel
 from arcpy.conversion import FeatureClassToFeatureClass
 from arcpy.da import SearchCursor, UpdateCursor
-from arcpy.management import AddField, Append, Compact, CreateFeatureclass, CreateFeatureDataset, CreateFileGDB, Delete, Dissolve  
+from arcpy.management import AddField, AlterDomain, Append, CalculateField, Compact, CreateFeatureclass, CreateFeatureDataset, CreateFileGDB, Delete, Dissolve, TableToDomain
 from arcpy.mp import ArcGISProject
 
 from extract_CLU_by_Tract import getPortalTokenInfo, start
@@ -162,7 +162,8 @@ try:
     helcGDB_name = f"{folderName}_HELC.gdb"
     helcGDB_path = path.join(helFolder, helcGDB_name)
     helcFD = path.join(helcGDB_path, 'HELC_Data')
-    cluOut = 'Site_CLU'
+    sitePrepareCLU_name = 'Site_Prepare_CLU'
+    sitePrepareCLU = path.join(helcFD, sitePrepareCLU_name)
     scratchGDB = path.join(path.dirname(sys.argv[0]), 'SCRATCH.gdb')
     jobid = uuid4()
 
@@ -232,7 +233,7 @@ try:
     #### Remove the existing projectCLU layer from the Map
     AddMsgAndPrint('\nRemoving CLU layer from project maps, if present...\n')
     SetProgressorLabel('Removing CLU layer from project maps, if present...')
-    mapLayersToRemove = [cluOut]
+    mapLayersToRemove = [sitePrepareCLU_name]
     try:
         for maps in aprx.listMaps():
             for lyr in maps.listLayers():
@@ -316,6 +317,28 @@ try:
         Append(projectCLUTemp, projectCLU, 'NO_TEST')
         Delete(projectCLUTemp)
 
+
+    #### Create Yes/No domain in project's _HELC geodatabase
+    if not 'Yes No' in Describe(helcGDB_path).domains:
+        yesnoTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_yesno')
+        TableToDomain(yesnoTable, 'Code', 'Description', helcGDB_path, 'Yes No', 'Yes or no options', 'REPLACE')
+        AlterDomain(helcGDB_path, 'Yes No', '', '', 'DUPLICATE')
+    
+    
+    #### Copy the CLU to the project's _HELC geodatabase
+    if not Exists(sitePrepareCLU):
+        FeatureClassToFeatureClass(projectCLU, helcFD, sitePrepareCLU_name)
+
+
+    #### Add Sodbust field to Site_Prepare_CLU and assign Yes No domain
+    field_names = [f.name for f in ListFields(sitePrepareCLU)]
+    if 'sodbust' not in field_names:
+        AddField(sitePrepareCLU, 'sodbust', 'TEXT', field_length='3', field_alias='Sodbust', field_domain='Yes No')
+
+
+    #### Calculate default Sodbust vaue to 'No'
+    CalculateField(sitePrepareCLU, 'sodbust', '"No"', 'PYTHON3')
+
     
     #### Create the Tract layer by dissolving the CLU layer.
     if not Exists(projectTract):
@@ -327,8 +350,8 @@ try:
 
 
     #### Prepare to add to map
-    if not Exists(cluOut):
-        SetParameterAsText(5, projectCLU)
+    if not Exists(sitePrepareCLU_name):
+        SetParameterAsText(5, sitePrepareCLU)
 
 
     #### Compact FGDB
