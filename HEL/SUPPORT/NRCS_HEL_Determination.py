@@ -56,13 +56,7 @@ lidar_hel_summary_lyrx = path.join(layer_files_dir, 'LiDAR_HEL_Summary.lyrx')
 support_gdb = path.join(base_dir, 'SUPPORT.gdb')
 lu_table = path.join(support_gdb, 'lut_census_fips')
 
-base_data_gdb = Path(Describe(cluLayer).catalogPath)
-hel_dir = path.join(base_data_gdb.parent.parent.parent, 'HEL')
-for file in listdir(hel_dir):
-    if file.endswith('.gdb'):
-        helc_gdb = path.join(hel_dir, file)
-AddMsgAndPrint(helc_gdb)
-
+helc_gdb = Path(Describe(cluLayer).catalogPath)
 fieldDetermination = path.join(helc_gdb, 'HELC_Data', 'Field_Determination')
 helSummary = path.join(helc_gdb, 'HELC_Data', 'Initial_HEL_Summary')
 finalHELSummary = path.join(helc_gdb, 'HELC_Data', 'Final_HEL_Summary')
