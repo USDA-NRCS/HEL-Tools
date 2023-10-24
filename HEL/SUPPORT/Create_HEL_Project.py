@@ -7,10 +7,15 @@ import sys
 sys.dont_write_bytecode=True
 sys.path.append(path.dirname(sys.argv[0]))
 
-from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, env, Exists, GetParameterAsText, ListFields, SetParameterAsText, SetProgressorLabel
+from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, env, Exists, GetParameter, GetParameterAsText, \
+    ListFeatureClasses, ListFields, SetParameterAsText, SetProgressorLabel
+
 from arcpy.conversion import FeatureClassToFeatureClass
 from arcpy.da import SearchCursor, UpdateCursor
-from arcpy.management import AddField, AlterDomain, Append, CalculateField, Compact, CreateFeatureclass, CreateFeatureDataset, CreateFileGDB, Delete, Dissolve, TableToDomain
+
+from arcpy.management import AddField, AlterDomain, Append, CalculateField, Compact, CreateFeatureclass, CreateFeatureDataset, \
+    CreateFileGDB, Delete, Dissolve, TableToDomain
+
 from arcpy.mp import ArcGISProject, LayerFile
 
 from extract_CLU_by_Tract import getPortalTokenInfo, start
@@ -32,6 +37,7 @@ existingFolder = GetParameterAsText(1)
 sourceState = GetParameterAsText(2)
 sourceCounty = GetParameterAsText(3)
 tractNumber = GetParameterAsText(4)
+owFlag = GetParameter(5)
 
 
 ### Validate Spatial Reference ###
@@ -215,7 +221,7 @@ try:
     if not Exists(basedataGDB_path):
         AddMsgAndPrint('\nCreating Base Data geodatabase...')
         SetProgressorLabel('Creating Base Data geodatabase...')
-        CreateFileGDB(projectFolder, basedataGDB_name, '10.0')
+        CreateFileGDB(projectFolder, basedataGDB_name)
 
     if not Exists(basedataFD):
         AddMsgAndPrint('\nCreating Base Data feature dataset...')
@@ -225,7 +231,7 @@ try:
     if not Exists(helcGDB_path):
         AddMsgAndPrint('\nCreating HEL geodatabase...')
         SetProgressorLabel('Creating HEL geodatabase...')
-        CreateFileGDB(helFolder, helcGDB_name, '10.0')
+        CreateFileGDB(helFolder, helcGDB_name)
 
     if not Exists(helcFD):
         AddMsgAndPrint('\nCreating HEL feature dataset...')
@@ -244,6 +250,24 @@ try:
                     maps.removeLayer(lyr)
     except:
         pass
+
+
+    #### If overwrite was selected, delete everything and start over
+    if owFlag == True:
+        AddMsgAndPrint("\nOverwrite selected. Deleting existing project data...",0)
+        SetProgressorLabel("Overwrite selected. Deleting existing project data...")
+        if Exists(basedataFD):
+            ws = env.workspace
+            env.workspace = basedataGDB_path
+            fcs = ListFeatureClasses(feature_dataset='Layers')
+            for fc in fcs:
+                try:
+                    fc_path = path.join(basedataFD, fc)
+                    Delete(fc_path)
+                except:
+                    pass
+            Delete(basedataFD)
+            CreateFeatureDataset(basedataGDB_path, 'Layers', mapSR)
 
 
     #### Download the CLU
@@ -353,8 +377,9 @@ try:
 
 
     #### Prepare to add layers to map
-    if not Exists(cluName):
-        SetParameterAsText(5, projectCLU)
+    AddMsgAndPrint('\nAdding CLU layers to map...')
+    SetProgressorLabel('Adding CLU layers to map...')
+    SetParameterAsText(6, projectCLU)
 
     lyr_list = map.listLayers()
     lyr_name_list = []
@@ -367,6 +392,7 @@ try:
         site_prepare_lyrx_cp['dataset'] = sitePrepareCLU_name
         site_prepare_lyrx.updateConnectionProperties(site_prepare_lyrx.connectionProperties, site_prepare_lyrx_cp)
         map.addLayer(site_prepare_lyrx)
+
 
     #### Compact FGDB
     try:
