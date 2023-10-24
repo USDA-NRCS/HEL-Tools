@@ -373,6 +373,12 @@ try:
         map.addLayer(site_prepare_lyrx)
 
 
+    ### Zoom Map View to CLU ###
+    clu_extent = Describe(projectCLU).extent
+    map_view = aprx.activeView
+    map_view.camera.setExtent(clu_extent)
+
+
     ### Compact Geodatabases ###
     try:
         AddMsgAndPrint('\nCompacting File Geodatabases...')
