@@ -1,5 +1,5 @@
 from math import pi
-from os import listdir, path
+from os import path
 from pathlib import Path
 from sys import exit
 
