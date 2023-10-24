@@ -11,7 +11,7 @@ from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, env, Exist
 from arcpy.conversion import FeatureClassToFeatureClass
 from arcpy.da import SearchCursor, UpdateCursor
 from arcpy.management import AddField, AlterDomain, Append, CalculateField, Compact, CreateFeatureclass, CreateFeatureDataset, CreateFileGDB, Delete, Dissolve, TableToDomain
-from arcpy.mp import ArcGISProject
+from arcpy.mp import ArcGISProject, LayerFile
 
 from extract_CLU_by_Tract import getPortalTokenInfo, start
 from hel_utils import AddMsgAndPrint, errorMsg
@@ -162,10 +162,13 @@ try:
     helcGDB_name = f"{folderName}_HELC.gdb"
     helcGDB_path = path.join(helFolder, helcGDB_name)
     helcFD = path.join(helcGDB_path, 'HELC_Data')
-    sitePrepareCLU_name = 'Site_Prepare_CLU'
+    sitePrepareCLU_name = 'Site_Prepare_HELC'
     sitePrepareCLU = path.join(helcFD, sitePrepareCLU_name)
     scratchGDB = path.join(path.dirname(sys.argv[0]), 'SCRATCH.gdb')
     jobid = uuid4()
+
+    #### Set path to lyrx files
+    site_prepare_lyrx = LayerFile(path.join(path.join(path.dirname(sys.argv[0]), 'layer_files'), 'Site_Prepare_HELC.lyrx')).listLayers()[0]
 
 
     #### Create the project directory
@@ -233,7 +236,7 @@ try:
     #### Remove the existing projectCLU layer from the Map
     AddMsgAndPrint('\nRemoving CLU layer from project maps, if present...\n')
     SetProgressorLabel('Removing CLU layer from project maps, if present...')
-    mapLayersToRemove = [sitePrepareCLU_name]
+    mapLayersToRemove = [cluName, sitePrepareCLU_name]
     try:
         for maps in aprx.listMaps():
             for lyr in maps.listLayers():
@@ -349,10 +352,21 @@ try:
         del dis_fields
 
 
-    #### Prepare to add to map
-    if not Exists(sitePrepareCLU_name):
-        SetParameterAsText(5, sitePrepareCLU)
+    #### Prepare to add layers to map
+    if not Exists(cluName):
+        SetParameterAsText(5, projectCLU)
 
+    lyr_list = map.listLayers()
+    lyr_name_list = []
+    for lyr in lyr_list:
+        lyr_name_list.append(lyr.longName)
+
+    if sitePrepareCLU_name not in lyr_name_list:
+        site_prepare_lyrx_cp = site_prepare_lyrx.connectionProperties
+        site_prepare_lyrx_cp['connection_info']['database'] = helcGDB_path
+        site_prepare_lyrx_cp['dataset'] = sitePrepareCLU_name
+        site_prepare_lyrx.updateConnectionProperties(site_prepare_lyrx.connectionProperties, site_prepare_lyrx_cp)
+        map.addLayer(site_prepare_lyrx)
 
     #### Compact FGDB
     try:
