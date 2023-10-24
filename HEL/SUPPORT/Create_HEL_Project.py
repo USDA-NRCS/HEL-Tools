@@ -8,7 +8,7 @@ sys.dont_write_bytecode=True
 sys.path.append(path.dirname(sys.argv[0]))
 
 from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, env, Exists, GetParameter, GetParameterAsText, \
-    ListFeatureClasses, ListFields, SetParameterAsText, SetProgressorLabel
+    ListFeatureClasses, ListFields, SetParameterAsText, SetProgressorLabel, SpatialReference
 
 from arcpy.conversion import FeatureClassToFeatureClass
 from arcpy.da import SearchCursor, UpdateCursor
@@ -30,14 +30,16 @@ except Exception:
     AddMsgAndPrint('This tool must be run from an ArcGIS Pro project that was developed from the template distributed with this toolbox. Exiting...', 2)
     exit()
 
+nrcsPortal = 'https://gis.sc.egov.usda.gov/portal/'
+portalToken = getPortalTokenInfo(nrcsPortal)
+if not portalToken:
+    AddError('Could not generate Portal token. Please login to GeoPortal. Exiting...')
+    exit()
 
-### Input Parameters ###
-projectType = GetParameterAsText(0)
-existingFolder = GetParameterAsText(1)
-sourceState = GetParameterAsText(2)
-sourceCounty = GetParameterAsText(3)
-tractNumber = GetParameterAsText(4)
-owFlag = GetParameter(5)
+lut = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'lut_census_fips')
+if not Exists(lut):
+    AddError('Could not find state and county lookup table. Exiting...')
+    exit()
 
 
 ### Validate Spatial Reference ###
@@ -60,35 +62,26 @@ if 'WGS' not in mapSR.name or '1984' not in mapSR.name or 'UTM' not in mapSR.nam
 
 
 ### ESRI Environment Settings ###
+mapSR = SpatialReference(mapSR.factoryCode)
 env.outputCoordinateSystem = mapSR
 env.overwriteOutput = True
-aprx.defaultGeodatabase = path.join(path.dirname(sys.argv[0]), 'SCRATCH.gdb')
 
 
-#### Check GeoPortal Connection
-nrcsPortal = 'https://gis.sc.egov.usda.gov/portal/'
-portalToken = getPortalTokenInfo(nrcsPortal)
-if not portalToken:
-    AddError('Could not generate Portal token. Please login to GeoPortal. Exiting...')
-    exit()
+### Input Parameters ###
+projectType = GetParameterAsText(0)
+existingFolder = GetParameterAsText(1)
+sourceState = GetParameterAsText(2)
+sourceCounty = GetParameterAsText(3)
+tractNumber = GetParameterAsText(4)
+owFlag = GetParameter(5)
 
-        
-#### Main procedures
+
 try:
-    #### Set up initial project folder paths based on input choice for project Type
     workspacePath = 'C:\Determinations'
-    
     # Check Inputs for existence and create FIPS code variables
-    lut = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'lut_census_fips')
-    if not Exists(lut):
-        AddError('Could not find state and county lookup table. Exiting...\n')
-        exit()
-
     # Search for FIPS codes to give to the Extract CLU Tool/Function. Break after the first row (should only find one row in any case).
     # Temporarily adjust source county to handle apostrophes in relation to searching
     sourceCounty = sourceCounty.replace("'", "''")
-
-    # Run Search
     stfip, cofip = '', ''
     fields = ['STATEFP','COUNTYFP','NAME','STATE','STPOSTAL']
     field1 = 'STATE'
@@ -102,11 +95,11 @@ try:
             break
 
     if len(stfip) != 2 and len(cofip) != 3:
-        AddError('State and County FIPS codes could not be retrieved! Exiting...\n')
+        AddError('State and County FIPS codes could not be retrieved! Exiting...')
         exit()
 
     if adStatePostal == '':
-        AddError('State postal code could not be retrieved! Exiting...\n')
+        AddError('State postal code could not be retrieved! Exiting...')
         exit()
 
     # Change sourceCounty back to handle apostrophes
@@ -150,7 +143,8 @@ try:
             AddError('Project type was specified as Existing, but no existing project folder was selected. Exiting...')
             exit()
 
-    #### Set additional variables based on constructed path
+
+    ### Set Additional Local Variables ###
     folderName = path.basename(projectFolder)
     projectName = folderName
     basedataGDB_name = path.basename(projectFolder).replace(' ','_') + '_BaseData.gdb'
@@ -172,12 +166,10 @@ try:
     sitePrepareCLU = path.join(helcFD, sitePrepareCLU_name)
     scratchGDB = path.join(path.dirname(sys.argv[0]), 'SCRATCH.gdb')
     jobid = uuid4()
-
-    #### Set path to lyrx files
     site_prepare_lyrx = LayerFile(path.join(path.join(path.dirname(sys.argv[0]), 'layer_files'), 'Site_Prepare_HELC.lyrx')).listLayers()[0]
 
 
-    #### Create the project directory
+    ### Create Project Folders and Contents ###
     AddMessage('\nChecking project directories...')
     SetProgressorLabel('Checking project directories...')
     if not path.exists(workspacePath):
@@ -188,8 +180,7 @@ try:
         except:
             AddError('\nThe Determinations folder cannot be created. Please check your permissions to the C: drive. Exiting...\n')
             exit()
-            
-    # Check if C:\Determinations\projectFolder exists, else create it
+
     if not path.exists(projectFolder):
         try:
             SetProgressorLabel('Creating project folder...')
@@ -199,14 +190,7 @@ try:
             AddError('\nThe project folder cannot be created. Please check your permissions to C:\Determinations. Exiting...\n')
             exit()
 
-
-    #### Project folder now exists. Set up log file path and start logging
-    textFilePath = path.join(projectFolder, folderName, '_log.txt')
-    # logBasicSettings()
-
-    #### Continue creating sub-directories
     SetProgressorLabel('Creating project contents...')
-    # Check if the HEL folder exists within the projectFolder, else create it
     if not path.exists(helFolder):
         try:
             SetProgressorLabel('Creating HEL folder...')
@@ -216,8 +200,6 @@ try:
             AddMsgAndPrint('\nCould not access C:\Determinations. Check your permissions for C:\Determinations. Exiting...\n', 2)
             exit()
 
-
-    ### If project geodatabases and feature datasets do not exist, create them
     if not Exists(basedataGDB_path):
         AddMsgAndPrint('\nCreating Base Data geodatabase...')
         SetProgressorLabel('Creating Base Data geodatabase...')
@@ -239,7 +221,7 @@ try:
         CreateFeatureDataset(helcGDB_path, 'HELC_Data', mapSR)
 
 
-    #### Remove the existing projectCLU layer from the Map
+    ### Remove Existing CLU Layers From Map ###
     AddMsgAndPrint('\nRemoving CLU layer from project maps, if present...\n')
     SetProgressorLabel('Removing CLU layer from project maps, if present...')
     mapLayersToRemove = [cluName, sitePrepareCLU_name]
@@ -252,7 +234,7 @@ try:
         pass
 
 
-    #### If overwrite was selected, delete everything and start over
+    ### If Overwrite, Delete Everything and Start Over ###
     if owFlag == True:
         AddMsgAndPrint("\nOverwrite selected. Deleting existing project data...",0)
         SetProgressorLabel("Overwrite selected. Deleting existing project data...")
@@ -270,7 +252,7 @@ try:
             CreateFeatureDataset(basedataGDB_path, 'Layers', mapSR)
 
 
-    #### Download the CLU
+    ### Download the CLU ###
     if not Exists(projectCLU):
         AddMsgAndPrint('\nDownloading latest CLU data...')
         SetProgressorLabel('Downloading latest CLU data...')
@@ -326,7 +308,6 @@ try:
                 row[3] = stName
                 row[4] = coName
                 cursor.updateRow(row)
-        del field_names
 
         # If the state is Alaska, update the admin_county FIPS and county_code FIPS from the county_ansi_code field
         if sourceState == 'Alaska':
@@ -336,7 +317,6 @@ try:
                     row[0] = row[2]
                     row[1] = row[2]
                     cursor.updateRow(row)
-            del field_names
         
         # Create the projectCLU feature class and append projectCLUTemp to it. This is done as a cheat to using field mappings to re-order fields.
         AddMsgAndPrint('\nWriting Site CLU layer...')
@@ -345,38 +325,37 @@ try:
         Delete(projectCLUTemp)
 
 
-    #### Create Yes/No domain in project's _HELC geodatabase
+    ### Create Yes/No Domain in Project's _HELC Geodatabase ###
     if not 'Yes No' in Describe(helcGDB_path).domains:
         yesnoTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_yesno')
         TableToDomain(yesnoTable, 'Code', 'Description', helcGDB_path, 'Yes No', 'Yes or no options', 'REPLACE')
         AlterDomain(helcGDB_path, 'Yes No', '', '', 'DUPLICATE')
     
     
-    #### Copy the CLU to the project's _HELC geodatabase
+    ### Copy CLU to Project's _HELC Geodatabase ###
     if not Exists(sitePrepareCLU):
         FeatureClassToFeatureClass(projectCLU, helcFD, sitePrepareCLU_name)
 
 
-    #### Add Sodbust field to Site_Prepare_CLU and assign Yes No domain
+    ### Add Sodbust Field to Site_Prepare_CLU and Assign Domain ###
     field_names = [f.name for f in ListFields(sitePrepareCLU)]
     if 'sodbust' not in field_names:
         AddField(sitePrepareCLU, 'sodbust', 'TEXT', field_length='3', field_alias='Sodbust', field_domain='Yes No')
 
 
-    #### Calculate default Sodbust vaue to 'No'
+    ### Calculate Sodbust Vaue to 'No' ###
     CalculateField(sitePrepareCLU, 'sodbust', '"No"', 'PYTHON3')
 
     
-    #### Create the Tract layer by dissolving the CLU layer.
+    ### Create Tract Layer by Dissolving CLU Layer ###
     if not Exists(projectTract):
         AddMsgAndPrint('\nCreating Tract data...')
         SetProgressorLabel('Creating Tract data...')
         dis_fields = ['job_id','admin_state','admin_state_name','admin_county','admin_county_name','state_code','state_name','county_code','county_name','farm_number','tract_number']
         Dissolve(projectCLU, projectTract, dis_fields, '', 'MULTI_PART', '')
-        del dis_fields
 
 
-    #### Prepare to add layers to map
+    ### Add CLU Layers to Map ###
     AddMsgAndPrint('\nAdding CLU layers to map...')
     SetProgressorLabel('Adding CLU layers to map...')
     SetParameterAsText(6, projectCLU)
@@ -394,7 +373,7 @@ try:
         map.addLayer(site_prepare_lyrx)
 
 
-    #### Compact FGDB
+    ### Compact Geodatabases ###
     try:
         AddMsgAndPrint('\nCompacting File Geodatabases...')
         SetProgressorLabel('Compacting File Geodatabases...')
