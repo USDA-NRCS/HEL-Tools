@@ -167,6 +167,7 @@ try:
     scratchGDB = path.join(path.dirname(sys.argv[0]), 'SCRATCH.gdb')
     jobid = uuid4()
     site_prepare_lyrx = LayerFile(path.join(path.join(path.dirname(sys.argv[0]), 'layer_files'), 'Site_Prepare_HELC.lyrx')).listLayers()[0]
+    site_clu_lyrx = LayerFile(path.join(path.join(path.dirname(sys.argv[0]), 'layer_files'), 'Site_CLU.lyrx')).listLayers()[0]
 
 
     ### Create Project Folders and Contents ###
@@ -358,12 +359,14 @@ try:
     ### Add CLU Layers to Map ###
     AddMsgAndPrint('\nAdding CLU layers to map...')
     SetProgressorLabel('Adding CLU layers to map...')
-    SetParameterAsText(6, projectCLU)
+    lyr_name_list = [lyr.longName for lyr in map.listLayers()]
 
-    lyr_list = map.listLayers()
-    lyr_name_list = []
-    for lyr in lyr_list:
-        lyr_name_list.append(lyr.longName)
+    if cluName not in lyr_name_list:
+        site_clu_lyrx_cp = site_clu_lyrx.connectionProperties
+        site_clu_lyrx_cp['connection_info']['database'] = basedataGDB_path
+        site_clu_lyrx_cp['dataset'] = cluName
+        site_clu_lyrx.updateConnectionProperties(site_clu_lyrx.connectionProperties, site_clu_lyrx_cp)
+        map.addLayer(site_clu_lyrx)
 
     if sitePrepareCLU_name not in lyr_name_list:
         site_prepare_lyrx_cp = site_prepare_lyrx.connectionProperties
@@ -371,6 +374,11 @@ try:
         site_prepare_lyrx_cp['dataset'] = sitePrepareCLU_name
         site_prepare_lyrx.updateConnectionProperties(site_prepare_lyrx.connectionProperties, site_prepare_lyrx_cp)
         map.addLayer(site_prepare_lyrx)
+
+    lyr_list = map.listLayers()
+    for lyr in lyr_list:
+        if lyr.longName == 'Site_CLU':
+            lyr.visible = False
 
 
     ### Zoom Map View to CLU ###
