@@ -375,6 +375,10 @@ try:
 
     ### Zoom Map View to CLU ###
     clu_extent = Describe(projectCLU).extent
+    clu_extent.XMin = clu_extent.XMin - 100
+    clu_extent.XMax = clu_extent.XMax + 100
+    clu_extent.YMin = clu_extent.YMin - 100
+    clu_extent.YMax = clu_extent.YMax + 100
     map_view = aprx.activeView
     map_view.camera.setExtent(clu_extent)
 
