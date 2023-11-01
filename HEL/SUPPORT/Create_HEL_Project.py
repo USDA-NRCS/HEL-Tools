@@ -327,9 +327,9 @@ try:
 
     ### Create Yes/No Domain in Project's _HELC Geodatabase ###
     if not 'Yes No' in Describe(helcGDB_path).domains:
-        yesnoTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_yesno')
-        TableToDomain(yesnoTable, 'Code', 'Description', helcGDB_path, 'Yes No', 'Yes or no options', 'REPLACE')
-        AlterDomain(helcGDB_path, 'Yes No', '', '', 'DUPLICATE')
+        yesnoTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_yesno_sodbust')
+        TableToDomain(yesnoTable, 'Code', 'Description', helcGDB_path, 'Yes No Sodbust', 'Yes or no options', 'REPLACE')
+        AlterDomain(helcGDB_path, 'Yes No Sodbust', '', '', 'DUPLICATE')
     
     
     ### Copy CLU to Project's _HELC Geodatabase ###
@@ -340,7 +340,7 @@ try:
     ### Add Sodbust Field to Site_Prepare_CLU and Assign Domain ###
     field_names = [f.name for f in ListFields(sitePrepareCLU)]
     if 'sodbust' not in field_names:
-        AddField(sitePrepareCLU, 'sodbust', 'TEXT', field_length='3', field_alias='Sodbust', field_domain='Yes No')
+        AddField(sitePrepareCLU, 'sodbust', 'TEXT', field_length='3', field_alias='Sodbust', field_domain='Yes No Sodbust')
 
 
     ### Calculate Sodbust Vaue to 'No' ###
