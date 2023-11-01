@@ -235,22 +235,15 @@ try:
         pass
 
 
-    ### If Overwrite, Delete Everything and Start Over ###
+    ### If Overwrite, Delete Site_CLU, Site_Tract, Site_Prepare_CLU ###
     if owFlag == True:
-        AddMsgAndPrint("\nOverwrite selected. Deleting existing project data...",0)
-        SetProgressorLabel("Overwrite selected. Deleting existing project data...")
-        if Exists(basedataFD):
-            ws = env.workspace
-            env.workspace = basedataGDB_path
-            fcs = ListFeatureClasses(feature_dataset='Layers')
-            for fc in fcs:
-                try:
-                    fc_path = path.join(basedataFD, fc)
-                    Delete(fc_path)
-                except:
-                    pass
-            Delete(basedataFD)
-            CreateFeatureDataset(basedataGDB_path, 'Layers', mapSR)
+        AddMsgAndPrint('\nOverwrite selected. Deleting existing CLU data...')
+        SetProgressorLabel('Overwrite selected. Deleting existing CLU data...')
+        delete_layers = [projectCLU, projectTract, sitePrepareCLU]
+        for lyr in delete_layers:
+            if Exists(lyr):
+                Delete(lyr)
+                AddMsgAndPrint(f"\nDeleted {lyr}...")
 
 
     ### Download the CLU ###
