@@ -95,12 +95,7 @@ env.overwriteOutput = True
 ### HEL Determination Procedure ###
 try:
     # Stamp CLU into field determination fc. Exit if no CLU fields selected
-    cluDesc = Describe(cluLayer)
-    if cluDesc.FIDset == '':
-        AddMsgAndPrint('\nPlease select fields from the CLU Layer. Exiting!', 2)
-        exit()
-    else:
-        fieldDetermination = CopyFeatures(cluLayer, fieldDetermination)
+    CopyFeatures(cluLayer, fieldDetermination)
 
     # Make sure tract_number and farm_number  are unique; exit otherwise
     uniqueTracts = list(set([row[0] for row in SearchCursor(fieldDetermination, ('tract_number'))]))
