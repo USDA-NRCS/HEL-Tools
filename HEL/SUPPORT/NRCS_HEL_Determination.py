@@ -118,8 +118,6 @@ try:
     # Create Text file to log info to
     textFilePath = createTextFile(uniqueTracts[0], uniqueFarm[0])
 
-    AddMsgAndPrint(f"\nNumber of CLU fields selected: {len(cluDesc.FIDset.split(';'))}", textFilePath=textFilePath)
-
     # Add Calcacre field if it doesn't exist. Should be part of the CLU layer.
     calcAcreFld = 'clu_calculated_acres'
     if not len(ListFields(fieldDetermination, calcAcreFld)) > 0:
