@@ -3,13 +3,13 @@
   "version" : "3.1.0",
   "build" : 41833,
   "layers" : [
-    "CIMPATH=hel_determination/site_prepare_helc.json"
+    "CIMPATH=hel_determination/site_prepare_helc2.json"
   ],
   "layerDefinitions" : [
     {
       "type" : "CIMFeatureLayer",
       "name" : "Site_Prepare_HELC",
-      "uRI" : "CIMPATH=hel_determination/site_prepare_helc.json",
+      "uRI" : "CIMPATH=hel_determination/site_prepare_helc2.json",
       "sourceModifiedTime" : {
         "type" : "TimeInstant",
         "start" : 978307200000
@@ -131,7 +131,7 @@
             "alias" : "County Code",
             "fieldName" : "county_code",
             "readOnly" : true,
-            "visible" : false,
+            "visible" : true,
             "searchMode" : "Exact"
           },
           {
@@ -147,7 +147,7 @@
             "alias" : "Farm Number",
             "fieldName" : "farm_number",
             "readOnly" : true,
-            "visible" : false,
+            "visible" : true,
             "searchMode" : "Exact"
           },
           {
