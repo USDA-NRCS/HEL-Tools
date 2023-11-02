@@ -1,6 +1,5 @@
 from math import pi
 from os import path
-from pathlib import Path
 from sys import exit
 
 from arcpy import CreateScratchName, Describe, env, Exists, GetParameter, GetParameterAsText, ListFields, \
@@ -44,8 +43,11 @@ tFactorFld = 'T'
 rFactorFld = 'R'
 helFld = 'MUHELCL'
 scratchLayers = list()
+
 base_dir = path.abspath(path.dirname(__file__)) #\SUPPORT
 scratch_gdb = path.join(base_dir, 'scratch.gdb')
+support_gdb = path.join(base_dir, 'SUPPORT.gdb')
+lu_table = path.join(support_gdb, 'lut_census_fips')
 
 layer_files_dir = path.join(base_dir, 'layer_files')
 field_determination_lyrx = path.join(layer_files_dir, 'Field_Determination.lyrx')
@@ -53,14 +55,13 @@ final_hel_summary_lyrx = path.join(layer_files_dir, 'Final_HEL_Summary.lyrx')
 initial_hel_summary_lyrx = path.join(layer_files_dir, 'Initial_HEL_Summary.lyrx')
 lidar_hel_summary_lyrx = path.join(layer_files_dir, 'LiDAR_HEL_Summary.lyrx')
 
-support_gdb = path.join(base_dir, 'SUPPORT.gdb')
-lu_table = path.join(support_gdb, 'lut_census_fips')
-
-helc_gdb = Path(Describe(cluLayer).catalogPath)
-fieldDetermination = path.join(helc_gdb, 'HELC_Data', 'Field_Determination')
-helSummary = path.join(helc_gdb, 'HELC_Data', 'Initial_HEL_Summary')
-finalHELSummary = path.join(helc_gdb, 'HELC_Data', 'Final_HEL_Summary')
+helc_fd = path.dirname(Describe(cluLayer).catalogPath)
+helc_gdb = path.dirname(helc_fd)
+fieldDetermination = path.join(helc_gdb, helc_fd, 'Field_Determination')
+helSummary = path.join(helc_gdb, helc_fd, 'Initial_HEL_Summary')
+finalHELSummary = path.join(helc_gdb, helc_fd, 'Final_HEL_Summary')
 lidarHEL = path.join(helc_gdb, 'LiDAR_HEL_Summary')
+
 
 ### Geodatabase Validation and Cleanup ###
 if not Exists(helc_gdb):
