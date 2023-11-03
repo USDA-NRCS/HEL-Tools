@@ -1,7 +1,7 @@
 from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, Exists, GetParameterAsText, SetProgressorLabel
 from arcpy.analysis import Statistics
 from arcpy.da import SearchCursor
-from arcpy.management import AddField, CalculateField, GetCount
+from arcpy.management import AddField, CalculateField, GetCount, Sort
 from arcpy.mp import ArcGISProject
 from datetime import date
 from math import ceil
@@ -67,6 +67,7 @@ site_gdb = field_det_lyr_path[:field_det_lyr_path.find('.gdb')+4]
 admin_table = os_path.join(site_gdb, 'Admin_Table')
 final_hel_summary_lyr_path = os_path.join(site_gdb, 'Final_HEL_Summary')
 final_hel_stats_table_path = os_path.join(site_gdb, 'Final_HEL_Summary_Statistics')
+field_det_sorted = os_path.join(site_gdb, 'Field_Determination_Sorted')
 
 ### Paths to HEL Project Folder for Outputs ###
 hel_dir = os_path.dirname(site_gdb)
@@ -231,14 +232,26 @@ except Exception as e:
     exit()
 
 
+### Add Numeric Field for CLU Number to Field Determination ###
+try:
+    AddField(field_det_lyr, 'clu_int', 'SHORT')
+    CalculateField(field_det_lyr, 'clu_int', 'int(!clu_number!)')
+    Sort(field_det_lyr, field_det_sorted, [['clu_int', 'ASCENDING']])
+    AddMessage('Added CLU integer field and created sorted table...')
+except Exception as e:
+    AddError('Error: Failed to create sorted table by CLU. Exiting...')
+    AddError(e)
+    exit()
+
+
 ### Read and assign values from Field Determination feature class ###
 SetProgressorLabel('Generating NRCS-CPA-026-HELC-Form.docx...')
 try:
     data_026_pg1 = [] #18 rows #NOTE: table will overrun page
     # data_026_pg2 = []
     # data_026_extra = []
-    fields = ['clu_number', 'HEL_YES', 'sodbust', 'clu_calculated_acreage']
-    with SearchCursor(field_det_lyr, fields) as cursor:
+    fields = ['clu_int', 'HEL_YES', 'sodbust', 'clu_calculated_acreage']
+    with SearchCursor(field_det_sorted, fields) as cursor:
         row_count = 0
         for row in cursor:
             row_count += 1
@@ -310,7 +323,7 @@ except Exception as e:
 
 ### Package Data into Dictionary for Planner Summary ###
 planner_summary_data = {}
-with SearchCursor(field_det_lyr, ['clu_number', 'clu_calculated_acreage', 'HEL_YES']) as field_cursor:
+with SearchCursor(field_det_sorted, ['clu_number', 'clu_calculated_acreage', 'HEL_YES']) as field_cursor:
     for field_row in field_cursor:
         if field_row[0] not in planner_summary_data: #Should always be true, clu_number should be unique for each row in Field_Determination
             planner_summary_data[field_row[0]] = {'acres': field_row[1], 'class': field_row[2]}
