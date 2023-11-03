@@ -67,7 +67,7 @@ site_gdb = field_det_lyr_path[:field_det_lyr_path.find('.gdb')+4]
 admin_table = os_path.join(site_gdb, 'Admin_Table')
 final_hel_summary_lyr_path = os_path.join(site_gdb, 'Final_HEL_Summary')
 final_hel_stats_table_path = os_path.join(site_gdb, 'Final_HEL_Summary_Statistics')
-field_det_sorted = os_path.join(site_gdb, 'Field_Determination_Sorted')
+field_det_sorted = os_path.join(site_gdb, 'HELC_Data', 'Field_Determination_Sorted')
 
 ### Paths to HEL Project Folder for Outputs ###
 hel_dir = os_path.dirname(site_gdb)
