@@ -237,7 +237,7 @@ try:
     data_026_pg1 = [] #18 rows #NOTE: table will overrun page
     # data_026_pg2 = []
     # data_026_extra = []
-    fields = ['clu_number', 'HEL_YES', 'clu_calculated_acreage']
+    fields = ['clu_number', 'HEL_YES', 'sodbust', 'clu_calculated_acreage']
     with SearchCursor(field_det_lyr, fields) as cursor:
         row_count = 0
         for row in cursor:
@@ -245,7 +245,8 @@ try:
             row_data = {}
             row_data['clu'] = row[0] if row[0] else ''
             row_data['hel'] = row[1] if row[1] else ''
-            row_data['acres'] = f'{row[2]:.2f}' if row[2] else ''
+            row_data['sodbust'] = row[2] if row[2] else ''
+            row_data['acres'] = f'{row[3]:.2f}' if row[3] else ''
             data_026_pg1.append(row_data)
             # if row_count < 19:
             #     data_026_pg1.append(row_data)
