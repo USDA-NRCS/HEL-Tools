@@ -43,6 +43,7 @@ where_completed = GetParameterAsText(2)
 nrcs_office = GetParameterAsText(3)
 fsa_county = GetParameterAsText(4)
 fsa_office = GetParameterAsText(5)
+consolidate_by_clu = GetParameterAsText(6)
 
 AddMessage('Assigning local variables...')
 SetProgressorLabel('Assigning local variables...')
@@ -281,30 +282,6 @@ except Exception as e:
     exit()
 
 
-# ### Generate 026 Supplemental Pages if Needed ###
-# if data_026_extra:
-#     number_pages = ceil(len(data_026_extra)/15)
-#     for page_number in range(number_pages):
-#         # Fill pages with sets of 15, removing from original list
-#         page_data = []
-#         page_data.extend(data_026_extra[:15])
-#         del data_026_extra[:15]
-#         try:
-#             page_data = add_blank_rows(page_data, 15)
-#             cpa_026_helc_supplemental_template = DocxTemplate(cpa_026_helc_supplemental_template_path)
-#             context = {'data_026_extra': page_data}
-#             cpa_026_helc_supplemental_template.render(context, autoescape=True)
-#             cpa_026_helc_supplemental_template.save(cpa_026_helc_supplemental_template_output)
-#             supplemental_026_doc = Document(cpa_026_helc_supplemental_template_output)
-#             cpa_026_helc_composer.append(supplemental_026_doc)
-#             remove(cpa_026_helc_supplemental_template_output)
-#             AddMessage(f'Created 026 Supplemental Worksheet page {page_number+3}...')
-#         except Exception as e:
-#             AddError(f'Error: Failed to create 026 Supplemental Worksheet page {page_number+3}. Exiting...')
-#             AddError(e)
-#             exit()
-
-
 ### Create Summary Statistics Table for Planner Summary Data ###
 try:
     Statistics(
@@ -343,9 +320,8 @@ with SearchCursor(field_det_lyr, ['clu_number', 'clu_calculated_acreage', 'HEL_Y
                     rows.append([stats_row[0], stats_row[1], stats_row[2], f"{round(stats_row[3],2):.2f}", f"{round(stats_row[4],2):.2f}"])
                     planner_summary_data[field_row[0]]['rows'] = rows
 
-AddMessage(planner_summary_data)
 
-### Generate Planner Summary ### TODO: Create summary stats table and populate Python dict from that
+### Generate Planner Summary ###
 SetProgressorLabel('Generating Planner_Summary.docx...')
 try:
     planner_summary_template = DocxTemplate(planner_summary_template_path)
