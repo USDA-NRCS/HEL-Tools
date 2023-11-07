@@ -1,7 +1,7 @@
 from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, Exists, GetParameterAsText, SetProgressorLabel
 from arcpy.analysis import Statistics
 from arcpy.da import SearchCursor
-from arcpy.management import AddField, CalculateField, GetCount, Sort
+from arcpy.management import AddField, CalculateField, GetCount, MakeFeatureLayer, Sort
 from arcpy.mp import ArcGISProject
 from datetime import date
 from math import ceil
@@ -67,7 +67,7 @@ site_gdb = field_det_lyr_path[:field_det_lyr_path.find('.gdb')+4]
 admin_table = os_path.join(site_gdb, 'Admin_Table')
 final_hel_summary_lyr_path = os_path.join(site_gdb, 'Final_HEL_Summary')
 final_hel_stats_table_path = os_path.join(site_gdb, 'Final_HEL_Summary_Statistics')
-field_det_sorted = os_path.join(site_gdb, 'HELC_Data', 'Field_Determination_Sorted')
+field_det_sorted_lyr_path = os_path.join(site_gdb, 'HELC_Data', 'Field_Determination_Sorted')
 
 ### Paths to HEL Project Folder for Outputs ###
 hel_dir = os_path.dirname(site_gdb)
@@ -236,7 +236,7 @@ except Exception as e:
 try:
     AddField(field_det_lyr, 'clu_int', 'SHORT')
     CalculateField(field_det_lyr, 'clu_int', 'int(!clu_number!)')
-    Sort(field_det_lyr, field_det_sorted, [['clu_int', 'ASCENDING']])
+    Sort(field_det_lyr, field_det_sorted_lyr_path, [['clu_int', 'ASCENDING']])
     AddMessage('Added CLU integer field and created sorted table...')
 except Exception as e:
     AddError('Error: Failed to create sorted table by CLU. Exiting...')
@@ -244,168 +244,237 @@ except Exception as e:
     exit()
 
 
-### Read and assign values from Field Determination feature class ###
-SetProgressorLabel('Generating NRCS-CPA-026-HELC-Form.docx...')
-try:
-    data_026_pg1 = [] #18 rows #NOTE: table will overrun page
-    # data_026_pg2 = []
-    # data_026_extra = []
-    fields = ['clu_int', 'HEL_YES', 'sodbust', 'clu_calculated_acreage']
-    with SearchCursor(field_det_sorted, fields) as cursor:
-        row_count = 0
-        for row in cursor:
-            row_count += 1
-            row_data = {}
-            row_data['clu'] = row[0] if row[0] else ''
-            row_data['hel'] = row[1] if row[1] else ''
-            row_data['sodbust'] = row[2] if row[2] else ''
-            row_data['acres'] = f'{row[3]:.2f}' if row[3] else ''
-            data_026_pg1.append(row_data)
-            # if row_count < 19:
-            #     data_026_pg1.append(row_data)
-            # elif row_count > 11 and row_count < 27:
-            #     data_026_pg2.append(row_data)
-            # else:
-            #     data_026_extra.append(row_data)
-except Exception as e:
-    AddError('Error: failed while retrieving CLU CWD 026 Table data. Exiting...')
-    AddError(e)
-    exit()
+### Build Consolidated Determination Table by CLU ###
+table_NHEL_No = os_path.join(site_gdb, 'table_NHEL_No')
+table_NHEL_Yes = os_path.join(site_gdb, 'table_NHEL_Yes')
+table_HEL_No = os_path.join(site_gdb, 'table_HEL_No')
+stats_fields = [['clu_number','CONCATENATE'], ['clu_calculated_acreage', 'SUM']]
+case_fields = ['HEL_YES', 'sodbust']
+consolidated_table_data = []
+
+# Table 1: NHEL/No
+where_clause = """{0}='NHEL' and {1}='No'""".format(AddFieldDelimiters(site_gdb, 'HEL_YES'), AddFieldDelimiters(site_gdb, 'sodbust'))
+MakeFeatureLayer(field_det_sorted_lyr_path, 'table1_lyr', where_clause)
+Statistics('table1_lyr', table_NHEL_No, stats_fields, case_fields, ', ')
+with SearchCursor(table_NHEL_No, ['CONCATENATE_clu_number', 'SUM_clu_calculated_acreage']) as cursor:
+    row = cursor.next()
+    row_data = {}
+    row_data['clu'] = row[0]
+    row_data['hel'] = 'NHEL'
+    row_data['sodbust'] = 'No'
+    row_data['acres'] = row[1]
+    consolidated_table_data.append(row_data)
+
+# Table 2: NHEL/Yes
+where_clause = """{0}='NHEL' and {1}='Yes'""".format(AddFieldDelimiters(site_gdb, 'HEL_YES'), AddFieldDelimiters(site_gdb, 'sodbust'))
+MakeFeatureLayer(field_det_sorted_lyr_path, 'table2_lyr', where_clause)
+Statistics('table2_lyr', table_NHEL_Yes, stats_fields, case_fields, ', ')
+with SearchCursor(table_NHEL_Yes, ['CONCATENATE_clu_number', 'SUM_clu_calculated_acreage']) as cursor:
+    row = cursor.next()
+    row_data = {}
+    row_data['clu'] = row[0]
+    row_data['hel'] = 'NHEL'
+    row_data['sodbust'] = 'Yes'
+    row_data['acres'] = row[1]
+    consolidated_table_data.append(row_data)
+
+# Table 3: HEL/No
+where_clause = """{0}='HEL' and {1}='No'""".format(AddFieldDelimiters(site_gdb, 'HEL_YES'), AddFieldDelimiters(site_gdb, 'sodbust'))
+MakeFeatureLayer(field_det_sorted_lyr_path, 'table3_lyr', where_clause)
+Statistics('table3_lyr', table_HEL_No, stats_fields, case_fields, ', ')
+with SearchCursor(table_HEL_No, ['CONCATENATE_clu_number', 'SUM_clu_calculated_acreage']) as cursor:
+    row = cursor.next()
+    row_data = {}
+    row_data['clu'] = row[0]
+    row_data['hel'] = 'HEL'
+    row_data['sodbust'] = 'No'
+    row_data['acres'] = row[1]
+    consolidated_table_data.append(row_data)
+
+# Append HEL/Yes as separate records
+where_clause = """{0}='HEL' and {1}='Yes'""".format(AddFieldDelimiters(site_gdb, 'HEL_YES'), AddFieldDelimiters(site_gdb, 'sodbust'))
+with SearchCursor(field_det_sorted_lyr_path, ['clu_number', 'clu_calculated_acreage'], where_clause) as cursor:
+    for row in cursor:
+        row_data = {}
+        row_data['clu'] = row[0]
+        row_data['hel'] = 'HEL'
+        row_data['sodbust'] = 'Yes'
+        row_data['acres'] = row[1]
+        consolidated_table_data.append(row_data)
 
 
-### Generate Pages 1 and 2 of 026 Form ###
-try:
-    cpa_026_helc_template = DocxTemplate(cpa_026_helc_template_path)
-    context = {
-        'admin_data': admin_data,
-        'hel_map_units': hel_map_units,
-        'where_completed': where_completed,
-        'data_026_pg1': add_blank_rows(data_026_pg1, 18) if len(data_026_pg1) < 18 else data_026_pg1
-    }
-    cpa_026_helc_template.render(context, autoescape=True)
-    cpa_026_helc_template.save(cpa_026_helc_output)
-    cpa_026_helc_doc = Document(cpa_026_helc_output)
-    cpa_026_helc_composer = Composer(cpa_026_helc_doc)
-    AddMessage('Created pages 1 and 2 of NRCS-CPA-026-HELC-Form.docx...')
-except PermissionError:
-    AddError('Error: Please close any open Word documents and try again. Exiting...')
-    exit()
-except Exception as e:
-    AddError('Error: Failed to create pages 1 and 2 of NRCS-CPA-026-HELC-Form.docx. Exiting...')
-    AddError(e)
-    exit()
+### Decide how to build data based on number of rows ###
+clu_count = int(GetCount(field_det_sorted_lyr_path)[0])
+consolidated_count = len(consolidated_table_data)
+if clu_count <= 18:
+    AddMessage('One CLU per row, fits on page 1')
+elif consolidated_count <= 18:
+    AddMessage('More than 18 CLUs, but consolidated table fits on page 1')
+else:
+    AddMessage('Consolidated table will overrun page 1')
 
-
-### Create Summary Statistics Table for Planner Summary Data ###
-try:
-    Statistics(
-        in_table = final_hel_summary_lyr_path,
-        out_table = final_hel_stats_table_path,
-        statistics_fields = [['Polygon_Acres', 'SUM'], ['clu_calculated_acres', 'MIN']],
-        case_field = ['clu_number', 'MUSYM', 'MUHELCL', 'Final_HEL_Value'])
-    AddMessage('Created Final HEL Summary Statistics table...')
-except Exception as e:
-    AddError('Error: failed to create Final HEL Summary Statistics table. Exiting...')
-    AddError(e)
-    exit()
-
-
-### Add Field to Stats Table and Calculate Percentage of Field ###
-try:
-    AddField(final_hel_stats_table_path, 'percent_of_field', 'DOUBLE')
-    CalculateField(final_hel_stats_table_path, 'percent_of_field', '(!SUM_Polygon_Acres!/!MIN_clu_calculated_acres!)*100')
-    AddMessage('Calculated percentage of field in Final HEL Summary Statistics table...')
-except Exception as e:
-    AddError('Error: failed to add field and calculate percentage in Final HEL Summary Statistics table. Exiting...')
-    AddError(e)
-    exit()
-
-
-### Package Data into Dictionary for Planner Summary ###
-planner_summary_data = {}
-with SearchCursor(field_det_sorted, ['clu_number', 'clu_calculated_acreage', 'HEL_YES']) as field_cursor:
-    for field_row in field_cursor:
-        if field_row[0] not in planner_summary_data: #Should always be true, clu_number should be unique for each row in Field_Determination
-            planner_summary_data[field_row[0]] = {'acres': field_row[1], 'class': field_row[2]}
-            where_clause = """{0} = '{1}'""".format(AddFieldDelimiters(site_gdb, 'clu_number'), field_row[0])
-            rows = []
-            with SearchCursor(final_hel_stats_table_path, ['MUHELCL', 'MUSYM', 'Final_HEL_Value', 'SUM_Polygon_Acres', 'percent_of_field'], where_clause) as stats_cursor:
-                for stats_row in stats_cursor:
-                    rows.append([stats_row[0], stats_row[1], stats_row[2], f"{round(stats_row[3],2):.2f}", f"{round(stats_row[4],2):.2f}"])
-                    planner_summary_data[field_row[0]]['rows'] = rows
-
-
-### Generate Planner Summary ###
-SetProgressorLabel('Generating Planner_Summary.docx...')
-try:
-    planner_summary_template = DocxTemplate(planner_summary_template_path)
-    context = {
-        'today_date': date.today().strftime('%A, %B %d, %Y'),
-        'farm_number': 821,
-        'tract_number': 12564,
-        'data': planner_summary_data
-    }
-    planner_summary_template.render(context, autoescape=True)
-    planner_summary_template.save(planner_summary_output)
-    AddMessage('Created Planner_Summary.docx...')
-except PermissionError:
-    AddError('Error: Please close any open Word documents and try again. Exiting...')
-    exit()
-except Exception as e:
-    AddError('Error: Failed to create Planner_Summary.docx. Exiting...')
-    AddError(e)
-    exit()
-
-
-# ### Generate Client Report ### TODO: Create summary stats table and populate Python dict from that
-# SetProgressorLabel('Generating Client_Report.docx...')
+# ### Read and assign values from Field Determination feature class ###
+# SetProgressorLabel('Generating NRCS-CPA-026-HELC-Form.docx...')
 # try:
-#     client_report_template = DocxTemplate(client_report_template_path)
-#     context = {
-#         'today_date': date.today().strftime('%A, %B %d, %Y'),
-#         'farm_number': 821,
-#         'tract_number': 12564,
-#         'data': {
-#             '1': {
-#                 'acres': 10,
-#                 'class': 'HEL',
-#                 'hel': [1, 0.1],
-#                 'hel_phel': [5, 2.5],
-#                 'nhel': [2, 5.12],
-#                 'nhel_phel': [6, 15.2],
-#                 'na': [0, 0]
-#             },
-#             '2': {
-#                 'acres': 26,
-#                 'class': 'NHEL',
-#                 'hel': [1, 0.1],
-#                 'hel_phel': [5, 2.5],
-#                 'nhel': [2, 5.12],
-#                 'nhel_phel': [6, 15.2],
-#                 'na': [0, 0]
-#             }
-#         }
-#     }
-#     client_report_template.render(context, autoescape=True)
-#     client_report_template.save(client_report_output)
-#     AddMessage('Created Client_Report.docx...')
-# except PermissionError:
-#     AddError('Error: Please close any open Word documents and try again. Exiting...')
-#     exit()
+#     data_026_pg1 = [] #18 rows #NOTE: table will overrun page
+#     # data_026_pg2 = []
+#     # data_026_extra = []
+#     fields = ['clu_int', 'HEL_YES', 'sodbust', 'clu_calculated_acreage']
+#     with SearchCursor(field_det_sorted_lyr_path, fields) as cursor:
+#         row_count = 0
+#         for row in cursor:
+#             row_count += 1
+#             row_data = {}
+#             row_data['clu'] = row[0] if row[0] else ''
+#             row_data['hel'] = row[1] if row[1] else ''
+#             row_data['sodbust'] = row[2] if row[2] else ''
+#             row_data['acres'] = f'{row[3]:.2f}' if row[3] else ''
+#             data_026_pg1.append(row_data)
+#             # if row_count < 19:
+#             #     data_026_pg1.append(row_data)
+#             # elif row_count > 11 and row_count < 27:
+#             #     data_026_pg2.append(row_data)
+#             # else:
+#             #     data_026_extra.append(row_data)
 # except Exception as e:
-#     AddError('Error: Failed to create Client_Report.docx. Exiting...')
+#     AddError('Error: failed while retrieving CLU CWD 026 Table data. Exiting...')
 #     AddError(e)
 #     exit()
 
 
-### Open Customer Letter, 026 Form ###
-AddMessage('Finished generating forms, opening in Microsoft Word...')
-SetProgressorLabel('Finished generating forms, opening in Microsoft Word...')
-try:
-    startfile(customer_letter_output)
-    startfile(cpa_026_helc_output)
-    # startfile(client_report_output)
-    startfile(planner_summary_output)
-except Exception as e:
-    AddError('Error: Failed to open finished forms in Microsoft Word. End of script.')
-    AddError(e)
+# ### Generate Pages 1 and 2 of 026 Form ###
+# try:
+#     cpa_026_helc_template = DocxTemplate(cpa_026_helc_template_path)
+#     context = {
+#         'admin_data': admin_data,
+#         'hel_map_units': hel_map_units,
+#         'where_completed': where_completed,
+#         'data_026_pg1': add_blank_rows(data_026_pg1, 18) if len(data_026_pg1) < 18 else data_026_pg1
+#     }
+#     cpa_026_helc_template.render(context, autoescape=True)
+#     cpa_026_helc_template.save(cpa_026_helc_output)
+#     cpa_026_helc_doc = Document(cpa_026_helc_output)
+#     cpa_026_helc_composer = Composer(cpa_026_helc_doc)
+#     AddMessage('Created pages 1 and 2 of NRCS-CPA-026-HELC-Form.docx...')
+# except PermissionError:
+#     AddError('Error: Please close any open Word documents and try again. Exiting...')
+#     exit()
+# except Exception as e:
+#     AddError('Error: Failed to create pages 1 and 2 of NRCS-CPA-026-HELC-Form.docx. Exiting...')
+#     AddError(e)
+#     exit()
+
+
+# ### Create Summary Statistics Table for Planner Summary Data ###
+# try:
+#     Statistics(
+#         in_table = final_hel_summary_lyr_path,
+#         out_table = final_hel_stats_table_path,
+#         statistics_fields = [['Polygon_Acres', 'SUM'], ['clu_calculated_acres', 'MIN']],
+#         case_field = ['clu_number', 'MUSYM', 'MUHELCL', 'Final_HEL_Value'])
+#     AddMessage('Created Final HEL Summary Statistics table...')
+# except Exception as e:
+#     AddError('Error: failed to create Final HEL Summary Statistics table. Exiting...')
+#     AddError(e)
+#     exit()
+
+
+# ### Add Field to Stats Table and Calculate Percentage of Field ###
+# try:
+#     AddField(final_hel_stats_table_path, 'percent_of_field', 'DOUBLE')
+#     CalculateField(final_hel_stats_table_path, 'percent_of_field', '(!SUM_Polygon_Acres!/!MIN_clu_calculated_acres!)*100')
+#     AddMessage('Calculated percentage of field in Final HEL Summary Statistics table...')
+# except Exception as e:
+#     AddError('Error: failed to add field and calculate percentage in Final HEL Summary Statistics table. Exiting...')
+#     AddError(e)
+#     exit()
+
+
+# ### Package Data into Dictionary for Planner Summary ###
+# planner_summary_data = {}
+# with SearchCursor(field_det_sorted_lyr_path, ['clu_number', 'clu_calculated_acreage', 'HEL_YES']) as field_cursor:
+#     for field_row in field_cursor:
+#         if field_row[0] not in planner_summary_data: #Should always be true, clu_number should be unique for each row in Field_Determination
+#             planner_summary_data[field_row[0]] = {'acres': field_row[1], 'class': field_row[2]}
+#             where_clause = """{0} = '{1}'""".format(AddFieldDelimiters(site_gdb, 'clu_number'), field_row[0])
+#             rows = []
+#             with SearchCursor(final_hel_stats_table_path, ['MUHELCL', 'MUSYM', 'Final_HEL_Value', 'SUM_Polygon_Acres', 'percent_of_field'], where_clause) as stats_cursor:
+#                 for stats_row in stats_cursor:
+#                     rows.append([stats_row[0], stats_row[1], stats_row[2], f"{round(stats_row[3],2):.2f}", f"{round(stats_row[4],2):.2f}"])
+#                     planner_summary_data[field_row[0]]['rows'] = rows
+
+
+# ### Generate Planner Summary ###
+# SetProgressorLabel('Generating Planner_Summary.docx...')
+# try:
+#     planner_summary_template = DocxTemplate(planner_summary_template_path)
+#     context = {
+#         'today_date': date.today().strftime('%A, %B %d, %Y'),
+#         'farm_number': 821,
+#         'tract_number': 12564,
+#         'data': planner_summary_data
+#     }
+#     planner_summary_template.render(context, autoescape=True)
+#     planner_summary_template.save(planner_summary_output)
+#     AddMessage('Created Planner_Summary.docx...')
+# except PermissionError:
+#     AddError('Error: Please close any open Word documents and try again. Exiting...')
+#     exit()
+# except Exception as e:
+#     AddError('Error: Failed to create Planner_Summary.docx. Exiting...')
+#     AddError(e)
+#     exit()
+
+
+# # ### Generate Client Report ### TODO: Create summary stats table and populate Python dict from that
+# # SetProgressorLabel('Generating Client_Report.docx...')
+# # try:
+# #     client_report_template = DocxTemplate(client_report_template_path)
+# #     context = {
+# #         'today_date': date.today().strftime('%A, %B %d, %Y'),
+# #         'farm_number': 821,
+# #         'tract_number': 12564,
+# #         'data': {
+# #             '1': {
+# #                 'acres': 10,
+# #                 'class': 'HEL',
+# #                 'hel': [1, 0.1],
+# #                 'hel_phel': [5, 2.5],
+# #                 'nhel': [2, 5.12],
+# #                 'nhel_phel': [6, 15.2],
+# #                 'na': [0, 0]
+# #             },
+# #             '2': {
+# #                 'acres': 26,
+# #                 'class': 'NHEL',
+# #                 'hel': [1, 0.1],
+# #                 'hel_phel': [5, 2.5],
+# #                 'nhel': [2, 5.12],
+# #                 'nhel_phel': [6, 15.2],
+# #                 'na': [0, 0]
+# #             }
+# #         }
+# #     }
+# #     client_report_template.render(context, autoescape=True)
+# #     client_report_template.save(client_report_output)
+# #     AddMessage('Created Client_Report.docx...')
+# # except PermissionError:
+# #     AddError('Error: Please close any open Word documents and try again. Exiting...')
+# #     exit()
+# # except Exception as e:
+# #     AddError('Error: Failed to create Client_Report.docx. Exiting...')
+# #     AddError(e)
+# #     exit()
+
+
+# ### Open Customer Letter, 026 Form ###
+# AddMessage('Finished generating forms, opening in Microsoft Word...')
+# SetProgressorLabel('Finished generating forms, opening in Microsoft Word...')
+# try:
+#     startfile(customer_letter_output)
+#     startfile(cpa_026_helc_output)
+#     # startfile(client_report_output)
+#     startfile(planner_summary_output)
+# except Exception as e:
+#     AddError('Error: Failed to open finished forms in Microsoft Word. End of script.')
+#     AddError(e)
