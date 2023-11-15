@@ -315,13 +315,14 @@ def extractDEM(cluLayer, inputDEM, fieldDetermination, scratchWS, zFactorList, u
         return False, False, False
 
 
-def addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination):
+def addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination, cluLayer):
     """ Adds output layers from determinitaion procedure to map. """
     try:
         SetParameterAsText(5, lidarHEL)
         SetParameterAsText(6, helSummary)
         SetParameterAsText(7, finalHELSummary)
         SetParameterAsText(8, fieldDetermination)
+        cluLayer.setSelectionSet(method='NEW')
     except:
         errorMsg()
 

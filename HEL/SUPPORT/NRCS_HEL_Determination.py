@@ -436,7 +436,7 @@ try:
                 del cluAcres,pct
                 cursor.updateRow(row)
 
-        addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination)
+        addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination, cluLayer)
 
         # Clean up time and gracefully exit
         SetProgressorLabel('')
@@ -850,7 +850,7 @@ try:
     del fieldList, cluDict, maxHelAcreLength, maxNHelAcreLength
 
     # Add output layers to map and symbolize
-    addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination)
+    addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination, cluLayer)
 
     # Clean up time
     SetProgressorLabel('Finishing up...')
