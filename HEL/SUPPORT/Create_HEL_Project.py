@@ -8,7 +8,7 @@ sys.dont_write_bytecode=True
 sys.path.append(path.dirname(sys.argv[0]))
 
 from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, env, Exists, GetParameter, GetParameterAsText, \
-    ListFeatureClasses, ListFields, SetParameterAsText, SetProgressorLabel, SpatialReference
+    ListFields, SetProgressorLabel, SpatialReference
 
 from arcpy.conversion import FeatureClassToFeatureClass
 from arcpy.da import SearchCursor, UpdateCursor
