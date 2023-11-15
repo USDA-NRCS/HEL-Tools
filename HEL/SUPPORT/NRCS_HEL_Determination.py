@@ -106,14 +106,12 @@ try:
         AddMsgAndPrint(f"\n\tThere are {str(len(uniqueTracts))} different Tract Numbers. Exiting!", 2)
         for tract in uniqueTracts:
             AddMsgAndPrint(f"\t\tTract #: {str(tract)}", 2)
-        removeScratchLayers(scratchLayers)
         exit()
 
     if len(uniqueFarm) != 1:
         AddMsgAndPrint(f"\n\tThere are {str(len(uniqueFarm))} different Farm Numbers. Exiting!", 2)
         for farm in uniqueFarm:
             AddMsgAndPrint(f"\t\tFarm #: {str(farm)}", 2)
-        removeScratchLayers(scratchLayers)
         exit()
 
     # Create Text file to log info to
@@ -171,7 +169,6 @@ try:
     totalIntAcres = sum([row[0] for row in SearchCursor(finalHELSummary, ('SHAPE@AREA'))]) / acreConversionDict.get(Describe(finalHELSummary).SpatialReference.LinearUnitName)
     if not totalIntAcres:
         AddMsgAndPrint('\tThere is no overlap between HEL soil layer and CLU Layer. Exiting!', 2, textFilePath=textFilePath)
-        removeScratchLayers(scratchLayers)
         exit()
 
     # Dissolve intersection output by the following fields -> helSummary
@@ -251,7 +248,6 @@ try:
     # Inform user about NULL values; Exit if any NULLs exist.
     if nullHEL > 0:
         AddMsgAndPrint(f"\n\tERROR: There are {str(nullHEL)} polygon(s) with missing HEL values. Exiting!", 2, textFilePath=textFilePath)
-        removeScratchLayers(scratchLayers)
         exit()
 
     # Inform user about invalid HEL values (not PHEL,HEL, NHEL); Exit if invalid values exist.
@@ -259,7 +255,6 @@ try:
         AddMsgAndPrint(f"\n\tERROR: There is {str(len(set(wrongHELvalues)))} invalid HEL values in HEL Layer:", 1, textFilePath=textFilePath)
         for wrongVal in set(wrongHELvalues):
             AddMsgAndPrint(f"\t\t{wrongVal}", textFilePath=textFilePath)
-        removeScratchLayers(scratchLayers)
         exit()
 
     del dissovleFlds, nullHEL, wrongHELvalues
@@ -459,8 +454,8 @@ try:
 
     units, zFactor, dem = extractDEM(cluLayer, inputDEM, fieldDetermination, scratch_gdb, zFactorList, unitLookUpDict, zUnits)
     if not zFactor or not dem:
-        removeScratchLayers(scratchLayers)
         exit()
+    
     scratchLayers.append(dem)
 
     # Check DEM for NoData overlaps with input CLU fields
@@ -859,7 +854,6 @@ try:
 
     # Clean up time
     SetProgressorLabel('Finishing up...')
-    removeScratchLayers(scratchLayers)
     AddMsgAndPrint('\n', textFilePath=textFilePath)
 
 
@@ -867,3 +861,5 @@ except NoProcesingExit:
     pass
 except:
     errorMsg()
+finally:
+    removeScratchLayers(scratchLayers)
