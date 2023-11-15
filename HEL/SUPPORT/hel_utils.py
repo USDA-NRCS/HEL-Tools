@@ -354,3 +354,7 @@ def updateLayoutText(layout_object, layout_farm, layout_tract, layout_CoName, la
     GeoCo_ele.text = f"Geographic County: {layout_CoName}"
     AdminCo_ele.text = f"Administrative County: {layout_adminName}"
     Customer_ele.text = f"Customer: {layout_client}"
+
+
+class NoProcesingExit(Exception):
+    pass

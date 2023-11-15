@@ -17,7 +17,8 @@ from arcpy.mp import ArcGISProject
 from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, FocalStatistics, IsNull, NbrRectangle, \
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
-from hel_utils import AddMsgAndPrint, addOutputLayers, createTextFile, errorMsg, extractDEM, FindField, removeScratchLayers
+from hel_utils import AddMsgAndPrint, addOutputLayers, createTextFile, errorMsg, extractDEM, FindField, \
+    removeScratchLayers, NoProcesingExit
 
 
 ### Initial Tool Validation ###
@@ -389,16 +390,64 @@ try:
             AddMsgAndPrint('\n\tHEL values are >= 33.33% or more than 50 acres, or NHEL values are > 66.67%', 1, textFilePath=textFilePath)
             AddMsgAndPrint('\tNo Geoprocessing is required\n', textFilePath=textFilePath)
 
+        # Add 3 fields to fieldDetermination layer
+        fieldList = ['HEL_YES', 'HEL_Acres', 'HEL_Pct']
+        for field in fieldList:
+            if not FindField(fieldDetermination, field):
+                if field == 'HEL_YES':
+                    AddField(fieldDetermination, field, 'TEXT', '', '', 5)
+                else:
+                    AddField(fieldDetermination, field, 'FLOAT')
+        fieldList.append(cluNumberFld)
+
+        # Update new fields using ogCLUinfoDict
+        with UpdateCursor(fieldDetermination, fieldList) as cursor:
+            for row in cursor:
+                row[0] = ogCLUinfoDict.get(row[3])[0]   # "HEL_YES" value
+                row[1] = ogCLUinfoDict.get(row[3])[1]   # "HEL_Acres" value
+                row[2] = ogCLUinfoDict.get(row[3])[2]   # "HEL_Pct" value
+                cursor.updateRow(row)
+
+        # Add 4 fields to Final HEL Summary layer
+        newFields = ['Polygon_Acres', 'Final_HEL_Value', 'Final_HEL_Acres', 'Final_HEL_Percent']
+        for fld in newFields:
+            if not len(ListFields(finalHELSummary, fld)) > 0:
+                if fld == 'Final_HEL_Value':
+                    AddField(finalHELSummary, 'Final_HEL_Value', 'TEXT', '', '', 5)
+                else:
+                    AddField(finalHELSummary, fld, 'DOUBLE')
+        newFields.append(helFld)
+        newFields.append(cluNumberFld)
+        newFields.append('SHAPE@AREA')
+
+        # [polyAcres,finalHELvalue,finalHELacres,finalHELpct,MUHELCL,'CLUNBR',"SHAPE@AREA"]
+        with UpdateCursor(finalHELSummary, newFields) as cursor:
+            for row in cursor:
+                # Calculate polygon acres;
+                # TODO: change to GIS calc acres, remove dict
+                row[0] = row[6] / acreConversionDict.get(Describe(finalHELSummary).SpatialReference.LinearUnitName)
+                # Final_HEL_Value will be set to the initial HEL value
+                row[1] = row[4]
+                # set Final HEL Acres to 0 for PHEL and NHEL; othewise set to polyAcres
+                if row[4] in ('NHEL', 'PHEL'):
+                    row[2] = 0.0
+                else:
+                    row[2] = row[0]
+                # Calculate percent of polygon relative to CLU
+                cluAcres = ogCLUinfoDict.get(row[5])[1]
+                pct = (row[0] / cluAcres) * 100
+                if pct > 100.0: pct = 100.0
+                row[3] = pct
+                del cluAcres,pct
+                cursor.updateRow(row)
+
         addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination)
 
-        # TODO: make into separate tool
-        # if not populateForm(fieldDetermination, lu_table, dcSignature, input_cust, support_gdb):
-        #     AddMsgAndPrint('\nFailed to correclty populate NRCS-CPA-026 form', 2, textFilePath=textFilePath)
-
-        # Clean up time
+        # Clean up time and gracefully exit
         SetProgressorLabel('')
         AddMsgAndPrint('\n', textFilePath=textFilePath)
-        exit()
+        raise(NoProcesingExit)
+
 
     # Check and create DEM clip from buffered CLU
     # Exit if a DEM is not present; At this point PHEL mapunits are present and requires a DEM to process them.
@@ -805,10 +854,6 @@ try:
 
     del fieldList, cluDict, maxHelAcreLength, maxNHelAcreLength
 
-    # TODO: make into separate tool
-    # if not populateForm(fieldDetermination, lu_table, dcSignature, input_cust, support_gdb):
-    #     AddMsgAndPrint('\nFailed to correclty populate NRCS-CPA-026 form', 2, textFilePath=textFilePath)
-
     # Add output layers to map and symbolize
     addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination)
 
@@ -817,6 +862,8 @@ try:
     removeScratchLayers(scratchLayers)
     AddMsgAndPrint('\n', textFilePath=textFilePath)
 
+
+except NoProcesingExit:
+    pass
 except:
-    removeScratchLayers(scratchLayers)
     errorMsg()
