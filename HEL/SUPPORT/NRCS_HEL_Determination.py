@@ -39,9 +39,6 @@ use_runoff_ls = GetParameter(4)
 
 
 ### Set Local Variables and Paths ###
-kFactorFld = 'K'
-tFactorFld = 'T'
-rFactorFld = 'R'
 helFld = 'MUHELCL'
 scratchLayers = list()
 
@@ -616,17 +613,17 @@ try:
     # 12 Convert KFactor to raster
     SetProgressorLabel('Converting K Factor field to a raster')
     AddMsgAndPrint('\tConverting K Factor field to a raster', textFilePath=textFilePath)
-    FeatureToRaster(finalHELSummary, kFactorFld, kFactor, cellSize)
+    FeatureToRaster(finalHELSummary, 'K', kFactor, cellSize)
 
     # 13 Convert TFactor to raster
     SetProgressorLabel('Converting T Factor field to a raster')
     AddMsgAndPrint('\tConverting T Factor field to a raster', textFilePath=textFilePath)
-    FeatureToRaster(finalHELSummary, tFactorFld, tFactor, cellSize)
+    FeatureToRaster(finalHELSummary, 'T', tFactor, cellSize)
 
     # 14 Convert RFactor to raster
     SetProgressorLabel('Converting R Factor field to a raster')
     AddMsgAndPrint('\tConverting R Factor field to a raster', textFilePath=textFilePath)
-    FeatureToRaster(finalHELSummary, rFactorFld, rFactor, cellSize)
+    FeatureToRaster(finalHELSummary, 'R', rFactor, cellSize)
 
     SetProgressorLabel('Converting HEL Value field to a raster')
     AddMsgAndPrint('\tConverting HEL Value field to a raster', textFilePath=textFilePath)
