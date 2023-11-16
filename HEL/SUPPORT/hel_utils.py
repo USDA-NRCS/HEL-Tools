@@ -337,7 +337,7 @@ def getLayout(aprx, lyt_name):
         return False
 
 
-def updateLayoutText(layout_object, layout_farm, layout_tract, layout_CoName, layout_adminName, layout_client):
+def updateLayout(layout_object, map_layer, layout_farm, layout_tract, layout_CoName, layout_adminName, layout_client):
     """ Updates various text elements specific to the current request """
     try:
         Farm_ele = layout_object.listElements('TEXT_ELEMENT', 'Farm')[0]
@@ -355,6 +355,10 @@ def updateLayoutText(layout_object, layout_farm, layout_tract, layout_CoName, la
     GeoCo_ele.text = f"Geographic County: {layout_CoName}"
     AdminCo_ele.text = f"Administrative County: {layout_adminName}"
     Customer_ele.text = f"Customer: {layout_client}"
+
+    map_frame = layout_object.listElements('mapframe_element', 'Map Frame')[0]
+    map_frame.camera.setExtent(Describe(map_layer).extent)
+    map_frame.camera.scale = map_frame.camera.scale * 1.1 #add a slight buffer
 
 
 class NoProcesingExit(Exception):
