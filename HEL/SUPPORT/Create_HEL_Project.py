@@ -372,6 +372,8 @@ try:
     for lyr in lyr_list:
         if lyr.longName == 'Site_CLU':
             lyr.visible = False
+        if lyr.longName == 'Common Land Unit Map Service':
+            lyr.visible = False
 
 
     ### Zoom Map View to CLU ###
