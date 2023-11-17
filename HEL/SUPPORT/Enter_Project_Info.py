@@ -9,7 +9,7 @@ from arcpy.da import InsertCursor, SearchCursor
 from arcpy.management import Compact, CreateFeatureDataset, CreateFileGDB, CreateTable, Delete, DeleteRows, GetCount
 from arcpy.mp import ArcGISProject
 
-from hel_utils import AddMsgAndPrint, errorMsg, getLayout, updateLayout
+from hel_utils import AddMsgAndPrint, errorMsg
 
 
 # ================================================================================================================
@@ -151,17 +151,6 @@ try:
     if Exists(textTable):
         Delete(textTable)
     TableToTable(projectTable, userWorkspace, textTable)
-
-    # Update template map layouts in the project
-    AddMsgAndPrint('\nUpdating map layouts...')
-    SetProgressorLabel('Updating map layouts...')
-    
-    # Define the map layouts
-    HEL_layout = getLayout(aprx, 'HEL Determination Layout')
-    
-    # Update the map layouts
-    if HEL_layout:
-        updateLayout(HEL_layout, sourceCLU, farmNumber, tractNumber, countyName, adminCountyName, client)
 
     # If project HEL geodatabase and feature dataset do not exist, create them.
     # Get the spatial reference from the Define AOI feature class and use it, if needed
