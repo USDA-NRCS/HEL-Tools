@@ -19,15 +19,11 @@ def logBasicSettings():
         f.write(f"User Name: {getuser()}\n")
         f.write(f"Date Executed: {ctime()}\n")
         f.write('User Parameters:\n')
-        if selectedLayer == "Site CWD layer":
-            f.write(f"\tInput CWD Layer: {Describe(sourceCWD).CatalogPath}\n")
-        elif selectedLayer == "Site CLU CWD layer":
-            f.write(f"\tInput CLU CWD Layer: {Describe(sourceCLUCWD).CatalogPath}\n")
-        if showLocation:
+        if show_location:
             f.write('\tShow PLSS Location Text Box: True\n')
         else:
             f.write('\tShow PLSS Location Text Box: False\n')
-        if owDetLayout:
+        if overwrite_layout:
             f.write('\tOverwrite Determination Map: True\n')
         else:
             f.write('\tOverwrite Determination Map: False\n')
@@ -128,18 +124,13 @@ env.overwriteOutput = True
 ### Input Parameters ###
 AddMsgAndPrint('Reading inputs...\n')
 SetProgressorLabel('Reading inputs...')
-selectedLayer = GetParameterAsText(0)
-sourceCWD = GetParameterAsText(1)
-sourceCLUCWD = GetParameterAsText(2)
-sourcePJW = GetParameterAsText(3)
-includeDL = GetParameter(4)
-sourceDL = GetParameterAsText(5)
-zoomType = GetParameterAsText(6)
-zoomLyr = GetParameterAsText(7)
-showLocation = GetParameter(8)
-plssPoint = GetParameterAsText(9)
-owDetLayout = GetParameter(10)
-imagery = GetParameterAsText(11)
+field_determination_lyr = GetParameterAsText(0)
+zoom_type = GetParameterAsText(1)
+zoom_lyr = GetParameterAsText(2)
+show_location = GetParameter(3)
+plss_point = GetParameterAsText(4)
+overwrite_layout = GetParameter(5)
+imagery = GetParameterAsText(6)
 if '\\' in imagery:
     imagery = imagery.split('\\')[-1]
 
@@ -160,7 +151,7 @@ base_dir = path.abspath(path.dirname(__file__)) #\SUPPORT
 scratch_gdb = path.join(base_dir, 'scratch.gdb')
 support_gdb = path.join(base_dir, 'SUPPORT.gdb')
 
-helc_fd = path.dirname(Describe(selectedLayer).catalogPath)
+helc_fd = path.dirname(Describe(field_determination_lyr).catalogPath)
 helc_gdb = path.dirname(helc_fd)
 helc_dir = path.dirname(helc_gdb)
 
@@ -189,7 +180,7 @@ try:
     SetProgressorLabel("Configuring output file names...")
     outPDF = path.join(helc_dir, f"Determination_Map_{projectName}.pdf")
     # If overwrite existing maps is checked, use standard file name, else enumerate
-    if not owDetLayout:
+    if not overwrite_layout:
         if path.exists(outPDF):
             count = 1
             while count > 0:
@@ -221,10 +212,10 @@ try:
     display_dm_location = False
     dm_plss_text = ''
         
-    if showLocation:
+    if show_location:
         AddMsgAndPrint('\nShow location selected for Determination Map. Processing reference location...')
         SetProgressorLabel('Retrieving PLSS Location...')
-        dm_plss_text = getPLSS(plssPoint)
+        dm_plss_text = getPLSS(plss_point)
         if dm_plss_text != '':
             AddMsgAndPrint('\nThe PLSS query was successful and a location text box will be shown on the Determination Map.')
             display_dm_location = True
@@ -239,7 +230,7 @@ try:
     if Exists(projectTable):
         AddMsgAndPrint('\nCollecting header information from project table...')
         fields = ['admin_county_name', 'county_name', 'farm_number', 'tract_number', 'client', 'dig_staff']
-        with SearchCursor(projectTable) as cursor:
+        with SearchCursor(projectTable, fields) as cursor:
             row = cursor.next()
             admin_county = row[0] if row[0] else ''
             geo_county = row[1] if row[1] else ''
@@ -260,7 +251,7 @@ try:
     AddMsgAndPrint('\nUpdating dynamic text in layout...')
     SetProgressorLabel('Updating dynamica text in layout...')
     try:
-        location_element = layout.listElement('TEXT_ELEMENT', 'Location')[0]
+        location_element = layout.listElements('TEXT_ELEMENT', 'Location')[0]
         farm_element = layout.listElements('TEXT_ELEMENT', 'Farm')[0]
         tract_element = layout.listElements('TEXT_ELEMENT', 'Tract')[0]
         geoco_element = layout.listElements('TEXT_ELEMENT', 'GeoCo')[0]
@@ -268,7 +259,7 @@ try:
         customer_element = layout.listElements('TEXT_ELEMENT', 'Customer')[0]
         imagery_element = layout.listElements('TEXT_ELEMENT', 'Imagery Text Box')[0]
     except:
-        AddMsgAndPrint(f"\nOne or more expected elements are missing or had its name changed in the {layout.name} layout", 2)
+        AddMsgAndPrint(f"\nOne or more expected elements are missing or had its name changed in the {layout.name}.", 2)
         AddMsgAndPrint('\nLayout cannot be updated automatically. Import the appropriate layout from the installation folder and try again', 2)
         exit()
 
@@ -292,23 +283,24 @@ try:
     
     # Turn off PLSS layer if used
     plss_lyr = ''
-    if plssPoint:
-        plssDesc = Describe(plssPoint)
+    if plss_point:
+        plssDesc = Describe(plss_point)
         if plssDesc.dataType == 'FeatureLayer':
             try:
-                plss_lyr = m.listLayers(plssPoint)[0]
+                plss_lyr = m.listLayers(plss_point)[0]
                 plss_lyr.visible = False
             except:
                 pass
 
     # Zoom to specified layer extent if applicable
-    if zoomType == 'Zoom to a layer':
+    if zoom_type == 'Zoom to Layer':
         mf = layout.listElements('MAPFRAME_ELEMENT', 'Map Frame')[0]
-        lyr = m.listLayers(zoomLyr)[0]
+        lyr = m.listLayers(zoom_lyr)[0]
         ext = mf.getLayerExtent(lyr)
         cam = mf.camera
         cam.setExtent(ext)
-        cam.scale = cam.scale * 1.25
+        cam.scale = cam.scale*1.25 if cam.scale > 3960 else 3960
+
     
     # Turn off the imagery element in legend
     legend = layout.listElements('LEGEND_ELEMENT')[0]
@@ -345,11 +337,11 @@ try:
     AddMsgAndPrint('\tDetermination Map file exported')
 
 
-    ### Reset Imagery Text Box to Blank ###
-    try:
-        imagery_element.text = ' Image: '
-    except:
-        pass
+    # ### Reset Imagery Text Box to Blank ###
+    # try:
+    #     imagery_element.text = ' Image: '
+    # except:
+    #     pass
 
 
     ### Clean Up Scratch GDB ###
