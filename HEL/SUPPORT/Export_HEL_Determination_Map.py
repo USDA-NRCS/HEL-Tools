@@ -303,31 +303,11 @@ try:
 
     
     # Turn off the imagery element in legend
+    # TODO: Configure other legend elements
     legend = layout.listElements('LEGEND_ELEMENT')[0]
     for item in legend.items:
         if item.name == imagery:
             item.visible = False
-
-    # Set required layers to be visible
-    # if selectedLayer == "Site CWD layer":
-    #     cwd_lyr.visible = True
-    #     clucwd_lyr.visible = False
-    #     if Exists(prev_cwd_lyr):
-    #         prev_cwd_lyr.visible = False
-            
-    # elif selectedLayer == "Site CLU CWD layer":
-    #     cwd_lyr.visible = False
-    #     clucwd_lyr.visible = True
-    #     if Exists(prev_cwd_lyr):
-    #         prev_cwd_lyr.visible = False
-
-    # Set the legend elements for contingent visibility options
-    # dm_leg = layout.listElements('LEGEND_ELEMENT')[0]
-    # for item in dm_leg.items:
-    #     if item.name == cwdName:
-    #         item.showVisibleFeatures = True
-    #     elif item.name == clucwdName:
-    #         item.showVisibleFeatures = True
                 
 
     ### Export Map to PDF ###
