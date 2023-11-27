@@ -47,19 +47,6 @@ def errorMsg():
         pass
 
 
-def logBasicSettings(textFilePath, sourceState, sourceCounty, tractNumber, owFlag):
-    with open(textFilePath, 'a+') as f:
-        f.write('\n######################################################################\n')
-        f.write('Executing Create Project Folder tool...\n')
-        f.write(f"User Name: {getuser()}\n")
-        f.write(f"Date Executed: {ctime()}\n")
-        f.write('User Parameters:\n')
-        f.write(f"\tAdmin State Selected: {sourceState}\n")
-        f.write(f"\tAdmin County Selected: {sourceCounty}\n")
-        f.write(f"\tTract Entered: {str(tractNumber)}\n")
-        f.write(f"\tOverwrite CLU: {str(owFlag)}\n")
-
-
 def createTextFile(tract, farm):
     """ This function sets up the text file to begin recording all messages
         reported to the console.  The text file will be created in a folder

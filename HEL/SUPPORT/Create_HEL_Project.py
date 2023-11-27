@@ -1,25 +1,41 @@
 from datetime import datetime
+from getpass import getuser
 from os import mkdir, path
-from sys import exit
+from sys import argv, exit
+from time import ctime
 from uuid import uuid4
 
-import sys
-sys.dont_write_bytecode=True
-sys.path.append(path.dirname(sys.argv[0]))
+# import sys
+# sys.dont_write_bytecode=True
+# sys.path.append(path.dirname(sys.argv[0]))
 
-from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, env, Exists, GetParameter, GetParameterAsText, \
+from arcpy import AddFieldDelimiters, Describe, env, Exists, GetParameter, GetParameterAsText, \
     ListFields, SetProgressorLabel, SpatialReference
 
 from arcpy.conversion import FeatureClassToFeatureClass
 from arcpy.da import SearchCursor, UpdateCursor
 
-from arcpy.management import AddField, AlterDomain, Append, CalculateField, Compact, CreateFeatureclass, CreateFeatureDataset, \
-    CreateFileGDB, Delete, Dissolve, TableToDomain
+from arcpy.management import AddField, AlterDomain, Append, CalculateField, Compact, CreateFeatureclass, \
+    CreateFeatureDataset, CreateFileGDB, Delete, Dissolve, TableToDomain
 
 from arcpy.mp import ArcGISProject, LayerFile
 
 from extract_CLU_by_Tract import getPortalTokenInfo, start
 from hel_utils import AddMsgAndPrint, errorMsg
+
+
+def logBasicSettings(textFilePath, projectType, sourceState, sourceCounty, tractNumber, owFlag):
+    with open(textFilePath, 'a+') as f:
+        f.write('\n######################################################################\n')
+        f.write('Executing Tool: Create HEL Project...\n')
+        f.write(f"User Name: {getuser()}\n")
+        f.write(f"Date Executed: {ctime()}\n")
+        f.write('User Parameters:\n')
+        f.write(f"\tProject Type: {projectType}\n")
+        f.write(f"\tAdmin State: {sourceState}\n")
+        f.write(f"\tAdmin County: {sourceCounty}\n")
+        f.write(f"\tTract: {str(tractNumber)}\n")
+        f.write(f"\tOverwrite CLU: {str(owFlag)}\n")
 
 
 ### Initial Tool Validation ###
@@ -33,31 +49,31 @@ except Exception:
 nrcsPortal = 'https://gis.sc.egov.usda.gov/portal/'
 portalToken = getPortalTokenInfo(nrcsPortal)
 if not portalToken:
-    AddError('Could not generate Portal token. Please login to GeoPortal. Exiting...')
+    AddMsgAndPrint('Could not generate Portal token. Please login to GeoPortal. Exiting...', 2)
     exit()
 
-lut = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'lut_census_fips')
+lut = path.join(path.dirname(argv[0]), 'SUPPORT.gdb', 'lut_census_fips')
 if not Exists(lut):
-    AddError('Could not find state and county lookup table. Exiting...')
+    AddMsgAndPrint('Could not find state and county lookup table. Exiting...', 2)
     exit()
 
 
 ### Validate Spatial Reference ###
 mapSR = map.spatialReference
 if mapSR.type != 'Projected':
-    AddError('\nThe Determinations map is not set to a Projected coordinate system.')
-    AddError('\nPlease assign a WGS 1984 UTM coordinate system to the Determinations map that is appropriate for your site.')
-    AddError('\nThese systems are found in the Determinations Map Properties under: Coordinate Systems -> Projected Coordinate System -> UTM -> WGS 1984.')
-    AddError('\nAfter applying a coordinate system, save your template and try this tool again.')
-    AddError('\nExiting...')
+    AddMsgAndPrint('\nThe Determinations map is not set to a Projected coordinate system.', 2)
+    AddMsgAndPrint('\nPlease assign a WGS 1984 UTM coordinate system to the Determinations map that is appropriate for your site.', 2)
+    AddMsgAndPrint('\nThese systems are found in the Determinations Map Properties under: Coordinate Systems -> Projected Coordinate System -> UTM -> WGS 1984.', 2)
+    AddMsgAndPrint('\nAfter applying a coordinate system, save your template and try this tool again.', 2)
+    AddMsgAndPrint('\nExiting...', 2)
     exit()
 
 if 'WGS' not in mapSR.name or '1984' not in mapSR.name or 'UTM' not in mapSR.name:
-    AddError('\nThe Determinations map is not using a UTM coordinate system tied to WGS 1984.')
-    AddError('\nPlease assign a WGS 1984 UTM coordinate system to the Determinations map that is appropriate for your site.')
-    AddError('\nThese systems are found in the Determinations Map Properties under: Coordinate Systems -> Projected Coordinate System -> UTM -> WGS 1984.')
-    AddError('\nAfter applying a coordinate system, save your template and try this tool again.')
-    AddError('\nExiting...')
+    AddMsgAndPrint('\nThe Determinations map is not using a UTM coordinate system tied to WGS 1984.', 2)
+    AddMsgAndPrint('\nPlease assign a WGS 1984 UTM coordinate system to the Determinations map that is appropriate for your site.', 2)
+    AddMsgAndPrint('\nThese systems are found in the Determinations Map Properties under: Coordinate Systems -> Projected Coordinate System -> UTM -> WGS 1984.', 2)
+    AddMsgAndPrint('\nAfter applying a coordinate system, save your template and try this tool again.', 2)
+    AddMsgAndPrint('\nExiting...', 2)
     exit()
 
 
@@ -95,11 +111,11 @@ try:
             break
 
     if len(stfip) != 2 and len(cofip) != 3:
-        AddError('State and County FIPS codes could not be retrieved! Exiting...')
+        AddMsgAndPrint('State and County FIPS codes could not be retrieved! Exiting...', 2)
         exit()
 
     if adStatePostal == '':
-        AddError('State postal code could not be retrieved! Exiting...')
+        AddMsgAndPrint('State postal code could not be retrieved! Exiting...', 2)
         exit()
 
     # Change sourceCounty back to handle apostrophes
@@ -140,19 +156,20 @@ try:
         if existingFolder != '':
             projectFolder = existingFolder
         else:
-            AddError('Project type was specified as Existing, but no existing project folder was selected. Exiting...')
+            AddMsgAndPrint('Project type was specified as Existing, but no existing project folder was selected. Exiting...', 2)
             exit()
 
 
     ### Set Additional Local Variables ###
     folderName = path.basename(projectFolder)
     projectName = folderName
+    textFilePath = path.join(projectFolder, f"{folderName}_log.txt")
     basedataGDB_name = path.basename(projectFolder).replace(' ','_') + '_BaseData.gdb'
     basedataGDB_path = path.join(projectFolder, basedataGDB_name)
     userWorkspace = path.dirname(basedataGDB_path)
     basedataFD = path.join(basedataGDB_path, 'Layers')
     outputWS = basedataGDB_path
-    templateCLU = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'Site_CLU_template')
+    templateCLU = path.join(path.dirname(argv[0]), 'SUPPORT.gdb', 'Site_CLU_template')
     cluTempName = 'CLU_Temp_' + projectName
     projectCLUTemp = path.join(basedataFD, cluTempName)
     cluName = 'Site_CLU'
@@ -164,31 +181,32 @@ try:
     helcFD = path.join(helcGDB_path, 'HELC_Data')
     sitePrepareCLU_name = 'Site_Prepare_HELC'
     sitePrepareCLU = path.join(helcFD, sitePrepareCLU_name)
-    scratchGDB = path.join(path.dirname(sys.argv[0]), 'SCRATCH.gdb')
+    scratchGDB = path.join(path.dirname(argv[0]), 'SCRATCH.gdb')
     jobid = uuid4()
-    site_prepare_lyrx = LayerFile(path.join(path.join(path.dirname(sys.argv[0]), 'layer_files'), 'Site_Prepare_HELC.lyrx')).listLayers()[0]
-    site_clu_lyrx = LayerFile(path.join(path.join(path.dirname(sys.argv[0]), 'layer_files'), 'Site_CLU.lyrx')).listLayers()[0]
+    site_prepare_lyrx = LayerFile(path.join(path.join(path.dirname(argv[0]), 'layer_files'), 'Site_Prepare_HELC.lyrx')).listLayers()[0]
+    site_clu_lyrx = LayerFile(path.join(path.join(path.dirname(argv[0]), 'layer_files'), 'Site_CLU.lyrx')).listLayers()[0]
 
+    logBasicSettings(textFilePath, projectType, sourceState, sourceCounty, tractNumber, owFlag)
 
     ### Create Project Folders and Contents ###
-    AddMessage('\nChecking project directories...')
+    AddMsgAndPrint('\nChecking project directories...', textFilePath=textFilePath)
     SetProgressorLabel('Checking project directories...')
     if not path.exists(workspacePath):
         try:
             SetProgressorLabel('Creating Determinations folder...')
             mkdir(workspacePath)
-            AddMessage('\nThe Determinations folder did not exist on the C: drive and has been created.')
+            AddMsgAndPrint('\nThe Determinations folder did not exist on the C: drive and has been created.', textFilePath=textFilePath)
         except:
-            AddError('\nThe Determinations folder cannot be created. Please check your permissions to the C: drive. Exiting...\n')
+            AddMsgAndPrint('\nThe Determinations folder cannot be created. Please check your permissions to the C: drive. Exiting...\n', 2, textFilePath)
             exit()
 
     if not path.exists(projectFolder):
         try:
             SetProgressorLabel('Creating project folder...')
             mkdir(projectFolder)
-            AddMessage('\nThe project folder has been created within C:\Determinations.')
+            AddMsgAndPrint('\nThe project folder has been created within C:\Determinations.', textFilePath=textFilePath)
         except:
-            AddError('\nThe project folder cannot be created. Please check your permissions to C:\Determinations. Exiting...\n')
+            AddMsgAndPrint('\nThe project folder cannot be created. Please check your permissions to C:\Determinations. Exiting...\n', 2, textFilePath)
             exit()
 
     SetProgressorLabel('Creating project contents...')
@@ -196,34 +214,34 @@ try:
         try:
             SetProgressorLabel('Creating HEL folder...')
             mkdir(helFolder)
-            AddMsgAndPrint(f"\nThe HEL folder has been created within {projectFolder}")
+            AddMsgAndPrint(f"\nThe HEL folder has been created within {projectFolder}", textFilePath=textFilePath)
         except:
-            AddMsgAndPrint('\nCould not access C:\Determinations. Check your permissions for C:\Determinations. Exiting...\n', 2)
+            AddMsgAndPrint('\nCould not access C:\Determinations. Check your permissions for C:\Determinations. Exiting...\n', 2, textFilePath)
             exit()
 
     if not Exists(basedataGDB_path):
-        AddMsgAndPrint('\nCreating Base Data geodatabase...')
+        AddMsgAndPrint('\nCreating Base Data geodatabase...', textFilePath=textFilePath)
         SetProgressorLabel('Creating Base Data geodatabase...')
         CreateFileGDB(projectFolder, basedataGDB_name)
 
     if not Exists(basedataFD):
-        AddMsgAndPrint('\nCreating Base Data feature dataset...')
+        AddMsgAndPrint('\nCreating Base Data feature dataset...', textFilePath=textFilePath)
         SetProgressorLabel('Creating Base Date feature dataset...')
         CreateFeatureDataset(basedataGDB_path, 'Layers', mapSR)
 
     if not Exists(helcGDB_path):
-        AddMsgAndPrint('\nCreating HEL geodatabase...')
+        AddMsgAndPrint('\nCreating HEL geodatabase...', textFilePath=textFilePath)
         SetProgressorLabel('Creating HEL geodatabase...')
         CreateFileGDB(helFolder, helcGDB_name)
 
     if not Exists(helcFD):
-        AddMsgAndPrint('\nCreating HEL feature dataset...')
+        AddMsgAndPrint('\nCreating HEL feature dataset...', textFilePath=textFilePath)
         SetProgressorLabel('Creating HEL feature dataset...')
         CreateFeatureDataset(helcGDB_path, 'HELC_Data', mapSR)
 
 
     ### Remove Existing CLU Layers From Map ###
-    AddMsgAndPrint('\nRemoving CLU layer from project maps, if present...\n')
+    AddMsgAndPrint('\nRemoving CLU layer from project maps, if present...', textFilePath=textFilePath)
     SetProgressorLabel('Removing CLU layer from project maps, if present...')
     mapLayersToRemove = [cluName, sitePrepareCLU_name]
     try:
@@ -237,18 +255,18 @@ try:
 
     ### If Overwrite, Delete Site_CLU, Site_Tract, Site_Prepare_CLU ###
     if owFlag == True:
-        AddMsgAndPrint('\nOverwrite selected. Deleting existing CLU data...')
+        AddMsgAndPrint('\nOverwrite selected. Deleting existing CLU data...', textFilePath=textFilePath)
         SetProgressorLabel('Overwrite selected. Deleting existing CLU data...')
         delete_layers = [projectCLU, projectTract, sitePrepareCLU]
         for lyr in delete_layers:
             if Exists(lyr):
                 Delete(lyr)
-                AddMsgAndPrint(f"\nDeleted {lyr}...")
+                AddMsgAndPrint(f"\nDeleted {lyr}...", textFilePath=textFilePath)
 
 
     ### Download the CLU ###
     if not Exists(projectCLU):
-        AddMsgAndPrint('\nDownloading latest CLU data...')
+        AddMsgAndPrint('\nDownloading latest CLU data...', textFilePath=textFilePath)
         SetProgressorLabel('Downloading latest CLU data...')
         cluTempPath = start(adminState, adminCounty, tractNumber, mapSR, basedataGDB_path)
 
@@ -289,7 +307,7 @@ try:
                 break
 
         if stName == '' or coName == '':
-            AddError('State and County Names for the site could not be retrieved! Exiting...\n')
+            AddMsgAndPrint('State and County Names for the site could not be retrieved! Exiting...\n', 2, textFilePath)
             exit()
 
         # Use Update Cursor to populate all rows of the downloaded CLU the same way for the new fields
@@ -313,7 +331,7 @@ try:
                     cursor.updateRow(row)
         
         # Create the projectCLU feature class and append projectCLUTemp to it. This is done as a cheat to using field mappings to re-order fields.
-        AddMsgAndPrint('\nWriting Site CLU layer...')
+        AddMsgAndPrint('\nWriting Site CLU layer...', textFilePath=textFilePath)
         CreateFeatureclass(basedataFD, cluName, 'POLYGON', templateCLU)
         Append(projectCLUTemp, projectCLU, 'NO_TEST')
         Delete(projectCLUTemp)
@@ -321,7 +339,7 @@ try:
 
     ### Create Yes/No Domain in Project's _HELC Geodatabase ###
     if not 'Yes No' in Describe(helcGDB_path).domains:
-        yesnoTable = path.join(path.dirname(sys.argv[0]), 'SUPPORT.gdb', 'domain_yesno_sodbust')
+        yesnoTable = path.join(path.dirname(argv[0]), 'SUPPORT.gdb', 'domain_yesno_sodbust')
         TableToDomain(yesnoTable, 'Code', 'Description', helcGDB_path, 'Yes No Sodbust', 'Yes or no options', 'REPLACE')
         AlterDomain(helcGDB_path, 'Yes No Sodbust', '', '', 'DUPLICATE')
     
@@ -343,14 +361,14 @@ try:
     
     ### Create Tract Layer by Dissolving CLU Layer ###
     if not Exists(projectTract):
-        AddMsgAndPrint('\nCreating Tract data...')
+        AddMsgAndPrint('\nCreating Tract data...', textFilePath=textFilePath)
         SetProgressorLabel('Creating Tract data...')
         dis_fields = ['job_id','admin_state','admin_state_name','admin_county','admin_county_name','state_code','state_name','county_code','county_name','farm_number','tract_number']
         Dissolve(projectCLU, projectTract, dis_fields, '', 'MULTI_PART', '')
 
 
     ### Add CLU Layers to Map ###
-    AddMsgAndPrint('\nAdding CLU layers to map...')
+    AddMsgAndPrint('\nAdding CLU layers to map...', textFilePath=textFilePath)
     SetProgressorLabel('Adding CLU layers to map...')
     lyr_name_list = [lyr.longName for lyr in map.listLayers()]
 
@@ -388,19 +406,17 @@ try:
 
     ### Compact Geodatabases ###
     try:
-        AddMsgAndPrint('\nCompacting File Geodatabases...')
+        AddMsgAndPrint('\nCompacting File Geodatabases...', textFilePath=textFilePath)
         SetProgressorLabel('Compacting File Geodatabases...')
         Compact(basedataGDB_path)
         Compact(helcGDB_path)
-        AddMsgAndPrint('\tSuccessful')
     except:
         pass
 
+    AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
+
 except SystemExit:
     pass
-
-except KeyboardInterrupt:
-    AddMsgAndPrint('Interruption requested. Exiting...')
 
 except:
     errorMsg()
