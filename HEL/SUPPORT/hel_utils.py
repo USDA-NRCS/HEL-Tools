@@ -2,8 +2,8 @@ from os import path
 from sys import exc_info
 from traceback import format_exception
 
-from arcpy import AddError, AddMessage, AddWarning, CreateScratchName, Describe, env, Exists, \
-    ParseFieldName, SetProgressorLabel, SpatialReference
+from arcpy import AddError, AddMessage, AddWarning, CreateScratchName, Describe, env, \
+    SetProgressorLabel, SpatialReference
 
 from arcpy.analysis import Buffer
 from arcpy.management import Clip as Clip_m, Delete, ProjectRaster
@@ -41,43 +41,6 @@ def errorMsg():
     except:
         AddMsgAndPrint('Unhandled error in errorMsg method', 2)
         pass
-
-
-def removeScratchLayers(scratchLayers):
-    """ This function is the last task that is executed or gets invoked in an except clause. Removes all temporary scratch layers."""
-    try:
-        for lyr in scratchLayers:
-            try:
-                Delete(lyr)
-            except:
-                AddMsgAndPrint(f"\n\tDeleting Layer: {str(lyr)} failed.", 1)
-                continue
-    except:
-        pass
-
-
-def FindField(layer, chkField):
-    """ Check table or featureclass to see if specified field exists. If fully qualified name is found, return that name;
-        otherwise return Set workspace before calling FindField."""
-    try:
-        if Exists(layer):
-            theDesc = Describe(layer)
-            theFields = theDesc.fields
-            theField = theFields[0]
-            for theField in theFields:
-                # Parses a fully qualified field name into its components (database, owner name, table name, and field name)
-                parseList = ParseFieldName(theField.name) # (null), (null), (null), MUKEY
-                # choose the last component which would be the field name
-                theFieldname = parseList.split(',')[len(parseList.split(','))-1].strip()  # MUKEY
-                if theFieldname.upper() == chkField.upper():
-                    return theField.name
-            return False
-        else:
-            AddMsgAndPrint('\tInput layer not found')
-            return False
-    except:
-        errorMsg()
-        return False
 
 
 def extractDEMfromImageService(demSource, fieldDetermination, scratchWS, cluLayer, zFactorList, unitLookUpDict, zUnits):
@@ -273,7 +236,3 @@ def extractDEM(cluLayer, inputDEM, fieldDetermination, scratchWS, zFactorList, u
     except:
         errorMsg()
         return False, False, False
-
-
-class NoProcesingExit(Exception):
-    pass

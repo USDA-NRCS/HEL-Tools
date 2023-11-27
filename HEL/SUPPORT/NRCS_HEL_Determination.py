@@ -5,7 +5,7 @@ from sys import exit
 from time import ctime
 
 from arcpy import CreateScratchName, Describe, env, Exists, GetParameter, GetParameterAsText, ListFields, \
-    Reclassify_3d, SetParameterAsText, SetProgressorLabel
+    ParseFieldName, Reclassify_3d, SetParameterAsText, SetProgressorLabel
 
 from arcpy.analysis import Clip as Clip_a, Intersect, Statistics
 from arcpy.conversion import FeatureToRaster, RasterToPolygon
@@ -19,7 +19,11 @@ from arcpy.mp import ArcGISProject
 from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, FocalStatistics, IsNull, NbrRectangle, \
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
-from hel_utils import AddMsgAndPrint, errorMsg, extractDEM, FindField, removeScratchLayers, NoProcesingExit
+from hel_utils import AddMsgAndPrint, errorMsg, extractDEM
+
+
+class NoProcesingExit(Exception):
+    pass
 
 
 def logBasicSettings(textFilePath, helLayer, inputDEM, zUnits, use_runoff_ls):
@@ -36,7 +40,6 @@ def logBasicSettings(textFilePath, helLayer, inputDEM, zUnits, use_runoff_ls):
 
 
 def addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination, cluLayer):
-    """ Adds output layers from determinitaion procedure to map. """
     try:
         SetParameterAsText(5, lidarHEL)
         SetParameterAsText(6, helSummary)
@@ -45,6 +48,37 @@ def addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination, c
         cluLayer.setSelectionSet(method='NEW')
     except:
         errorMsg()
+
+
+def removeScratchLayers(scratchLayers, textFilePath):
+    for lyr in scratchLayers:
+        try:
+            Delete(lyr)
+        except:
+            AddMsgAndPrint(f"\n\tWARNING: Deleting Layer: {str(lyr)} failed.", 1, textFilePath)
+            continue
+
+
+def FindField(layer, chkField):
+    # TODO: This function is not necessary, there is another example of checking for field existence on line 182
+    try:
+        if Exists(layer):
+            theDesc = Describe(layer)
+            theFields = theDesc.fields
+            theField = theFields[0]
+            for theField in theFields:
+                # Parses a fully qualified field name into its components (database, owner name, table name, and field name)
+                parseList = ParseFieldName(theField.name) # (null), (null), (null), MUKEY
+                # choose the last component which would be the field name
+                theFieldname = parseList.split(',')[len(parseList.split(','))-1].strip()  # MUKEY
+                if theFieldname.upper() == chkField.upper():
+                    return theField.name
+            return False
+        else:
+            return False
+    except:
+        errorMsg()
+        return False
 
 
 ### Initial Tool Validation ###
@@ -886,4 +920,4 @@ except NoProcesingExit:
 except:
     errorMsg()
 finally:
-    removeScratchLayers(scratchLayers)
+    removeScratchLayers(scratchLayers, textFilePath)
