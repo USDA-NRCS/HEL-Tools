@@ -1,6 +1,8 @@
+from getpass import getuser
 from math import pi
 from os import path
 from sys import exit
+from time import ctime
 
 from arcpy import CreateScratchName, Describe, env, Exists, GetParameter, GetParameterAsText, ListFields, \
     Reclassify_3d, SetProgressorLabel
@@ -17,8 +19,21 @@ from arcpy.mp import ArcGISProject
 from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, FocalStatistics, IsNull, NbrRectangle, \
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
-from hel_utils import AddMsgAndPrint, addOutputLayers, createTextFile, errorMsg, extractDEM, FindField, \
+from hel_utils import AddMsgAndPrint, addOutputLayers, errorMsg, extractDEM, FindField, \
     removeScratchLayers, NoProcesingExit
+
+
+def logBasicSettings(textFilePath, helLayer, inputDEM, zUnits, use_runoff_ls):
+    with open(textFilePath, 'a+') as f:
+        f.write('\n######################################################################\n')
+        f.write('Executing Tool: HEL Determination\n')
+        f.write(f"User Name: {getuser()}\n")
+        f.write(f"Date Executed: {ctime()}\n")
+        f.write('User Parameters:\n')
+        f.write(f"\tSelected HEL Layer: {helLayer}\n")
+        f.write(f"\tInput DEM: {inputDEM}\n")
+        f.write(f"\tDEM Elevation Units: {zUnits}\n")
+        f.write(f"\tUse REQ Equation: {use_runoff_ls}\n")
 
 
 ### Initial Tool Validation ###
@@ -26,7 +41,7 @@ try:
     aprx = ArcGISProject('CURRENT')
     aprx.listMaps('HEL Determination')[0]
 except Exception:
-    AddMsgAndPrint('This tool must be run from an ArcGIS Pro project that was developed from the template distributed with this toolbox. Exiting...', 2)
+    AddMsgAndPrint('This tool must be run from an ArcGIS Pro project that was developed from the template distributed with this toolbox. Exiting!', 2)
     exit()
 
 
@@ -60,6 +75,9 @@ helSummary = path.join(helc_gdb, helc_fd, 'Initial_HEL_Summary')
 finalHELSummary = path.join(helc_gdb, helc_fd, 'Final_HEL_Summary')
 lidarHEL = path.join(helc_gdb, 'LiDAR_HEL_Summary')
 
+userWorkspace = path.dirname(path.dirname(helc_gdb))
+projectName = path.basename(userWorkspace)
+textFilePath = path.join(userWorkspace, f"{projectName}_log.txt")
 
 ### Geodatabase Validation and Cleanup ###
 if not Exists(helc_gdb):
@@ -111,8 +129,8 @@ try:
             AddMsgAndPrint(f"\t\tFarm #: {str(farm)}", 2)
         exit()
 
-    # Create Text file to log info to
-    textFilePath = createTextFile(uniqueTracts[0], uniqueFarm[0])
+    # Start logging to text file
+    logBasicSettings(textFilePath, helLayer, inputDEM, zUnits, use_runoff_ls)
 
     # Add Calcacre field if it doesn't exist. Should be part of the CLU layer.
     calcAcreFld = 'clu_calculated_acres'
@@ -125,7 +143,7 @@ try:
     # If we set all internal acres computations to 2 decimal places from rounding based on the above, all acres would be consistent, except possibly for raster derived acres (need to check).
     CalculateField(fieldDetermination, calcAcreFld, '!shape.area@acres!', 'PYTHON_9.3')
     totalAcres = float('%.1f' % (sum([row[0] for row in SearchCursor(fieldDetermination, (calcAcreFld))])))
-    AddMsgAndPrint(f"\tTotal Acres: {str(totalAcres)}", textFilePath=textFilePath)
+    AddMsgAndPrint(f"\nTotal Acres: {str(totalAcres)}", textFilePath=textFilePath)
 
     # Z-factor conversion Lookup table
     # lookup dictionary to convert XY units to area. Key = XY unit of DEM; Value = conversion factor to sq.meters
@@ -148,8 +166,8 @@ try:
 
     # Compute Summary of original HEL values
     # Intersect fieldDetermination (CLU & AOI) with soils (helLayer) -> finalHELSummary
-    AddMsgAndPrint('\nComputing summary of original HEL Values', textFilePath=textFilePath)
-    SetProgressorLabel('Computing summary of original HEL Values')
+    SetProgressorLabel('Computing summary of original HEL Values...')
+    AddMsgAndPrint('\nComputing summary of original HEL Values:', textFilePath=textFilePath)
     cluHELintersect_pre = path.join('in_memory', path.basename(CreateScratchName('cluHELintersect_pre', data_type='FeatureClass', workspace=scratch_gdb)))
 
     # Use the catalog path of the hel layer to avoid using a selection
@@ -165,7 +183,7 @@ try:
     # No modification needed for these acres. The total is used only for this check.
     totalIntAcres = sum([row[0] for row in SearchCursor(finalHELSummary, ('SHAPE@AREA'))]) / acreConversionDict.get(Describe(finalHELSummary).SpatialReference.LinearUnitName)
     if not totalIntAcres:
-        AddMsgAndPrint('\tThere is no overlap between HEL soil layer and CLU Layer. Exiting!', 2, textFilePath=textFilePath)
+        AddMsgAndPrint('\tThere is no overlap between HEL soil layer and CLU Layer. Exiting!', 2, textFilePath)
         exit()
 
     # Dissolve intersection output by the following fields -> helSummary
@@ -244,14 +262,14 @@ try:
 
     # Inform user about NULL values; Exit if any NULLs exist.
     if nullHEL > 0:
-        AddMsgAndPrint(f"\n\tERROR: There are {str(nullHEL)} polygon(s) with missing HEL values. Exiting!", 2, textFilePath=textFilePath)
+        AddMsgAndPrint(f"\n\tERROR: There are {str(nullHEL)} polygon(s) with missing HEL values. Exiting!", 2, textFilePath)
         exit()
 
     # Inform user about invalid HEL values (not PHEL,HEL, NHEL); Exit if invalid values exist.
     if wrongHELvalues:
-        AddMsgAndPrint(f"\n\tERROR: There is {str(len(set(wrongHELvalues)))} invalid HEL values in HEL Layer:", 1, textFilePath=textFilePath)
+        AddMsgAndPrint(f"\n\tERROR: There is {str(len(set(wrongHELvalues)))} invalid HEL values in HEL Layer:", 2, textFilePath)
         for wrongVal in set(wrongHELvalues):
-            AddMsgAndPrint(f"\t\t{wrongVal}", textFilePath=textFilePath)
+            AddMsgAndPrint(f"\t\t{wrongVal}", 2, textFilePath)
         exit()
 
     del dissovleFlds, nullHEL, wrongHELvalues
@@ -373,14 +391,14 @@ try:
     # If there are no PHEL Values add helSummary and fieldDetermination layers to ArcMap and prepare 1026 form. Skip geoprocessing.
     if bNoPHELvalues or bSkipGeoprocessing:
         if bNoPHELvalues:
-            AddMsgAndPrint('\n\tThere are no PHEL values in HEL layer', 1, textFilePath=textFilePath)
-            AddMsgAndPrint('\tNo Geoprocessing is required', textFilePath=textFilePath)
+            AddMsgAndPrint('\n\tThere are no PHEL values in HEL layer...', 1, textFilePath)
+            AddMsgAndPrint('\tNo Geoprocessing is required...\n', 1, textFilePath)
 
         # Only Print this if there are PHEL values but they don't need
         # to be processed; Otherwise it should be captured by above statement.
         if bSkipGeoprocessing and not bNoPHELvalues:
-            AddMsgAndPrint('\n\tHEL values are >= 33.33% or more than 50 acres, or NHEL values are > 66.67%', 1, textFilePath=textFilePath)
-            AddMsgAndPrint('\tNo Geoprocessing is required\n', textFilePath=textFilePath)
+            AddMsgAndPrint('\n\tHEL values are >= 33.33% or more than 50 acres, or NHEL values are > 66.67%', 1, textFilePath)
+            AddMsgAndPrint('\tNo Geoprocessing is required...\n', 1, textFilePath)
 
         # Add 3 fields to fieldDetermination layer
         fieldList = ['HEL_YES', 'HEL_Acres', 'HEL_Pct']
@@ -433,11 +451,10 @@ try:
                 del cluAcres,pct
                 cursor.updateRow(row)
 
+        # Add output layers to map and gracefully exit script
+        SetProgressorLabel('Adding output layers to map...')
+        AddMsgAndPrint('\nAdding output layers to map...', textFilePath=textFilePath)
         addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination, cluLayer)
-
-        # Clean up time and gracefully exit
-        SetProgressorLabel('')
-        AddMsgAndPrint('\n', textFilePath=textFilePath)
         raise(NoProcesingExit)
 
 
@@ -446,7 +463,7 @@ try:
     try:
         Describe(inputDEM).baseName
     except:
-        AddMsgAndPrint('\nDEM is required to process PHEL values. Exiting!', textFilePath=textFilePath)
+        AddMsgAndPrint('\nDEM is required to process PHEL values. Exiting!', 2, textFilePath)
         exit()
 
     units, zFactor, dem = extractDEM(cluLayer, inputDEM, fieldDetermination, scratch_gdb, zFactorList, unitLookUpDict, zUnits)
@@ -491,7 +508,7 @@ try:
 
     # If no data warning is True, show error messages
     if nd_warning == True:
-        AddMsgAndPrint('\nThe input DEM may have null data within the input CLU fields. Please review the \ninput DEM for coverage of the site, as well as the results layers, to determine \nif they are reasonable to use for this determination. If the DEM is insufficient \nfor the site, this determination should be made onsite. \n\nA DEM with a few missing pixels is usually sufficient, but a DEM with large null areas is not.', 1, textFilePath=textFilePath)
+        AddMsgAndPrint('\nThe input DEM may have null data within the input CLU fields. Please review the \ninput DEM for coverage of the site, as well as the results layers, to determine \nif they are reasonable to use for this determination. If the DEM is insufficient \nfor the site, this determination should be made onsite. \n\nA DEM with a few missing pixels is usually sufficient, but a DEM with large null areas is not.', 1, textFilePath)
     else:
         AddMsgAndPrint('\nDEM values in site extent are not null. Continuing...', textFilePath=textFilePath)
 
@@ -499,8 +516,8 @@ try:
 
     # Create Slope Layer
     # Perform a minor fill to reduce LiDAR data noise and minor irregularities. Try to use a max fill height of no more than 1 foot, based on input zUnits.
-    SetProgressorLabel('Filling small sinks in DEM')
-    AddMsgAndPrint('\nFilling small sinks in DEM', textFilePath=textFilePath)
+    SetProgressorLabel('Filling small sinks in DEM...')
+    AddMsgAndPrint('\nFilling small sinks in DEM...', textFilePath=textFilePath)
     if zUnits == 'Feet':
         zLimit = 1
     elif zUnits == 'Meters':
@@ -519,36 +536,36 @@ try:
 
     # 2 Run a FocalMean to smooth the DEM of LiDAR data noise. This should be run prior to creating derivative products.
     # This replaces running FocalMean on the slope layer itself.
-    SetProgressorLabel('Running Focal Statistics on DEM')
-    AddMsgAndPrint('Running Focal Statistics on DEM', textFilePath=textFilePath)
+    SetProgressorLabel('Running Focal Statistics on DEM...')
+    AddMsgAndPrint('\nRunning Focal Statistics on DEM...', textFilePath=textFilePath)
     preslope = FocalStatistics(filled, NbrRectangle(3, 3, 'CELL'), 'MEAN', 'DATA')
 
     # 3 Create Slope
-    SetProgressorLabel('Creating Slope Derivative')
-    AddMsgAndPrint('\nCreating Slope Derivative', textFilePath=textFilePath)
+    SetProgressorLabel('Creating Slope Derivative...')
+    AddMsgAndPrint('\nCreating Slope Derivative...', textFilePath=textFilePath)
     slope = Slope(preslope, 'PERCENT_RISE', zFactor)
 
     # 4 Create Flow Direction and Flow Length
-    SetProgressorLabel('Calculating Flow Direction')
-    AddMsgAndPrint('Calculating Flow Direction', textFilePath=textFilePath)
+    SetProgressorLabel('Calculating Flow Direction...')
+    AddMsgAndPrint('\nCalculating Flow Direction...', textFilePath=textFilePath)
     flowDirection = FlowDirection(preslope, 'FORCE')
     scratchLayers.append(flowDirection)
 
     # 5 Calculate Flow Length
-    SetProgressorLabel('Calculating Flow Length')
-    AddMsgAndPrint('Calculating Flow Length', textFilePath=textFilePath)
+    SetProgressorLabel('Calculating Flow Length...')
+    AddMsgAndPrint('\nCalculating Flow Length...', textFilePath=textFilePath)
     preflowLength = FlowLength(flowDirection, 'UPSTREAM', '')
     scratchLayers.append(preflowLength)
 
     # 6 Run a focal statistics on flow length
-    SetProgressorLabel('Running Focal Statistics on Flow Length')
-    AddMsgAndPrint('Running Focal Statistics on Flow Length', textFilePath=textFilePath)
+    SetProgressorLabel('Running Focal Statistics on Flow Length...')
+    AddMsgAndPrint('\nRunning Focal Statistics on Flow Length...', textFilePath=textFilePath)
     flowLength = FocalStatistics(preflowLength, NbrRectangle(3, 3, 'CELL'), 'MAXIMUM', 'DATA')
     scratchLayers.append(flowLength)
 
     # 7 convert Flow Length distance units to feet if original DEM LINEAR UNITS ARE not in feet.
     if not units in ('Feet', 'Foot', 'Foot_US'):
-        AddMsgAndPrint('Converting Flow Length Distance units to Feet', textFilePath=textFilePath)
+        AddMsgAndPrint('\nConverting Flow Length distance units to feet...', textFilePath=textFilePath)
         flowLengthFT = flowLength * 3.280839896
         scratchLayers.append(flowLengthFT)
     else:
@@ -561,22 +578,22 @@ try:
     # Compute LS Factor
     # If Northwest US 'Use Runoff LS Equation' flag was active, use the following equation
     if use_runoff_ls:
-        SetProgressorLabel('Calculating LS Factor')
-        AddMsgAndPrint('Calculating LS Factor', textFilePath=textFilePath)
+        SetProgressorLabel('Calculating LS Factor...')
+        AddMsgAndPrint('\nCalculating LS Factor...', textFilePath=textFilePath)
         lsFactor = (Power((flowLengthFT/72.6)*Cos(radians),0.5))*(Power(Sin((radians))/(Sin(5.143*((pi)/180))),0.7))
 
     # Otherwise, use the standard AH537 LS computation
     else:
         # 9 Calculate S Factor
-        SetProgressorLabel('Calculating S Factor')
-        AddMsgAndPrint('\nCalculating S Factor', textFilePath=textFilePath)
+        SetProgressorLabel('Calculating S Factor...')
+        AddMsgAndPrint('\nCalculating S Factor...', textFilePath=textFilePath)
         # Compute S factor using formula in AH537, pg 12
         sFactor = ((Power(Sin(radians),2)*65.41)+(Sin(radians)*4.56)+(0.065))
         scratchLayers.append(sFactor)
 
         # 10 Calculate L Factor
-        SetProgressorLabel('Calculating L Factor')
-        AddMsgAndPrint('Calculating L Factor', textFilePath=textFilePath)
+        SetProgressorLabel('Calculating L Factor...')
+        AddMsgAndPrint('\nCalculating L Factor...', textFilePath=textFilePath)
 
         # Original outlFactor lines
         """outlFactor = Con(Raster(slope),Power(Raster(flowLengthFT) / 72.6,0.2),
@@ -593,15 +610,15 @@ try:
         scratchLayers.append(lFactor)
 
         # 11 Calculate LS Factor "%l_factor%" * "%s_factor%"
-        SetProgressorLabel('Calculating LS Factor')
-        AddMsgAndPrint('Calculating LS Factor', textFilePath=textFilePath)
+        SetProgressorLabel('Calculating LS Factor...')
+        AddMsgAndPrint('\nCalculating LS Factor...', textFilePath=textFilePath)
         lsFactor = lFactor * sFactor
 
     scratchLayers.append(radians)
     scratchLayers.append(lsFactor)
 
     # Convert K,T & R Factor and HEL Value to Rasters
-    AddMsgAndPrint('\nConverting Vector to Raster for Spatial Analysis Purpose', textFilePath=textFilePath)
+    AddMsgAndPrint('\nConverting Vector to Raster for Spatial Analysis...', textFilePath=textFilePath)
     cellSize = Describe(dem).MeanCellWidth
 
     # This works in 10.5 AND works in 10.6.1 and 10.7 but slows processing
@@ -611,22 +628,22 @@ try:
     helValue = CreateScratchName('helValue', data_type='RasterDataset', workspace=scratch_gdb)
 
     # 12 Convert KFactor to raster
-    SetProgressorLabel('Converting K Factor field to a raster')
-    AddMsgAndPrint('\tConverting K Factor field to a raster', textFilePath=textFilePath)
+    SetProgressorLabel('Converting K Factor field to a raster...')
+    AddMsgAndPrint('\tConverting K Factor field to a raster...', textFilePath=textFilePath)
     FeatureToRaster(finalHELSummary, 'K', kFactor, cellSize)
 
     # 13 Convert TFactor to raster
-    SetProgressorLabel('Converting T Factor field to a raster')
-    AddMsgAndPrint('\tConverting T Factor field to a raster', textFilePath=textFilePath)
+    SetProgressorLabel('Converting T Factor field to a raster...')
+    AddMsgAndPrint('\tConverting T Factor field to a raster...', textFilePath=textFilePath)
     FeatureToRaster(finalHELSummary, 'T', tFactor, cellSize)
 
     # 14 Convert RFactor to raster
-    SetProgressorLabel('Converting R Factor field to a raster')
-    AddMsgAndPrint('\tConverting R Factor field to a raster', textFilePath=textFilePath)
+    SetProgressorLabel('Converting R Factor field to a raster...')
+    AddMsgAndPrint('\tConverting R Factor field to a raster...', textFilePath=textFilePath)
     FeatureToRaster(finalHELSummary, 'R', rFactor, cellSize)
 
-    SetProgressorLabel('Converting HEL Value field to a raster')
-    AddMsgAndPrint('\tConverting HEL Value field to a raster', textFilePath=textFilePath)
+    SetProgressorLabel('Converting HEL Value field to a raster...')
+    AddMsgAndPrint('\tConverting HEL Value field to a raster...', textFilePath=textFilePath)
     FeatureToRaster(helSummary, HELrasterCode, helValue, cellSize)
 
     scratchLayers.append(kFactor)
@@ -635,8 +652,8 @@ try:
     scratchLayers.append(helValue)
 
     # Calculate EI Factor
-    SetProgressorLabel('Calculating EI Factor')
-    AddMsgAndPrint('\nCalculating EI Factor', textFilePath=textFilePath)
+    SetProgressorLabel('Calculating EI Factor...')
+    AddMsgAndPrint('\nCalculating EI Factor...', textFilePath=textFilePath)
     eiFactor = Divide((lsFactor * kFactor * rFactor), tFactor)
     scratchLayers.append(eiFactor)
 
@@ -647,8 +664,8 @@ try:
     # 3) NHEL Value = 2 -- Assign 2 (No action needed)   1
     # Anything above 8 is HEL
 
-    SetProgressorLabel('Calculating HEL Factor')
-    AddMsgAndPrint('Calculating HEL Factor', textFilePath=textFilePath)
+    SetProgressorLabel('Calculating HEL Factor...')
+    AddMsgAndPrint('\nCalculating HEL Factor...', textFilePath=textFilePath)
     helFactor = Con(helValue, eiFactor, Con(helValue, 9, helValue, 'VALUE = 0'), 'VALUE = 2')
     scratchLayers.append(helFactor)
 
@@ -659,7 +676,7 @@ try:
     Reclassify_3d(helFactor, 'VALUE', remapString, lidarHEL, 'NODATA')
 
     # Determine if individual PHEL delineations are HEL/NHEL"""
-    SetProgressorLabel('Computing summary of LiDAR HEL Values:')
+    SetProgressorLabel('Computing summary of LiDAR HEL Values...')
     AddMsgAndPrint('\nComputing summary of LiDAR HEL Values:\n', textFilePath=textFilePath)
 
     # Summarize new values between HEL soil polygon and lidarHEL raster
@@ -695,19 +712,19 @@ try:
 
         # NHEL is not Present - so All is HEL; All is VALUE2
         if not 'VALUE_1' in tabulateFields:
-            AddMsgAndPrint('\tWARNING: Entire Area is HEL', 1, textFilePath=textFilePath)
+            AddMsgAndPrint('\tWARNING: Entire Area is HEL', 1, textFilePath)
             AddField(finalHELSummary, 'VALUE_1', 'DOUBLE')
             CalculateField(finalHELSummary, 'VALUE_1', 0)
             bOnlyHEL = True
 
         # HEL is not Present - All is NHEL; All is VALUE1
         if not 'VALUE_2' in tabulateFields:
-            AddMsgAndPrint('\tWARNING: Entire Area is NHEL', 1, textFilePath=textFilePath)
+            AddMsgAndPrint('\tWARNING: Entire Area is NHEL', 1, textFilePath)
             AddField(finalHELSummary, 'VALUE_2', 'DOUBLE')
             CalculateField(finalHELSummary, 'VALUE_2', 0)
             bOnlyNHEL = True
     else:
-        AddMsgAndPrint('\n\tReclassifying helFactor Failed', 2, textFilePath=textFilePath)
+        AddMsgAndPrint('\n\tReclassifying helFactor failed. Exiting!', 2, textFilePath)
         exit()
 
     newFields.append('VALUE_2')
@@ -847,15 +864,14 @@ try:
     del fieldList, cluDict, maxHelAcreLength, maxNHelAcreLength
 
     # Add output layers to map and symbolize
+    SetProgressorLabel('Adding output layers to map...')
+    AddMsgAndPrint('Adding output layers to map...', textFilePath=textFilePath)
     addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination, cluLayer)
 
-    # Clean up time
-    SetProgressorLabel('Finishing up...')
-    AddMsgAndPrint('\n', textFilePath=textFilePath)
-
+    AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
 
 except NoProcesingExit:
-    pass
+    AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
 except:
     errorMsg()
 finally:

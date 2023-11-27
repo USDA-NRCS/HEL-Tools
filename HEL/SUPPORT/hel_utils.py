@@ -1,8 +1,6 @@
-from getpass import getuser
 from json import loads as json_loads
-from os import makedirs, path
-from sys import argv, exc_info
-from time import ctime
+from os import path
+from sys import exc_info
 from traceback import format_exception
 from urllib.request import urlopen
 
@@ -45,31 +43,6 @@ def errorMsg():
     except:
         AddMsgAndPrint('Unhandled error in errorMsg method', 2)
         pass
-
-
-def createTextFile(tract, farm):
-    """ This function sets up the text file to begin recording all messages
-        reported to the console.  The text file will be created in a folder
-        called 'HEL_Text_Files' in argv[0].  The text file will have the prefix
-        "NRCS_HEL_Determination" and the Tract, Farm and field numbers appended
-        to the end.  Basic information will be collected and logged to the
-        text file.  The function will return the full path to the text file."""
-    try:
-        # Set log file
-        helTextNotesDir = path.join(path.dirname(argv[0]), 'HEL_Text_Files')
-        if not path.isdir(helTextNotesDir):
-           makedirs(helTextNotesDir)
-        textFileName = f"NRCS_HEL_Determination_TRACT({str(tract)})_FARM({str(farm)}).txt"
-        textPath = path.join(helTextNotesDir, textFileName)
-        f = open(textPath,'a+')
-        f.write('#' * 80 + "\n")
-        f.write("NRCS HEL Determination Tool\n")
-        f.write(f"User Name: {getuser()}\n")
-        f.write(f"Date Executed: {ctime()}\n")
-        f.close
-        return textPath
-    except:
-        errorMsg()
 
 
 def removeScratchLayers(scratchLayers):
