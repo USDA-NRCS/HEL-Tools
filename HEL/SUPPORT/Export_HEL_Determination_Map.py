@@ -1,5 +1,5 @@
 from getpass import getuser
-from os import path, rename
+from os import path, rename, startfile
 from time import ctime
 from urllib.parse import urlencode
 
@@ -11,14 +11,15 @@ from arcpy.mp import ArcGISProject
 from hel_utils import AddMsgAndPrint, errorMsg, submitFSquery
 
 
-## ================================================================================================================
-def logBasicSettings():
+def logBasicSettings(textFilePath, zoom_type, imagery, show_location, overwrite_layout):
     with open(textFilePath, 'a+') as f:
         f.write('\n######################################################################\n')
-        f.write('Executing Export HEL Determination Map tool...\n')
+        f.write('Executing Tool: Export HEL Determination Map\n')
         f.write(f"User Name: {getuser()}\n")
         f.write(f"Date Executed: {ctime()}\n")
         f.write('User Parameters:\n')
+        f.write(f"\tZoom Method: {zoom_type}\n")
+        f.write(f"\tImagery Layer: {imagery}\n")
         if show_location:
             f.write('\tShow PLSS Location Text Box: True\n')
         else:
@@ -29,7 +30,6 @@ def logBasicSettings():
             f.write('\tOverwrite Determination Map: False\n')
 
 
-## ================================================================================================================
 def getPLSS(plss_point):
     # URLs for BLM services
     tr_svc = 'https://gis.blm.gov/arcgis/rest/services/Cadastral/BLM_Natl_PLSS_CadNSDI/MapServer/1/query'   # Town and Range
@@ -115,7 +115,15 @@ def getPLSS(plss_point):
                             return f"Location: T{str(town_no)}{town_dir}, R{str(range_no)}{range_dir}, Sec {str(section_no)}\n{mer_txt}"
     return None
 
-## ================================================================================================================
+
+### Initial Tool Validation ###
+try:
+    aprx = ArcGISProject('CURRENT')
+    m = aprx.listMaps('HEL Determination')[0]
+except:
+    AddMsgAndPrint('\nThis tool must be run from an active ArcGIS Pro project that was developed from the template distributed with this toolbox. Exiting...\n', 2)
+    exit()
+
 
 ### ESRI Environment Settings ###
 env.overwriteOutput = True
@@ -135,15 +143,6 @@ if '\\' in imagery:
     imagery = imagery.split('\\')[-1]
 
 
-### Initial Tool Validation ###
-try:
-    aprx = ArcGISProject('CURRENT')
-    m = aprx.listMaps('HEL Determination')[0]
-except:
-    AddMsgAndPrint('\nThis tool must be run from an active ArcGIS Pro project that was developed from the template distributed with this toolbox. Exiting...\n', 2)
-    exit()
-
-
 ### Set Local Variables and Paths ###
 AddMsgAndPrint('Setting variables...\n')
 SetProgressorLabel('Setting variables...')
@@ -157,6 +156,7 @@ helc_dir = path.dirname(helc_gdb)
 
 userWorkspace = path.dirname(helc_dir)
 projectName = path.basename(userWorkspace).replace(' ', '_')
+textFilePath = path.join(userWorkspace, f"{projectName}_log.txt")
 basedata_gdb = path.join(userWorkspace, f"{projectName}_BaseData.gdb")
 projectTable = path.join(basedata_gdb, f"Table_{projectName}")
 
@@ -168,13 +168,11 @@ if edit.isEditing:
     AddMsgAndPrint("\nThere are unsaved edits in this project. Please Save or Discard them, then run this tool again. Exiting...", 2)
     exit()
 
+# Start logging to text file
+logBasicSettings(textFilePath, zoom_type, imagery, show_location, overwrite_layout)
 
 ### Main Procedure ###
 try:
-    ### Start Logging ###
-    textFilePath = path.join(userWorkspace, f"{projectName}_log.txt")
-    logBasicSettings() #NOTE: None of the AddMsgPrint statements log to this file, is this necessary?
-
 
     ### Setup Output PDF File Name(s) ###
     SetProgressorLabel("Configuring output file names...")
@@ -199,12 +197,12 @@ try:
         try:
             rename(outPDF, f"{outPDF}_opentest")
             rename(f"{outPDF}_opentest", outPDF)
-            AddMsgAndPrint('The PDF is available to overwrite')
+            AddMsgAndPrint('\nThe PDF is available to overwrite...', textFilePath=textFilePath)
         except:
-            AddMsgAndPrint('The Determination Map PDF file is open or in use by another program. Please close the PDF and try running this tool again. Exiting...')
+            AddMsgAndPrint('\nThe Determination Map PDF file is open or in use by another program. Please close the PDF and try running this tool again. Exiting!', 2, textFilePath)
             exit()
     else:
-        AddMsgAndPrint('The Determination Map PDF file does not exist for this project and will be created.')
+        AddMsgAndPrint('\nThe Determination Map PDF file does not exist for this project and will be created...', textFilePath=textFilePath)
 
 
     ### If Chosen, Get PLSS Data ###
@@ -213,22 +211,22 @@ try:
     dm_plss_text = ''
         
     if show_location:
-        AddMsgAndPrint('\nShow location selected for Determination Map. Processing reference location...')
+        AddMsgAndPrint('\nShow location selected for Determination Map. Processing reference location...', textFilePath=textFilePath)
         SetProgressorLabel('Retrieving PLSS Location...')
         dm_plss_text = getPLSS(plss_point)
         if dm_plss_text != '':
-            AddMsgAndPrint('\nThe PLSS query was successful and a location text box will be shown on the Determination Map.')
+            AddMsgAndPrint('\nThe PLSS query was successful and a location text box will be shown on the Determination Map...', textFilePath=textFilePath)
             display_dm_location = True
                
     # If any part of the PLSS query failed, or if show location was not enabled, then do not show the Location text box
     if display_dm_location == False:
-        AddMsgAndPrint('\tEither the Show Location parameter was not enabled or the PLSS query failed.')
-        AddMsgAndPrint('\tA Town, Range, Section text box will not be shown on the Determination Map.')
+        AddMsgAndPrint('\nEither the Show Location parameter was not enabled or the PLSS query failed...', 1, textFilePath)
+        AddMsgAndPrint('\nTown, Range, Section text box will not be shown on the Determination Map...', 1, textFilePath)
             
 
     ### Gather Data for Header from Project Table ###
     if Exists(projectTable):
-        AddMsgAndPrint('\nCollecting header information from project table...')
+        AddMsgAndPrint('\nCollecting header information from project table...', textFilePath=textFilePath)
         fields = ['admin_county_name', 'county_name', 'farm_number', 'tract_number', 'client', 'dig_staff']
         with SearchCursor(projectTable, fields) as cursor:
             row = cursor.next()
@@ -244,11 +242,11 @@ try:
     try:
         layout = aprx.listLayouts('HEL Determination Layout')[0]
     except:
-        AddMsgAndPrint('\nCould not find installed HEL Determination Layout. Exiting...', 2)
+        AddMsgAndPrint('\nCould not find installed HEL Determination Layout. Exiting!', 2, textFilePath)
         exit()
     
     ### Update Dynamic Text Objects in Layout ###
-    AddMsgAndPrint('\nUpdating dynamic text in layout...')
+    AddMsgAndPrint('\nUpdating dynamic text in layout...', textFilePath=textFilePath)
     SetProgressorLabel('Updating dynamica text in layout...')
     try:
         location_element = layout.listElements('TEXT_ELEMENT', 'Location')[0]
@@ -259,8 +257,8 @@ try:
         customer_element = layout.listElements('TEXT_ELEMENT', 'Customer')[0]
         imagery_element = layout.listElements('TEXT_ELEMENT', 'Imagery Text Box')[0]
     except:
-        AddMsgAndPrint(f"\nOne or more expected elements are missing or had its name changed in the {layout.name}.", 2)
-        AddMsgAndPrint('\nLayout cannot be updated automatically. Import the appropriate layout from the installation folder and try again', 2)
+        AddMsgAndPrint(f"\nOne or more expected elements are missing or had its name changed in the {layout.name}...", 2, textFilePath)
+        AddMsgAndPrint('\nLayout cannot be updated automatically. Import the appropriate layout from the installation folder and try again. Exiting!', 2, textFilePath)
         exit()
 
     if dm_plss_text != '' and display_dm_location:
@@ -278,7 +276,7 @@ try:
     imagery_element.text = f" Image: {imagery}" if imagery else ' Image: '
 
     ### Configure Layer Visibility and Zoom ###
-    AddMsgAndPrint('\nConfiguring layer visibility and layout extent...')
+    AddMsgAndPrint('\nConfiguring layer visibility and layout extent...', textFilePath=textFilePath)
     SetProgressorLabel('Configuring layer visibility and layout extent...')
     
     # Turn off PLSS layer if used
@@ -311,21 +309,20 @@ try:
                 
 
     ### Export Map to PDF ###
-    AddMsgAndPrint('\tExporting the Determination Map to PDF...')
+    AddMsgAndPrint('\nExporting the Determination Map to PDF...', textFilePath=textFilePath)
     SetProgressorLabel('Exporting Determination Map...')
     layout.exportToPDF(outPDF, resolution=300, image_quality='NORMAL', layers_attributes='LAYERS_ONLY', georef_info=True)
-    AddMsgAndPrint('\tDetermination Map file exported')
 
 
-    # ### Reset Imagery Text Box to Blank ###
-    # try:
-    #     imagery_element.text = ' Image: '
-    # except:
-    #     pass
+    ### Reset Imagery Text Box to Blank ###
+    try:
+        imagery_element.text = ' Image: '
+    except:
+        pass
 
 
     ### Clean Up Scratch GDB ###
-    AddMsgAndPrint('\tClearing Scratch GDB...')
+    AddMsgAndPrint('\nClearing Scratch GDB...', textFilePath=textFilePath)
     SetProgressorLabel('Clearing Scratch GDB...')
     env.workspace = scratch_gdb
     
@@ -356,16 +353,27 @@ try:
     
     ### Compact Project's Base Data and HELC GDBs ###
     try:
-        AddMsgAndPrint('\nCompacting File Geodatabases...')
+        AddMsgAndPrint('\nCompacting File Geodatabases...', textFilePath=textFilePath)
         SetProgressorLabel('Compacting File Geodatabases...')
         Compact(basedata_gdb)
         Compact(helc_gdb)
     except:
         pass
 
+
+    ### Open Customer Letter, 026 Form ###
+    AddMsgAndPrint('\nOpening exported PDF file in default PDF viewer...', textFilePath=textFilePath)
+    SetProgressorLabel('Opening exported PDF file...')
+    try:
+        startfile(outPDF)
+    except:
+        AddMsgAndPrint('\nWARNING: Failed to open PDF file in default PDF viewer...', 1, textFilePath=textFilePath)
+
+
+    AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
+
 except SystemExit:
     pass
-except KeyboardInterrupt:
-    AddMsgAndPrint('Interruption requested... Exiting')
+
 except:
     errorMsg()
