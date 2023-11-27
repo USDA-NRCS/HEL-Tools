@@ -146,12 +146,12 @@ env.overwriteOutput = True
 AddMsgAndPrint('Reading inputs...\n')
 SetProgressorLabel('Reading inputs...')
 field_determination_lyr = GetParameterAsText(0)
-zoom_type = GetParameterAsText(1)
-zoom_lyr = GetParameterAsText(2)
+imagery = GetParameterAsText(1)
+zoom_type = GetParameterAsText(2)
 show_location = GetParameter(3)
 plss_point = GetParameterAsText(4)
 overwrite_layout = GetParameter(5)
-imagery = GetParameterAsText(6)
+
 if '\\' in imagery:
     imagery = imagery.split('\\')[-1]
 
@@ -306,7 +306,7 @@ try:
     # Zoom to specified layer extent if applicable
     if zoom_type == 'Zoom to Layer':
         mf = layout.listElements('MAPFRAME_ELEMENT', 'Map Frame')[0]
-        lyr = m.listLayers(zoom_lyr)[0]
+        lyr = m.listLayers(field_determination_lyr)[0]
         ext = mf.getLayerExtent(lyr)
         cam = mf.camera
         cam.setExtent(ext)
