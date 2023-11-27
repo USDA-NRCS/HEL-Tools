@@ -5,7 +5,7 @@ from sys import exit
 from time import ctime
 
 from arcpy import CreateScratchName, Describe, env, Exists, GetParameter, GetParameterAsText, ListFields, \
-    ParseFieldName, Reclassify_3d, SetParameterAsText, SetProgressorLabel
+    Reclassify_3d, SetParameterAsText, SetProgressorLabel
 
 from arcpy.analysis import Clip as Clip_a, Intersect, Statistics
 from arcpy.conversion import FeatureToRaster, RasterToPolygon
@@ -57,28 +57,6 @@ def removeScratchLayers(scratchLayers, textFilePath):
         except:
             AddMsgAndPrint(f"\n\tWARNING: Deleting Layer: {str(lyr)} failed.", 1, textFilePath)
             continue
-
-
-def FindField(layer, chkField):
-    # TODO: This function is not necessary, there is another example of checking for field existence on line 182
-    try:
-        if Exists(layer):
-            theDesc = Describe(layer)
-            theFields = theDesc.fields
-            theField = theFields[0]
-            for theField in theFields:
-                # Parses a fully qualified field name into its components (database, owner name, table name, and field name)
-                parseList = ParseFieldName(theField.name) # (null), (null), (null), MUKEY
-                # choose the last component which would be the field name
-                theFieldname = parseList.split(',')[len(parseList.split(','))-1].strip()  # MUKEY
-                if theFieldname.upper() == chkField.upper():
-                    return theField.name
-            return False
-        else:
-            return False
-    except:
-        errorMsg()
-        return False
 
 
 ### Initial Tool Validation ###
@@ -448,7 +426,7 @@ try:
         # Add 3 fields to fieldDetermination layer
         fieldList = ['HEL_YES', 'HEL_Acres', 'HEL_Pct']
         for field in fieldList:
-            if not FindField(fieldDetermination, field):
+            if not len(ListFields(fieldDetermination, field)) > 0:
                 if field == 'HEL_YES':
                     AddField(fieldDetermination, field, 'TEXT', '', '', 5)
                 else:
@@ -833,7 +811,7 @@ try:
     # Determine if field is HEL/NHEL. Add 3 fields to fieldDetermination layer
     fieldList = ['HEL_YES', 'HEL_Acres', 'HEL_Pct']
     for field in fieldList:
-        if not FindField(fieldDetermination, field):
+        if not len(ListFields(fieldDetermination, field)) > 0:
             if field == 'HEL_YES':
                 AddField(fieldDetermination, field, 'TEXT', '', '', 5)
             else:
