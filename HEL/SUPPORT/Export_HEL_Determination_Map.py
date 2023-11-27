@@ -1,7 +1,9 @@
 from getpass import getuser
+from json import loads as json_loads
 from os import path, rename, startfile
 from time import ctime
 from urllib.parse import urlencode
+from urllib.request import urlopen
 
 from arcpy import Describe, env, Exists, GetParameter, GetParameterAsText, ListFeatureClasses, ListRasters, ListTables, SetProgressorLabel
 from arcpy.da import Editor, SearchCursor
@@ -28,6 +30,17 @@ def logBasicSettings(textFilePath, zoom_type, imagery, show_location, overwrite_
             f.write('\tOverwrite Determination Map: True\n')
         else:
             f.write('\tOverwrite Determination Map: False\n')
+
+
+def submitFSquery(url, INparams):
+    INparams = INparams.encode('ascii')
+    resp = urlopen(url, INparams)
+    jsonString = resp.read()
+    results = json_loads(jsonString)
+    if 'error' in results.keys():
+        return False
+    else:
+        return results
 
 
 def getPLSS(plss_point):

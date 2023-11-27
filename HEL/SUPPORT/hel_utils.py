@@ -1,8 +1,6 @@
-from json import loads as json_loads
 from os import path
 from sys import exc_info
 from traceback import format_exception
-from urllib.request import urlopen
 
 from arcpy import AddError, AddMessage, AddWarning, CreateScratchName, Describe, env, Exists, \
     ParseFieldName, SetProgressorLabel, SpatialReference
@@ -275,17 +273,6 @@ def extractDEM(cluLayer, inputDEM, fieldDetermination, scratchWS, zFactorList, u
     except:
         errorMsg()
         return False, False, False
-
-
-def submitFSquery(url, INparams):
-    INparams = INparams.encode('ascii')
-    resp = urlopen(url, INparams)
-    jsonString = resp.read()
-    results = json_loads(jsonString)
-    if 'error' in results.keys():
-        return False
-    else:
-        return results
 
 
 class NoProcesingExit(Exception):
