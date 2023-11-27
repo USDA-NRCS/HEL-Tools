@@ -12,29 +12,25 @@ from arcpy.mp import ArcGISProject
 from hel_utils import AddMsgAndPrint, errorMsg
 
 
-# ================================================================================================================
-def logBasicSettings():
-    f = open(textFilePath, 'a+')
-    f.write('\n######################################################################\n')
-    f.write('Executing \"Enter Project Info\" tool...\n')
-    f.write(f"User Name: {getuser()}\n")
-    f.write(f"Date Executed: {ctime()}\n")
-    f.write('User Parameters:\n')
-    f.write(f"\tSelected CLU Layer: {sourceCLU}\n")
-    f.write(f"\tClient Name: {client}\n")
-    f.write(f"\tDelineator Name: {delineator}\n")
-    f.write(f"\tDigitizer Name: {digitizer}\n")
-    f.write(f"\tRequest Type: {requestType}\n")
-    f.write(f"\tRequest Date: {requestDate}\n")
-    f.close
-    del f
+def logBasicSettings(textFilePath, sourceCLU, client, delineator, digitizer, requestType, requestDate):
+    with open(textFilePath, 'a+') as f:
+        f.write('\n######################################################################\n')
+        f.write('Executing Tool: Enter Project Info\n')
+        f.write(f"User Name: {getuser()}\n")
+        f.write(f"Date Executed: {ctime()}\n")
+        f.write('User Parameters:\n')
+        f.write(f"\tSelected CLU Layer: {sourceCLU}\n")
+        f.write(f"\tClient Name: {client}\n")
+        f.write(f"\tDelineator Name: {delineator}\n")
+        f.write(f"\tDigitizer Name: {digitizer}\n")
+        f.write(f"\tRequest Type: {requestType}\n")
+        f.write(f"\tRequest Date: {requestDate}\n")
 
 
-# ================================================================================================================
 # Set arcpy Environment Settings
 env.overwriteOutput = True
 
-# Check for active map in Pro Project
+### Initial Tool Validation ###
 try:
     aprx = ArcGISProject('CURRENT')
     m = aprx.listMaps('HEL Determination')[0]
@@ -72,7 +68,6 @@ try:
     projectName = path.basename(userWorkspace).replace(' ', '_')
     cluName = 'Site_CLU'
     projectCLU = path.join(basedataGDB_path, 'Layers', cluName)
-    # daoiName = 'Site_Define_AOI' #TODO: Do we need this layer for HEL?
     helDir = path.join(userWorkspace, 'HEL')
     
     helGDB_name = f"{path.basename(userWorkspace).replace(' ', '_')}_HELC.gdb"
@@ -86,10 +81,9 @@ try:
     projectTable = path.join(basedataGDB_path, tableName)
     helDetTable = path.join(helGDB_path, 'Admin_Table')
 
-    # Set up log file path and start logging
-    SetProgressorLabel('Starting log file...')
+    # Start logging to text file
     textFilePath = path.join(userWorkspace, f"{projectName}_log.txt")
-    logBasicSettings()
+    logBasicSettings(textFilePath, sourceCLU, client, delineator, digitizer, requestType, requestDate)
 
     # Get Job ID from input CLU
     SetProgressorLabel('Recording project Job ID...')
@@ -105,14 +99,14 @@ try:
         recordsCount = int(GetCount(projectTable)[0])
         if recordsCount > 0:
             DeleteRows(projectTable)
-            AddMsgAndPrint('\nCleared existing row from project admin table...')
+            AddMsgAndPrint('\nCleared existing row from project admin table...', textFilePath=textFilePath)
     else:
         SetProgressorLabel('Creating administrative table...')
         CreateTable(basedataGDB_path, tableName, templateTable)
-        AddMsgAndPrint('\nCreated administrative table...')
+        AddMsgAndPrint('\nCreated administrative table...', textFilePath=textFilePath)
 
     # Use a search cursor to get the tract location info from the CLU layer
-    AddMsgAndPrint('\nImporting tract data from the CLU...')
+    AddMsgAndPrint('\nImporting tract data from the CLU...', textFilePath=textFilePath)
     SetProgressorLabel('Importing tract data from the CLU...')
     field_names = ['admin_state','admin_state_name','admin_county','admin_county_name',
                    'state_code','state_name','county_code','county_name','farm_number','tract_number']
@@ -131,7 +125,7 @@ try:
             break
 
     # Use an insert cursor to add record to the admin table
-    AddMsgAndPrint('\nUpdating the administrative table...')
+    AddMsgAndPrint('\nUpdating the administrative table...', textFilePath=textFilePath)
     SetProgressorLabel('Updating the administrative table...')
     field_names = ['admin_state','admin_state_name','admin_county','admin_county_name','state_code','state_name',
                    'county_code','county_name','farm_number','tract_number','client','deter_staff',
@@ -145,7 +139,7 @@ try:
 
     # Create a text file output version of the admin table for consumption by external data collection forms
     # Set a file name and export to the user workspace folder for the project
-    AddMsgAndPrint('\nExporting administrative text file...')
+    AddMsgAndPrint('\nExporting administrative text file...', textFilePath=textFilePath)
     SetProgressorLabel('Exporting administrative text file...')
     textTable = f"Admin_Info_{projectName}.txt"
     if Exists(textTable):
@@ -154,29 +148,29 @@ try:
 
     # If project HEL geodatabase and feature dataset do not exist, create them.
     # Get the spatial reference from the Define AOI feature class and use it, if needed
-    AddMsgAndPrint('\nChecking project integrity...')
+    AddMsgAndPrint('\nChecking project integrity...', textFilePath=textFilePath)
     SetProgressorLabel('Checking project integrity...')
     desc = Describe(sourceCLU)
     sr = desc.SpatialReference
     
     if not Exists(helGDB_path):
-        AddMsgAndPrint('\tCreating HEL geodatabase...')
+        AddMsgAndPrint('\nCreating HEL geodatabase...', textFilePath=textFilePath)
         SetProgressorLabel('Creating HEL geodatabase...')
         CreateFileGDB(helDir, helGDB_name)
 
     if not Exists(helFD):
-        AddMsgAndPrint('\tCreating HEL feature dataset...')
+        AddMsgAndPrint('\nCreating HEL feature dataset...', textFilePath=textFilePath)
         SetProgressorLabel('Creating HEL feature dataset...')
         CreateFeatureDataset(helGDB_path, 'HELC_Data', sr)
 
     # Copy the administrative table into the wetlands database for use with the attribute rules during digitizing
-    AddMsgAndPrint('\nUpdating administrative table in GDB...')
+    AddMsgAndPrint('\nUpdating administrative table in GDB...', textFilePath=textFilePath)
     if Exists(helDetTable):
         Delete(helDetTable)
     TableToTable(projectTable, helGDB_path, 'Admin_Table')
 
     # Adjust layer visibility in maps, turn off CLU layer
-    AddMsgAndPrint('\nUpdating layer visibility to off...')
+    AddMsgAndPrint('\nUpdating layer visibility to off...', textFilePath=textFilePath)
     off_names = [cluName]
     for maps in aprx.listMaps():
         for lyr in maps.listLayers():
@@ -186,18 +180,16 @@ try:
 
     # Compact file geodatabase
     try:
-        AddMsgAndPrint('\nCompacting File Geodatabase...')
+        AddMsgAndPrint('\nCompacting File Geodatabase...', textFilePath=textFilePath)
         SetProgressorLabel('Compacting File Geodatabase...')
         Compact(basedataGDB_path)
-        AddMsgAndPrint('\nFinished Script')
     except:
         pass
-    
+
+    AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
+
 except SystemExit:
     pass
-
-except KeyboardInterrupt:
-    AddMsgAndPrint('Keyboard interruption requested... Exiting')
 
 except:
     errorMsg()

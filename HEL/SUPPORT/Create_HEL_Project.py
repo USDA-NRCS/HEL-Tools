@@ -27,7 +27,7 @@ from hel_utils import AddMsgAndPrint, errorMsg
 def logBasicSettings(textFilePath, projectType, sourceState, sourceCounty, tractNumber, owFlag):
     with open(textFilePath, 'a+') as f:
         f.write('\n######################################################################\n')
-        f.write('Executing Tool: Create HEL Project...\n')
+        f.write('Executing Tool: Create HEL Project\n')
         f.write(f"User Name: {getuser()}\n")
         f.write(f"Date Executed: {ctime()}\n")
         f.write('User Parameters:\n')
