@@ -19,7 +19,8 @@ from arcpy.mp import ArcGISProject
 from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, FocalStatistics, IsNull, NbrRectangle, \
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
-from hel_utils import AddMsgAndPrint, errorMsg, extractDEM
+from extract_DEM_by_CLU import extractDEM
+from hel_utils import AddMsgAndPrint, errorMsg
 
 
 class NoProcesingExit(Exception):
