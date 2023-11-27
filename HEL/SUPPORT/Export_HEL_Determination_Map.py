@@ -10,7 +10,7 @@ from arcpy.da import Editor, SearchCursor
 from arcpy.management import Compact, Delete, GetCount
 from arcpy.mp import ArcGISProject
 
-from hel_utils import AddMsgAndPrint, errorMsg, submitFSquery
+from hel_utils import AddMsgAndPrint, errorMsg
 
 
 def logBasicSettings(textFilePath, zoom_type, imagery, show_location, overwrite_layout):
