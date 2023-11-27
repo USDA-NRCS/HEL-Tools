@@ -5,7 +5,7 @@ from sys import exit
 from time import ctime
 
 from arcpy import CreateScratchName, Describe, env, Exists, GetParameter, GetParameterAsText, ListFields, \
-    Reclassify_3d, SetProgressorLabel
+    Reclassify_3d, SetParameterAsText, SetProgressorLabel
 
 from arcpy.analysis import Clip as Clip_a, Intersect, Statistics
 from arcpy.conversion import FeatureToRaster, RasterToPolygon
@@ -19,8 +19,7 @@ from arcpy.mp import ArcGISProject
 from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, FocalStatistics, IsNull, NbrRectangle, \
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
-from hel_utils import AddMsgAndPrint, addOutputLayers, errorMsg, extractDEM, FindField, \
-    removeScratchLayers, NoProcesingExit
+from hel_utils import AddMsgAndPrint, errorMsg, extractDEM, FindField, removeScratchLayers, NoProcesingExit
 
 
 def logBasicSettings(textFilePath, helLayer, inputDEM, zUnits, use_runoff_ls):
@@ -34,6 +33,18 @@ def logBasicSettings(textFilePath, helLayer, inputDEM, zUnits, use_runoff_ls):
         f.write(f"\tInput DEM: {inputDEM}\n")
         f.write(f"\tDEM Elevation Units: {zUnits}\n")
         f.write(f"\tUse REQ Equation: {use_runoff_ls}\n")
+
+
+def addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination, cluLayer):
+    """ Adds output layers from determinitaion procedure to map. """
+    try:
+        SetParameterAsText(5, lidarHEL)
+        SetParameterAsText(6, helSummary)
+        SetParameterAsText(7, finalHELSummary)
+        SetParameterAsText(8, fieldDetermination)
+        cluLayer.setSelectionSet(method='NEW')
+    except:
+        errorMsg()
 
 
 ### Initial Tool Validation ###
