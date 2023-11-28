@@ -67,7 +67,7 @@ def extractDEMfromImageService(demSource, fieldDetermination, scratchWS, cluLaye
         return newLinearUnits, newZfactor, demProject
 
     except:
-        errorMsg()
+        AddMsgAndPrint(errorMsg(), 2)
 
 
 def extractDEM(cluLayer, inputDEM, fieldDetermination, scratchWS, zFactorList, unitLookUpDict, zUnits):
@@ -198,5 +198,5 @@ def extractDEM(cluLayer, inputDEM, fieldDetermination, scratchWS, zFactorList, u
         return newLinearUnits, newZfactor, demExtract
 
     except:
-        errorMsg()
+        AddMsgAndPrint(errorMsg(), 2)
         return False, False, False
