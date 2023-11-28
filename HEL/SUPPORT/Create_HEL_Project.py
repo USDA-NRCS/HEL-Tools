@@ -5,10 +5,6 @@ from sys import argv, exit
 from time import ctime
 from uuid import uuid4
 
-# import sys
-# sys.dont_write_bytecode=True
-# sys.path.append(path.dirname(sys.argv[0]))
-
 from arcpy import AddFieldDelimiters, Describe, env, Exists, GetParameter, GetParameterAsText, \
     ListFields, SetProgressorLabel, SpatialReference
 
