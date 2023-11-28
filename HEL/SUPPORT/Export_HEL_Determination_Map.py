@@ -13,6 +13,7 @@ from arcpy.mp import ArcGISProject
 from hel_utils import AddMsgAndPrint, errorMsg
 
 
+textFilePath = ''
 def logBasicSettings(textFilePath, zoom_type, imagery, show_location, overwrite_layout):
     with open(textFilePath, 'a+') as f:
         f.write('\n######################################################################\n')
@@ -389,4 +390,7 @@ except SystemExit:
     pass
 
 except:
-    errorMsg()
+    if textFilePath:
+        AddMsgAndPrint(errorMsg('Export HEL Determination Map'), 2, textFilePath)
+    else:
+        AddMsgAndPrint(errorMsg('Export HEL Determination Map'), 2)
