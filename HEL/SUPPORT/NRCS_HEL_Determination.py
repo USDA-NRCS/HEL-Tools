@@ -27,6 +27,7 @@ class NoProcesingExit(Exception):
     pass
 
 
+textFilePath = ''
 def logBasicSettings(textFilePath, helLayer, inputDEM, zUnits, use_runoff_ls):
     with open(textFilePath, 'a+') as f:
         f.write('\n######################################################################\n')
@@ -41,22 +42,18 @@ def logBasicSettings(textFilePath, helLayer, inputDEM, zUnits, use_runoff_ls):
 
 
 def addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination, cluLayer):
-    try:
-        SetParameterAsText(5, lidarHEL)
-        SetParameterAsText(6, helSummary)
-        SetParameterAsText(7, finalHELSummary)
-        SetParameterAsText(8, fieldDetermination)
-        cluLayer.setSelectionSet(method='NEW')
-    except:
-        errorMsg()
+    SetParameterAsText(5, lidarHEL)
+    SetParameterAsText(6, helSummary)
+    SetParameterAsText(7, finalHELSummary)
+    SetParameterAsText(8, fieldDetermination)
+    cluLayer.setSelectionSet(method='NEW')
 
 
-def removeScratchLayers(scratchLayers, textFilePath):
+def removeScratchLayers(scratchLayers):
     for lyr in scratchLayers:
         try:
             Delete(lyr)
         except:
-            AddMsgAndPrint(f"\n\tWARNING: Deleting Layer: {str(lyr)} failed.", 1, textFilePath)
             continue
 
 
@@ -897,6 +894,9 @@ try:
 except NoProcesingExit:
     AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
 except:
-    errorMsg()
+    if textFilePath:
+        AddMsgAndPrint(errorMsg('HEL Determination'), 2, textFilePath)
+    else:
+        AddMsgAndPrint(errorMsg('HEL Determination'), 2)
 finally:
-    removeScratchLayers(scratchLayers, textFilePath)
+    removeScratchLayers(scratchLayers)
