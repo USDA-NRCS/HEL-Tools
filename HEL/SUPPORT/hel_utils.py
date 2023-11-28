@@ -22,17 +22,11 @@ def AddMsgAndPrint(msg, severity=0, textFilePath=None):
         pass
 
 
-def errorMsg():
-    """ Print traceback exceptions. If sys.exit was trapped by default exception then ignore traceback message."""
-    try:
-        exc_type, exc_value, exc_traceback = exc_info()
-        theMsg = f"\t{format_exception(exc_type, exc_value, exc_traceback)[1]}\n\t{format_exception(exc_type, exc_value, exc_traceback)[-1]}"
-        if theMsg.find('sys.exit') > -1:
-            AddMsgAndPrint('\n\n')
-            pass
-        else:
-            AddMsgAndPrint('\n\tNRCS HEL Tool Error: -------------------------', 2)
-            AddMsgAndPrint(theMsg, 2)
-    except:
-        AddMsgAndPrint('Unhandled error in errorMsg method', 2)
+def errorMsg(tool_name):
+    ''' Return exception details for logging, ignore sys.exit exceptions.'''
+    exc_type, exc_value, exc_traceback = exc_info()
+    exc_message = f"\t{format_exception(exc_type, exc_value, exc_traceback)[1]}\n\t{format_exception(exc_type, exc_value, exc_traceback)[-1]}"
+    if exc_message.find('sys.exit') > -1:
         pass
+    else:
+        return f"\n\t------------------------- {tool_name} Tool Error -------------------------\n{exc_message}"
