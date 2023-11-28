@@ -1,12 +1,16 @@
-from arcpy import AddError, AddFieldDelimiters, AddMessage, Describe, Exists, GetParameter, GetParameterAsText, SetProgressorLabel
+from datetime import date
+from getpass import getuser
+from os import path as os_path, startfile
+from sys import exit, path as sys_path
+from time import ctime
+
+from arcpy import AddFieldDelimiters, Describe, Exists, GetParameter, GetParameterAsText, SetProgressorLabel
 from arcpy.analysis import Statistics
 from arcpy.da import SearchCursor
 from arcpy.management import AddField, CalculateField, Delete, GetCount, MakeFeatureLayer, Sort
 from arcpy.mp import ArcGISProject
-from datetime import date
-from math import ceil
-from os import path as os_path, remove, startfile
-from sys import exit, path as sys_path
+
+from hel_utils import AddMsgAndPrint, errorMsg
 
 # Hack to allow imports of local libraries from python_packages folder
 base_dir = os_path.abspath(os_path.dirname(__file__)) #\SUPPORT
@@ -15,6 +19,22 @@ sys_path.append(os_path.join(base_dir, 'python_packages'))
 from python_packages.docx.api import Document
 from python_packages.docxcompose.composer import Composer
 from python_packages.docxtpl import DocxTemplate
+
+
+textFilePath = ''
+def logBasicSettings(textFilePath, hel_map_units, where_completed, nrcs_office, fsa_county, fsa_office, consolidate_by_clu):
+    with open(textFilePath, 'a+') as f:
+        f.write('\n######################################################################\n')
+        f.write('Executing Tool: Create Forms and Letters\n')
+        f.write(f"User Name: {getuser()}\n")
+        f.write(f"Date Executed: {ctime()}\n")
+        f.write('User Parameters:\n')
+        f.write(f"\tHEL Map Units on Tract: {hel_map_units}\n")
+        f.write(f"\tWhere Determination Completed: {where_completed}\n")
+        f.write(f"\tNRCS Office: {nrcs_office}\n")
+        f.write(f"\tFSA County Committee County: {fsa_county}\n")
+        f.write(f"\tFSA Office: {fsa_office}\n")
+        f.write(f"\tConsolidate by CLU: {consolidate_by_clu}\n")
 
 
 def add_blank_rows(table_data, max_rows):
@@ -29,11 +49,11 @@ def add_blank_rows(table_data, max_rows):
 try:
     aprx = ArcGISProject('CURRENT')
     aprx.listMaps('HEL Determination')[0]
-except Exception:
-    AddError('This tool must be run from an ArcGIS Pro project that was developed from the template distributed with this toolbox. Exiting...')
+except:
+    AddMsgAndPrint('This tool must be run from an ArcGIS Pro project that was developed from the template distributed with this toolbox. Exiting...', 2)
     exit()
 
-AddMessage('Collecting inputs...')
+AddMsgAndPrint('\nCollecting inputs...')
 SetProgressorLabel('Collecting inputs...')
 
 ### Input Parameters ###
@@ -45,7 +65,7 @@ fsa_county = GetParameterAsText(4)
 fsa_office = GetParameterAsText(5)
 consolidate_by_clu = GetParameter(6)
 
-AddMessage('Assigning local variables...')
+AddMsgAndPrint('\nAssigning local variables...')
 SetProgressorLabel('Assigning local variables...')
 
 ### Paths to Word Templates ###
@@ -76,20 +96,25 @@ cpa_026_helc_output = os_path.join(hel_dir, 'NRCS-CPA-026-HELC-Form.docx')
 client_report_output = os_path.join(hel_dir, 'Client_Report.docx')
 planner_summary_output = os_path.join(hel_dir, 'Planner_Summary.docx')
 
+### Path to Log File ###
+project_dir = os_path.dirname(hel_dir)
+folder_name = os_path.basename(project_dir)
+textFilePath = os_path.join(project_dir, f"{folder_name}_log.txt")
+logBasicSettings(textFilePath, hel_map_units, where_completed, nrcs_office, fsa_county, fsa_office, consolidate_by_clu)
 
 ### Ensure Word Doc Templates Exist ###
 #NOTE: Front end validation checks the existance of most geodatabase tables
 for path in [customer_letter_template_path, cpa_026_helc_template_path, client_report_template_path, planner_summary_template_path]:
     if not os_path.exists(path):
-        AddError(f'Error: Failed to locate required Word template: {path}. Exiting...')
+        AddMsgAndPrint(f"\nFailed to locate required Word template: {path}. Exiting...", 2, textFilePath)
         exit()
-AddMessage('Located required Word templates...')
 
 
 ### Read and assign values from Admin Table ###
 SetProgressorLabel('Reading table data...')
+AddMsgAndPrint('\nReading table data...', textFilePath=textFilePath)
 if int(GetCount(admin_table)[0]) != 1:
-    AddError('Error: Admin Table has more than one entry. Exiting...')
+    AddMsgAndPrint('\nAdmin Table has more than one entry. Exiting...', 2, textFilePath)
     exit()
 
 try:
@@ -119,12 +144,10 @@ try:
         admin_data['city'] = row[18] if row[18] else ''
         admin_data['state'] = row[19] if row[19] else ''
         admin_data['zip'] = row[20] if row[20] else ''
-except Exception as e:
-    AddError('Error: failed while retrieving Admin Table data. Exiting...')
-    AddError(e)
+except:
+    AddMsgAndPrint('\nFailed while retrieving Admin Table data. Exiting...', 2, textFilePath)
+    AddMsgAndPrint(errorMsg(), 2, textFilePath)
     exit()
-
-AddMessage('Retrieved data from Admin Table...')
 
 
 ### Read and assign values from NRCS Addresses Table - select row by NRCS Office input ###
@@ -144,13 +167,11 @@ try:
         nrcs_address['zip'] = row[4] if row[4] else ''
         nrcs_address['phone'] = row[5] if row[5] else ''
         nrcs_address['fax'] = row[6] if row[6] else ''
-except Exception as e:
-    AddError('Error: failed while retrieving NRCS Address Table data. Exiting...')
-    AddError(e)
-    AddError('You may need to run tool F.Import Office Addresses and then try this tool again.')
+except:
+    AddMsgAndPrint('\nFailed while retrieving NRCS Address Table data.\nYou may need to run tool F.Import Office Addresses and then try this tool again. Exiting...', 2, textFilePath)
+    AddMsgAndPrint(errorMsg(), 2, textFilePath)
     exit()
 
-AddMessage('Retrieved data from NRCS Addresses Table...')
 
 ### Read and assign values from FSA Addresses Table - select row by FSA Office input ###
 # Handle apostrophe in office name for SQL statement
@@ -170,20 +191,16 @@ try:
         fsa_address['phone'] = row[5] if row[5] else ''
         fsa_address['fax'] = row[6] if row[6] else ''
         fsa_address['county'] = row[7] if row[7] else ''
-except Exception as e:
-    AddError('Error: failed while retrieving FSA Address Table data. Exiting...')
-    AddError(e)
-    AddError('You may need to run tool F.Import Office Addresses and then try this tool again.')
+except:
+    AddMsgAndPrint('\nFailed while retrieving FSA Address Table data.\nYou may need to run tool F.Import Office Addresses and then try this tool again. Exiting...', 2, textFilePath)
+    AddMsgAndPrint(errorMsg(), 2, textFilePath)
     exit()
-
-AddMessage('Retrieved data from FSA Addresses Table...')
 
 
 ### Read and assign values from NAD Addresses Table - select row by State Code from Admin Table ###
 if not Exists(nad_addresses_table):
-    AddError('NAD Addresses table not found in SUPPORT.gdb. Exiting...')
+    AddMsgAndPrint('\nNAD Addresses table not found in SUPPORT.gdb. Exiting...', 2, textFilePath)
     exit()
-
 try:
     nad_address = {}
     fields = ['STATECD', 'STATE', 'NADADDRESS', 'NADCITY', 'NADSTATE', 'NADZIP', 'TOLLFREE', 'PHONE', 'TTY', 'FAX']
@@ -199,13 +216,10 @@ try:
         nad_address['phone'] = row[7] if row[7] else ''
         nad_address['tty'] = row[8] if row[8] else ''
         nad_address['fax'] = row[9] if row[9] else ''
-except Exception as e:
-    AddError('Error: failed while retrieving NAD Address Table data. Exiting...')
-    AddError(e)
-    AddError('You may need to run tool F.Import Office Addresses and then try this tool again.')
+except:
+    AddMsgAndPrint('\nFailed while retrieving NAD Address Table data.\nYou may need to run tool F.Import Office Addresses and then try this tool again. Exiting...', 2, textFilePath)
+    AddMsgAndPrint(errorMsg(), 2, textFilePath)
     exit()
-
-AddMessage('Retrieved data from NAD Addresses Table...')
 
 
 ### Generate Customer Letter ###
@@ -222,13 +236,13 @@ try:
     }
     customer_letter_template.render(context, autoescape=True)
     customer_letter_template.save(customer_letter_output)
-    AddMessage('Created HELC_Letter.docx...')
+    AddMsgAndPrint('\nCreated HELC_Letter.docx...', textFilePath=textFilePath)
 except PermissionError:
-    AddError('Error: Please close any open Word documents and try again. Exiting...')
+    AddMsgAndPrint('\nPlease close any open Word documents and try again. Exiting...', 2, textFilePath)
     exit()
-except Exception as e:
-    AddError('Error: Failed to create HELC_Letter.docx. Exiting...')
-    AddError(e)
+except:
+    AddMsgAndPrint('\nFailed to create HELC_Letter.docx. Exiting...', 2, textFilePath)
+    AddMsgAndPrint(errorMsg(), 2, textFilePath)
     exit()
 
 
@@ -238,10 +252,10 @@ try:
     AddField(field_det_lyr, 'clu_int', 'SHORT')
     CalculateField(field_det_lyr, 'clu_int', 'int(!clu_number!)')
     Sort(field_det_lyr, field_det_sorted_lyr_path, [['clu_int', 'ASCENDING']])
-    AddMessage('Added CLU integer field and created sorted table...')
-except Exception as e:
-    AddError('Error: Failed to create sorted table by CLU. Exiting...')
-    AddError(e)
+    AddMsgAndPrint('\nAdded CLU integer field and created sorted table...', textFilePath=textFilePath)
+except:
+    AddMsgAndPrint('\nFailed to create sorted table by CLU. Exiting...', 2, textFilePath)
+    AddMsgAndPrint(errorMsg(), 2, textFilePath)
     exit()
 
 
@@ -313,10 +327,10 @@ if consolidate_by_clu:
                 Delete(table)
 
         data_026 = consolidated_table_data
-        AddMessage('Consolidated determination data by CLU...')
-    except Exception as e:
-        AddError('Error: Failed to consolidate determination data by CLU. Exiting...')
-        AddError(e)
+        AddMsgAndPrint('\nConsolidated determination data by CLU...', textFilePath=textFilePath)
+    except:
+        AddMsgAndPrint('\nFailed to consolidate determination data by CLU. Exiting...', 2, textFilePath)
+        AddMsgAndPrint(errorMsg(), 2, textFilePath)
         exit()
 
 
@@ -333,9 +347,9 @@ else:
                 row_data['sodbust'] = row[2] if row[2] else ''
                 row_data['acres'] = f'{row[3]:.2f}' if row[3] else ''
                 data_026.append(row_data)
-    except Exception as e:
-        AddError('Error: failed while retrieving CLU Determination table data. Exiting...')
-        AddError(e)
+    except:
+        AddMsgAndPrint('\nFailed while retrieving CLU Determination table data. Exiting...', 2, textFilePath)
+        AddMsgAndPrint(errorMsg(), 2, textFilePath)
         exit()
 
 
@@ -353,13 +367,13 @@ try:
     cpa_026_helc_template.save(cpa_026_helc_output)
     cpa_026_helc_doc = Document(cpa_026_helc_output)
     cpa_026_helc_composer = Composer(cpa_026_helc_doc)
-    AddMessage('Created pages 1 and 2 of NRCS-CPA-026-HELC-Form.docx...')
+    AddMsgAndPrint('\nCreated pages 1 and 2 of NRCS-CPA-026-HELC-Form.docx...', textFilePath=textFilePath)
 except PermissionError:
-    AddError('Error: Please close any open Word documents and try again. Exiting...')
+    AddMsgAndPrint('\nPlease close any open Word documents and try again. Exiting...', 2, textFilePath)
     exit()
-except Exception as e:
-    AddError('Error: Failed to create pages 1 and 2 of NRCS-CPA-026-HELC-Form.docx. Exiting...')
-    AddError(e)
+except:
+    AddMsgAndPrint('\nFailed to create pages 1 and 2 of NRCS-CPA-026-HELC-Form.docx. Exiting...', 2, textFilePath)
+    AddMsgAndPrint(errorMsg(), 2, textFilePath)
     exit()
 
 
@@ -370,10 +384,10 @@ try:
         out_table = final_hel_stats_table_path,
         statistics_fields = [['Polygon_Acres', 'SUM'], ['clu_calculated_acres', 'MIN']],
         case_field = ['clu_number', 'MUSYM', 'MUHELCL', 'Final_HEL_Value'])
-    AddMessage('Created Final HEL Summary Statistics table...')
-except Exception as e:
-    AddError('Error: failed to create Final HEL Summary Statistics table. Exiting...')
-    AddError(e)
+    AddMsgAndPrint('\nCreated Final HEL Summary Statistics table...', textFilePath=textFilePath)
+except:
+    AddMsgAndPrint('\nFailed to create Final HEL Summary Statistics table. Exiting...', 2, textFilePath)
+    AddMsgAndPrint(errorMsg(), 2, textFilePath)
     exit()
 
 
@@ -381,10 +395,10 @@ except Exception as e:
 try:
     AddField(final_hel_stats_table_path, 'percent_of_field', 'DOUBLE')
     CalculateField(final_hel_stats_table_path, 'percent_of_field', '(!SUM_Polygon_Acres!/!MIN_clu_calculated_acres!)*100')
-    AddMessage('Calculated percentage of field in Final HEL Summary Statistics table...')
-except Exception as e:
-    AddError('Error: failed to add field and calculate percentage in Final HEL Summary Statistics table. Exiting...')
-    AddError(e)
+    AddMsgAndPrint('\nCalculated percentage of field in Final HEL Summary Statistics table...', textFilePath=textFilePath)
+except:
+    AddMsgAndPrint('\nFailed to add field and calculate percentage in Final HEL Summary Statistics table. Exiting...', 2, textFilePath)
+    AddMsgAndPrint(errorMsg(), 2, textFilePath)
     exit()
 
 
@@ -414,13 +428,13 @@ try:
     }
     planner_summary_template.render(context, autoescape=True)
     planner_summary_template.save(planner_summary_output)
-    AddMessage('Created Planner_Summary.docx...')
+    AddMsgAndPrint('\nCreated Planner_Summary.docx...', textFilePath=textFilePath)
 except PermissionError:
-    AddError('Error: Please close any open Word documents and try again. Exiting...')
+    AddMsgAndPrint('\nPlease close any open Word documents and try again. Exiting...', 2, textFilePath)
     exit()
-except Exception as e:
-    AddError('Error: Failed to create Planner_Summary.docx. Exiting...')
-    AddError(e)
+except:
+    AddMsgAndPrint('\nFailed to create Planner_Summary.docx. Exiting...', 2, textFilePath)
+    AddMsgAndPrint(errorMsg(), 2, textFilePath)
     exit()
 
 
@@ -455,24 +469,24 @@ except Exception as e:
 # #     }
 # #     client_report_template.render(context, autoescape=True)
 # #     client_report_template.save(client_report_output)
-# #     AddMessage('Created Client_Report.docx...')
+# #     AddMsgAndPrint('\nCreated Client_Report.docx...', textFilePath=textFilePath)
 # # except PermissionError:
-# #     AddError('Error: Please close any open Word documents and try again. Exiting...')
+# #     AddMsgAndPrint('\nPlease close any open Word documents and try again. Exiting...', 2, textFilePath)
 # #     exit()
-# # except Exception as e:
-# #     AddError('Error: Failed to create Client_Report.docx. Exiting...')
-# #     AddError(e)
+# # except:
+# #     AddMsgAndPrint('\nFailed to create Client_Report.docx. Exiting...', 2, textFilePath)
+# #     AddMsgAndPrint(errorMsg(), 2, textFilePath)
 # #     exit()
 
 
 ### Open Customer Letter, 026 Form ###
-AddMessage('Finished generating forms, opening in Microsoft Word...')
+AddMsgAndPrint('\nFinished generating forms, opening in Microsoft Word. End of script.', textFilePath=textFilePath)
 SetProgressorLabel('Finished generating forms, opening in Microsoft Word...')
 try:
     startfile(customer_letter_output)
     startfile(cpa_026_helc_output)
     # startfile(client_report_output)
     startfile(planner_summary_output)
-except Exception as e:
-    AddError('Error: Failed to open finished forms in Microsoft Word. End of script.')
-    AddError(e)
+except:
+    AddMsgAndPrint('\nFailed to open finished forms in Microsoft Word. End of script.', 1, textFilePath)
+    AddMsgAndPrint(errorMsg(), 1, textFilePath)
