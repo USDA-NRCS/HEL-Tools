@@ -5,13 +5,11 @@ from arcpy import AddError, AddMessage, AddWarning
 
 
 def AddMsgAndPrint(msg, severity=0, textFilePath=None):
-    """ Adds tool message to the geoprocessor. Split the message on \n first, so a GPMessage will be added for each line."""
+    ''' Log messages to text file and ESRI tool messages dialog.'''
     try:
         if textFilePath:
-            f = open(textFilePath, 'a+')
-            f.write(f"{msg}\n")
-            f.close
-            del f
+            with open(textFilePath, 'a+') as f:
+                f.write(f"{msg}\n")
         if severity == 0:
             AddMessage(msg)
         elif severity == 1:
