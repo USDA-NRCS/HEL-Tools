@@ -6,18 +6,15 @@ from arcpy import AddError, AddMessage, AddWarning
 
 def AddMsgAndPrint(msg, severity=0, textFilePath=None):
     ''' Log messages to text file and ESRI tool messages dialog.'''
-    try:
-        if textFilePath:
-            with open(textFilePath, 'a+') as f:
-                f.write(f"{msg}\n")
-        if severity == 0:
-            AddMessage(msg)
-        elif severity == 1:
-            AddWarning(msg)
-        elif severity == 2:
-            AddError(msg)
-    except:
-        pass
+    if textFilePath:
+        with open(textFilePath, 'a+') as f:
+            f.write(f"{msg}\n")
+    if severity == 0:
+        AddMessage(msg)
+    elif severity == 1:
+        AddWarning(msg)
+    elif severity == 2:
+        AddError(msg)
 
 
 def errorMsg(tool_name):

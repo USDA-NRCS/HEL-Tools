@@ -183,28 +183,30 @@ try:
     site_prepare_lyrx = LayerFile(path.join(path.join(path.dirname(argv[0]), 'layer_files'), 'Site_Prepare_HELC.lyrx')).listLayers()[0]
     site_clu_lyrx = LayerFile(path.join(path.join(path.dirname(argv[0]), 'layer_files'), 'Site_CLU.lyrx')).listLayers()[0]
 
-    logBasicSettings(textFilePath, projectType, sourceState, sourceCounty, tractNumber, owFlag)
 
     ### Create Project Folders and Contents ###
-    AddMsgAndPrint('\nChecking project directories...', textFilePath=textFilePath)
+    AddMsgAndPrint('\nChecking project directories...')
     SetProgressorLabel('Checking project directories...')
     if not path.exists(workspacePath):
         try:
             SetProgressorLabel('Creating Determinations folder...')
             mkdir(workspacePath)
-            AddMsgAndPrint('\nThe Determinations folder did not exist on the C: drive and has been created.', textFilePath=textFilePath)
+            AddMsgAndPrint('\nThe Determinations folder did not exist on the C: drive and has been created.')
         except:
-            AddMsgAndPrint('\nThe Determinations folder cannot be created. Please check your permissions to the C: drive. Exiting...\n', 2, textFilePath)
+            AddMsgAndPrint('\nThe Determinations folder cannot be created. Please check your permissions to the C: drive. Exiting...\n', 2)
             exit()
 
     if not path.exists(projectFolder):
         try:
             SetProgressorLabel('Creating project folder...')
             mkdir(projectFolder)
-            AddMsgAndPrint('\nThe project folder has been created within C:\Determinations.', textFilePath=textFilePath)
+            AddMsgAndPrint('\nThe project folder has been created within C:\Determinations.')
         except:
-            AddMsgAndPrint('\nThe project folder cannot be created. Please check your permissions to C:\Determinations. Exiting...\n', 2, textFilePath)
+            AddMsgAndPrint('\nThe project folder cannot be created. Please check your permissions to C:\Determinations. Exiting...\n', 2)
             exit()
+
+    # Start logging to text file after project folder exists
+    logBasicSettings(textFilePath, projectType, sourceState, sourceCounty, tractNumber, owFlag)
 
     SetProgressorLabel('Creating project contents...')
     if not path.exists(helFolder):
@@ -292,7 +294,7 @@ try:
                 stateCo = row[0]
                 countyCo = row[1]
                 break
-                                       
+                                        
         # Search for names using FIPS codes.
         stName, coName = '', ''
         fields = ['STATEFP','COUNTYFP','NAME','STATE']
@@ -339,8 +341,8 @@ try:
         yesnoTable = path.join(path.dirname(argv[0]), 'SUPPORT.gdb', 'domain_yesno_sodbust')
         TableToDomain(yesnoTable, 'Code', 'Description', helcGDB_path, 'Yes No Sodbust', 'Yes or no options', 'REPLACE')
         AlterDomain(helcGDB_path, 'Yes No Sodbust', '', '', 'DUPLICATE')
-    
-    
+
+
     ### Copy CLU to Project's _HELC Geodatabase ###
     if not Exists(sitePrepareCLU):
         FeatureClassToFeatureClass(projectCLU, helcFD, sitePrepareCLU_name)
@@ -355,7 +357,7 @@ try:
     ### Calculate Sodbust Vaue to 'No' ###
     CalculateField(sitePrepareCLU, 'sodbust', '"No"', 'PYTHON3')
 
-    
+
     ### Create Tract Layer by Dissolving CLU Layer ###
     if not Exists(projectTract):
         AddMsgAndPrint('\nCreating Tract data...', textFilePath=textFilePath)
@@ -416,7 +418,7 @@ except SystemExit:
     pass
 
 except:
-    if textFilePath:
+    try:
         AddMsgAndPrint(errorMsg('Create HEL Project'), 2, textFilePath)
-    else:
+    except FileNotFoundError:
         AddMsgAndPrint(errorMsg('Create HEL Project'), 2)
