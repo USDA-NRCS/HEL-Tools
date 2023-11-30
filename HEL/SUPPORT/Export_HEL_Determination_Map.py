@@ -315,7 +315,6 @@ try:
 
     
     # Turn off the imagery element in legend
-    # TODO: Configure other legend elements
     legend = layout.listElements('LEGEND_ELEMENT')[0]
     for item in legend.items:
         if item.name == imagery:
@@ -390,7 +389,7 @@ except SystemExit:
     pass
 
 except:
-    if textFilePath:
+    try:
         AddMsgAndPrint(errorMsg('Export HEL Determination Map'), 2, textFilePath)
-    else:
+    except FileNotFoundError:
         AddMsgAndPrint(errorMsg('Export HEL Determination Map'), 2)

@@ -193,7 +193,7 @@ except SystemExit:
     pass
 
 except:
-    if textFilePath:
+    try:
         AddMsgAndPrint(errorMsg('Enter Project Info'), 2, textFilePath)
-    else:
+    except FileNotFoundError:
         AddMsgAndPrint(errorMsg('Enter Project Info'), 2)

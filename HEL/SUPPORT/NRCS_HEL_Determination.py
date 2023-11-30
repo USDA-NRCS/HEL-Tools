@@ -893,10 +893,12 @@ try:
 
 except NoProcesingExit:
     AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
+
 except:
-    if textFilePath:
+    try:
         AddMsgAndPrint(errorMsg('HEL Determination'), 2, textFilePath)
-    else:
+    except FileNotFoundError:
         AddMsgAndPrint(errorMsg('HEL Determination'), 2)
+
 finally:
     removeScratchLayers(scratchLayers)
