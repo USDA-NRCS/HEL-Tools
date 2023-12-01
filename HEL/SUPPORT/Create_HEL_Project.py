@@ -17,7 +17,7 @@ from arcpy.management import AddField, AlterDomain, Append, CalculateField, Comp
 from arcpy.mp import ArcGISProject, LayerFile
 
 from extract_CLU_by_Tract import getPortalTokenInfo, start
-from hel_utils import AddMsgAndPrint, errorMsg
+from hel_utils import addLyrxByConnectionProperties, AddMsgAndPrint, errorMsg
 
 
 textFilePath = ''
@@ -370,25 +370,11 @@ try:
     AddMsgAndPrint('\nAdding CLU layers to map...', textFilePath=textFilePath)
     SetProgressorLabel('Adding CLU layers to map...')
     lyr_name_list = [lyr.longName for lyr in map.listLayers()]
-
-    if cluName not in lyr_name_list:
-        site_clu_lyrx_cp = site_clu_lyrx.connectionProperties
-        site_clu_lyrx_cp['connection_info']['database'] = basedataGDB_path
-        site_clu_lyrx_cp['dataset'] = cluName
-        site_clu_lyrx.updateConnectionProperties(site_clu_lyrx.connectionProperties, site_clu_lyrx_cp)
-        map.addLayer(site_clu_lyrx)
-
-    if sitePrepareCLU_name not in lyr_name_list:
-        site_prepare_lyrx_cp = site_prepare_lyrx.connectionProperties
-        site_prepare_lyrx_cp['connection_info']['database'] = helcGDB_path
-        site_prepare_lyrx_cp['dataset'] = sitePrepareCLU_name
-        site_prepare_lyrx.updateConnectionProperties(site_prepare_lyrx.connectionProperties, site_prepare_lyrx_cp)
-        map.addLayer(site_prepare_lyrx)
+    addLyrxByConnectionProperties(map, lyr_name_list, site_clu_lyrx, basedataGDB_path, visible=False)
+    addLyrxByConnectionProperties(map, lyr_name_list, site_prepare_lyrx, helcGDB_path)
 
     lyr_list = map.listLayers()
     for lyr in lyr_list:
-        if lyr.longName == 'Site_CLU':
-            lyr.visible = False
         if lyr.longName == 'Common Land Unit Map Service':
             lyr.visible = False
 

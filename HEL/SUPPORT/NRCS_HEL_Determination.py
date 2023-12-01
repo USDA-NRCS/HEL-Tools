@@ -5,7 +5,7 @@ from sys import exit
 from time import ctime
 
 from arcpy import CreateScratchName, Describe, env, Exists, GetParameter, GetParameterAsText, ListFields, \
-    Reclassify_3d, SetParameterAsText, SetProgressorLabel
+    Reclassify_3d, SetProgressorLabel
 
 from arcpy.analysis import Clip as Clip_a, Intersect, Statistics
 from arcpy.conversion import FeatureToRaster, RasterToPolygon
@@ -14,13 +14,13 @@ from arcpy.da import SearchCursor, UpdateCursor
 from arcpy.management import AddField, CalculateField, CopyFeatures, CreateFileGDB, Delete, DeleteField, \
     Dissolve, JoinField, MultipartToSinglepart, PivotTable
 
-from arcpy.mp import ArcGISProject
+from arcpy.mp import ArcGISProject, LayerFile
 
 from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, FocalStatistics, IsNull, NbrRectangle, \
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
 from extract_DEM_by_CLU import extractDEM
-from hel_utils import AddMsgAndPrint, errorMsg
+from hel_utils import addLyrxByConnectionProperties, AddMsgAndPrint, errorMsg
 
 
 class NoProcesingExit(Exception):
@@ -41,14 +41,6 @@ def logBasicSettings(textFilePath, helLayer, inputDEM, zUnits, use_runoff_ls):
         f.write(f"\tUse REQ Equation: {use_runoff_ls}\n")
 
 
-def addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination, cluLayer):
-    SetParameterAsText(5, lidarHEL)
-    SetParameterAsText(6, helSummary)
-    SetParameterAsText(7, finalHELSummary)
-    SetParameterAsText(8, fieldDetermination)
-    cluLayer.setSelectionSet(method='NEW')
-
-
 def removeScratchLayers(scratchLayers):
     for lyr in scratchLayers:
         try:
@@ -60,7 +52,7 @@ def removeScratchLayers(scratchLayers):
 ### Initial Tool Validation ###
 try:
     aprx = ArcGISProject('CURRENT')
-    aprx.listMaps('HEL Determination')[0]
+    map = aprx.listMaps('HEL Determination')[0]
 except Exception:
     AddMsgAndPrint('This tool must be run from an ArcGIS Pro project that was developed from the template distributed with this toolbox. Exiting!', 2)
     exit()
@@ -84,10 +76,10 @@ support_gdb = path.join(base_dir, 'SUPPORT.gdb')
 lu_table = path.join(support_gdb, 'lut_census_fips')
 
 layer_files_dir = path.join(base_dir, 'layer_files')
-field_determination_lyrx = path.join(layer_files_dir, 'Field_Determination.lyrx')
-final_hel_summary_lyrx = path.join(layer_files_dir, 'Final_HEL_Summary.lyrx')
-initial_hel_summary_lyrx = path.join(layer_files_dir, 'Initial_HEL_Summary.lyrx')
-lidar_hel_summary_lyrx = path.join(layer_files_dir, 'LiDAR_HEL_Summary.lyrx')
+field_determination_lyrx = LayerFile(path.join(layer_files_dir, 'Field_Determination.lyrx')).listLayers()[0]
+final_hel_summary_lyrx = LayerFile(path.join(layer_files_dir, 'Final_HEL_Summary.lyrx')).listLayers()[0]
+initial_hel_summary_lyrx = LayerFile(path.join(layer_files_dir, 'Initial_HEL_Summary.lyrx')).listLayers()[0]
+lidar_hel_summary_lyrx = LayerFile(path.join(layer_files_dir, 'LiDAR_HEL_Summary.lyrx')).listLayers()[0]
 
 helc_fd = path.dirname(Describe(cluLayer).catalogPath)
 helc_gdb = path.dirname(helc_fd)
@@ -475,7 +467,13 @@ try:
         # Add output layers to map and gracefully exit script
         SetProgressorLabel('Adding output layers to map...')
         AddMsgAndPrint('\nAdding output layers to map...', textFilePath=textFilePath)
-        addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination, cluLayer)
+        lyr_name_list = [lyr.longName for lyr in map.listLayers()]
+        addLyrxByConnectionProperties(map, lyr_name_list, lidar_hel_summary_lyrx, helc_gdb, visible=False)
+        addLyrxByConnectionProperties(map, lyr_name_list, initial_hel_summary_lyrx, helc_gdb, visible=False)
+        addLyrxByConnectionProperties(map, lyr_name_list, final_hel_summary_lyrx, helc_gdb, visible=False)
+        addLyrxByConnectionProperties(map, lyr_name_list, field_determination_lyrx, helc_gdb)
+        cluLayer.setSelectionSet(method='NEW')
+        
         raise(NoProcesingExit)
 
 
@@ -887,7 +885,12 @@ try:
     # Add output layers to map and symbolize
     SetProgressorLabel('Adding output layers to map...')
     AddMsgAndPrint('Adding output layers to map...', textFilePath=textFilePath)
-    addOutputLayers(lidarHEL, helSummary, finalHELSummary, fieldDetermination, cluLayer)
+    lyr_name_list = [lyr.longName for lyr in map.listLayers()]
+    addLyrxByConnectionProperties(map, lyr_name_list, lidar_hel_summary_lyrx, helc_gdb, visible=False)
+    addLyrxByConnectionProperties(map, lyr_name_list, initial_hel_summary_lyrx, helc_gdb, visible=False)
+    addLyrxByConnectionProperties(map, lyr_name_list, final_hel_summary_lyrx, helc_gdb, visible=False)
+    addLyrxByConnectionProperties(map, lyr_name_list, field_determination_lyrx, helc_gdb)
+    cluLayer.setSelectionSet(method='NEW')
 
     AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
 
