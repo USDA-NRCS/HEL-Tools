@@ -105,18 +105,10 @@ if not Exists(scratch_gdb):
     CreateFileGDB(base_dir, 'scratch.gdb')
 
 output_layers = [fieldDetermination, helSummary, lidarHEL, finalHELSummary]
-for layer in output_layers:
-    if Exists(layer):
-        try:
-            Delete(layer)
-        except:
-            AddMsgAndPrint(f"\tCould not delete the {path.basename(layer)} feature class in the HELC geodatabase. Creating an additional layer", 2)
-            newName = str(layer)
-            newName = CreateScratchName(path.basename(layer), data_type='FeatureClass', workspace=support_gdb)
+removeScratchLayers(output_layers)
 
 
 ### ESRI Environment Settings ###
-env.workspace = support_gdb
 env.scratchWorkspace = scratch_gdb
 env.overwriteOutput = True
 
@@ -904,4 +896,5 @@ except:
         AddMsgAndPrint(errorMsg('HEL Determination'), 2)
 
 finally:
+    SetProgressorLabel('Cleaning up scratch layers...')
     removeScratchLayers(scratchLayers)
