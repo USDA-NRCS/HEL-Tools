@@ -39,7 +39,7 @@ def logBasicSettings(textFilePath, projectType, sourceState, sourceCounty, tract
 try:
     aprx = ArcGISProject('CURRENT')
     map = aprx.listMaps('HEL Determination')[0]
-except Exception:
+except:
     AddMsgAndPrint('This tool must be run from an ArcGIS Pro project that was developed from the template distributed with this toolbox. Exiting...', 2)
     exit()
 

@@ -28,7 +28,7 @@ if not Exists(base_data_gdb):
 if not Exists(scratch_gdb):
     try:
         CreateFileGDB(path.dirname(argv[0]), 'SCRATCH.gdb')
-    except Exception:
+    except:
         AddError('Failed to create SCRATCH.gdb in install location... Exiting')
         exit()
 else:

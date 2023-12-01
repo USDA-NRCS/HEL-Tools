@@ -30,7 +30,7 @@ if not Exists(base_data_gdb):
 if not Exists(scratch_gdb):
     try:
         CreateFileGDB(path.dirname(argv[0]), 'SCRATCH.gdb')
-    except Exception:
+    except:
         AddError('Failed to create SCRATCH.gdb in install location... Exiting')
         exit()
 else:
@@ -50,7 +50,7 @@ env.pyramid = 'PYRAMIDS -1 BILINEAR DEFAULT 75 NO_SKIP'
 AddMessage('Buffering input CLU fields...')
 try:
     Buffer(source_clu, clu_buffer, '410 Meters', 'FULL', '', 'ALL', '')
-except Exception:
+except:
     AddError('Failed to buffer selected CLU(s)... Exiting')
     exit()
 
@@ -58,7 +58,7 @@ except Exception:
 AddMessage('Projecting CLU Buffer to WGS 1984...')
 try:
     Project(clu_buffer, wgs84_clu_buffer, SpatialReference(4326))
-except Exception:
+except:
     AddError('Failed to project CLU Buffer to WGS84... Exiting')
     exit()
 
@@ -68,7 +68,7 @@ try:
     aoi_ext = Describe(wgs84_clu_buffer).extent
     clip_ext = f"{str(aoi_ext.XMin)} {str(aoi_ext.YMin)} {str(aoi_ext.XMax)} {str(aoi_ext.YMax)}"
     Clip(source_service, clip_ext, wgs84_DEM, '', '', '', 'NO_MAINTAIN_EXTENT')
-except Exception:
+except:
     AddError('Failed to clip DEM service to area of interest... Exiting')
     exit()
 
@@ -77,7 +77,7 @@ AddMessage('Projecting DEM to match input CLU...')
 try:
     final_CS = Describe(source_clu).spatialReference.factoryCode
     ProjectRaster(wgs84_DEM, final_DEM, final_CS, 'BILINEAR', 3)
-except Exception:
+except:
     AddError('Failed to project clipped DEM to CLU coordinate system... Exiting')
     exit()
 
