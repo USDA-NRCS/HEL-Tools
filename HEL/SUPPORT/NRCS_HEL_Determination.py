@@ -20,7 +20,7 @@ from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, Fo
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
 from extract_DEM_by_CLU import extractDEM
-from hel_utils import addLyrxByConnectionProperties, AddMsgAndPrint, errorMsg
+from hel_utils import addLyrxByConnectionProperties, AddMsgAndPrint, errorMsg, removeScratchLayers
 
 
 class NoProcesingExit(Exception):
@@ -39,14 +39,6 @@ def logBasicSettings(textFilePath, helLayer, inputDEM, zUnits, use_runoff_ls):
         f.write(f"\tInput DEM: {inputDEM}\n")
         f.write(f"\tDEM Elevation Units: {zUnits}\n")
         f.write(f"\tUse REQ Equation: {use_runoff_ls}\n")
-
-
-def removeScratchLayers(scratchLayers):
-    for lyr in scratchLayers:
-        try:
-            Delete(lyr)
-        except:
-            continue
 
 
 ### Initial Tool Validation ###

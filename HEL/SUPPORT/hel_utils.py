@@ -2,6 +2,7 @@ from sys import exc_info
 from traceback import format_exception
 
 from arcpy import AddError, AddMessage, AddWarning
+from arcpy.management import Delete
 
 
 def addLyrxByConnectionProperties(map, lyr_name_list, lyrx_layer, gdb_path, visible=True):
@@ -40,3 +41,12 @@ def errorMsg(tool_name):
         pass
     else:
         return f"\n\t------------------------- {tool_name} Tool Error -------------------------\n{exc_message}"
+
+
+def removeScratchLayers(scratchLayers):
+    ''' Delete layers in a given list.'''
+    for lyr in scratchLayers:
+        try:
+            Delete(lyr)
+        except:
+            continue
