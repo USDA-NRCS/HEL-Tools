@@ -13,6 +13,7 @@
       "sourceModifiedTime" : {
         "type" : "TimeInstant"
       },
+      "metadataURI" : "CIMPATH=Metadata/3cef7985b04120060a0a4a4f235a4ec9.xml",
       "useSourceMetadata" : true,
       "description" : "Field_Determination",
       "layerElevation" : {
@@ -278,11 +279,10 @@
           "timeIntervalUnits" : "esriTimeUnitsHours",
           "timeOffsetUnits" : "esriTimeUnitsYears"
         },
-        "selectionSetURI" : "CIMPATH=ObjectIdentifierSet/8a778361987d9273fe86c3fef03d357e.dat",
         "dataConnection" : {
           "type" : "CIMFeatureDatasetDataConnection",
           "featureDataset" : "HELC_Data",
-          "workspaceConnectionString" : "DATABASE=..\\..\\..\\..\\..\\..\\..\\..\\Determinations\\in091_t0012564_2023_08\\HEL\\in091_t0012564_2023_08_HELC.gdb",
+          "workspaceConnectionString" : "DATABASE=..\\..\\..\\..\\..\\..\\..\\..\\Determinations\\in091_t0000813_2023_11\\HEL\\in091_t0000813_2023_11_HELC.gdb",
           "workspaceFactory" : "FileGDB",
           "dataset" : "Field_Determination",
           "datasetType" : "esriDTFeatureClass"
@@ -573,8 +573,8 @@
   "binaryReferences" : [
     {
       "type" : "CIMBinaryReference",
-      "uRI" : "CIMPATH=ObjectIdentifierSet/8a778361987d9273fe86c3fef03d357e.dat",
-      "data" : "CgMKAQE="
+      "uRI" : "CIMPATH=Metadata/3cef7985b04120060a0a4a4f235a4ec9.xml",
+      "data" : "<?xml version=\"1.0\"?>\r\n<metadata xml:lang=\"en\"><Esri><CreaDate>20231130</CreaDate><CreaTime>15542700</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce></Esri><dataIdInfo><idCitation><resTitle>Field_Determination</resTitle></idCitation><idAbs>Field_Determination</idAbs><idCredit></idCredit><idPurp></idPurp><resConst><Consts><useLimit></useLimit></Consts></resConst></dataIdInfo></metadata>\r\n"
     }
   ],
   "rGBColorProfile" : "sRGB IEC61966-2.1",
