@@ -4,36 +4,29 @@ from sys import argv
 from time import ctime
 
 from arcpy import CheckExtension, CheckOutExtension, Describe, env, Exists, GetParameterAsText, ListDatasets, \
-    ListFields, SetParameterAsText, SetProgressorLabel
-
-from arcpy.analysis import Buffer, Clip as Clip_a
-from arcpy.management import AddField, Clip as Clip_m, Compact, CalculateField, CopyFeatures, CopyRaster, \
-    Delete, DeleteField, MakeFeatureLayer, MosaicToNewRaster, Project, ProjectRaster, SelectLayerByAttribute
-from arcpy.mp import ArcGISProject, LayerFile
+    SetParameterAsText, SetProgressorLabel
+from arcpy.analysis import Buffer
+from arcpy.management import Clip as Clip_m, Compact, CopyRaster, Delete, MosaicToNewRaster, Project, ProjectRaster
+from arcpy.mp import ArcGISProject
 from arcpy.da import Editor
-from arcpy.sa import Con, Contour, ExtractByMask, Fill, FocalStatistics, Minus, Hillshade, Slope, Times
+from arcpy.sa import ExtractByMask, Hillshade
 
 from hel_utils import AddMsgAndPrint, errorMsg, removeScratchLayers
 
 
-def logBasicSettings(textFilePath, userWorkspace, dataExtent, inputDEMs, zUnits, interval):
+def logBasicSettings(textFilePath, userWorkspace, inputDEMs, zUnits):
     with open(textFilePath,'a+') as f:
         f.write('\n######################################################################\n')
-        f.write('Executing Tool: Create HEL Project\n')
+        f.write('Executing Tool: Prepare Site DEM\n')
         f.write(f"User Name: {getuser()}\n")
         f.write(f"Date Executed: {ctime()}\n")
         f.write('User Parameters:\n')
         f.write(f"\tWorkspace: {userWorkspace}\n")
-        f.write(f"\tSelected Extent: {dataExtent}\n")
         f.write(f"\tInput DEMs: {str(inputDEMs)}\n")
         if len (zUnits) > 0:
             f.write(f"\tElevation Z-units: {zUnits}\n")
         else:
             f.write('\tElevation Z-units: NOT SPECIFIED\n')
-        if len(interval) > 0:
-            f.write(f"\tContour Interval: {str(interval)} ft.\n")
-        else:
-            f.write('\tContour Interval: NOT SPECIFIED\n')
 
 
 ### Initial Tool Validation ###
@@ -58,23 +51,19 @@ env.pyramid = 'PYRAMIDS -1 BILINEAR DEFAULT 75 NO_SKIP'
 
 
 ### Input Parameters ###
-sourceCLU = GetParameterAsText(0)                     # User selected project CLU
-dataExtent = GetParameterAsText(1)
-demFormat = GetParameterAsText(2)
-inputDEMs = GetParameterAsText(3).split(';')          # user selected input DEMs
+sourceCLU = GetParameterAsText(0)
+demFormat = GetParameterAsText(1)
+inputDEMs = GetParameterAsText(2).split(';')
 DEMcount = len(inputDEMs)
-sourceService = GetParameterAsText(4)
-sourceCellsize = GetParameterAsText(5)
-zUnits = GetParameterAsText(6)                        # elevation z units of input DEM
-interval = GetParameterAsText(7)                      # user defined contour interval (string)
-demSR = GetParameterAsText(8)
-cluSR = GetParameterAsText(9)
-transform = GetParameterAsText(10)
+sourceService = GetParameterAsText(3)
+sourceCellsize = GetParameterAsText(4)
+zUnits = GetParameterAsText(5)
+demSR = GetParameterAsText(6)
+cluSR = GetParameterAsText(7)
+transform = GetParameterAsText(8)
+
 
 try:
-    slpLyr = LayerFile(path.join(path.join(path.dirname(argv[0]), 'layer_files'), 'Slope_Pct.lyrx')).listLayers()[0]
-    dgLyr = LayerFile(path.join(path.join(path.dirname(argv[0]), 'layer_files'), 'Local_Depths.lyrx')).listLayers()[0]
-    
     #### Set base path
     sourceCLU_path = Describe(sourceCLU).CatalogPath
     if sourceCLU_path.find('.gdb') > 0 and sourceCLU_path.find('Determinations') > 0 and sourceCLU_path.find('Site_CLU') > 0:
@@ -92,13 +81,10 @@ try:
     if edit.isEditing:
         AddMsgAndPrint('\nYou have an active edit session. Please Save or Discard edits and run this tool again. Exiting...', 2)
         exit()
-    del workspace, edit
 
 
     #### Define Variables
-    supportGDB = path.join(path.dirname(argv[0]), 'SUPPORT.gdb')
     scratchGDB = path.join(path.dirname(argv[0]), 'SCRATCH.gdb')
-
     basedataGDB_name = path.basename(basedataGDB_path)
     basedataFD_name = 'Layers'
     basedataFD = path.join(basedataGDB_path, basedataFD_name)
@@ -112,16 +98,10 @@ try:
     projectExtent = path.join(basedataFD, 'Request_Extent')
     bufferDist = '500 Feet'
     bufferDistPlus = '550 Feet'
-    
+
     projectDEM = path.join(basedataGDB_path, 'Site_DEM')
     projectHillshade = path.join(basedataGDB_path, 'Site_Hillshade')
-    dgName = 'Site_Depth_Grid'
-    projectDepths = path.join(basedataGDB_path, dgName)
-    slpName = 'Site_Slope_Pct'
-    projectSlope = path.join(basedataGDB_path, slpName)
-    projectContours = path.join(basedataGDB_path, 'Site_Contours')
 
-    pcsAOI = path.join(scratchGDB, 'pcsAOI')
     wgs_AOI = path.join(scratchGDB, 'AOI_WGS84')
     WGS84_DEM = path.join(scratchGDB, 'WGS84_DEM')
     tempDEM = path.join(scratchGDB, 'tempDEM')
@@ -134,15 +114,11 @@ try:
     Fill_DEMaoi = path.join(scratchGDB, 'Fill_DEMaoi')
     FilMinus = path.join(scratchGDB, 'FilMinus')
 
-    # ArcPro Map Layer Names
-    contoursOut = 'Site_Contours'
     demOut = 'Site_DEM'
-    depthOut = 'Site_Depth_Grid'
-    slopeOut = 'Site_Slope_Pct'
     hillshadeOut = 'Site_Hillshade'
-    
+
     # Temp layers list for cleanup at the start and at the end
-    tempLayers = [pcsAOI, wgs_AOI, WGS84_DEM, tempDEM, tempDEM2, DEMagg, DEMsmooth, ContoursTemp, extendedContours, Temp_DEMbase, Fill_DEMaoi, FilMinus]
+    tempLayers = [wgs_AOI, WGS84_DEM, tempDEM, tempDEM2, DEMagg, DEMsmooth, ContoursTemp, extendedContours, Temp_DEMbase, Fill_DEMaoi, FilMinus]
     AddMsgAndPrint('Deleting Temp layers...')
     SetProgressorLabel('Deleting Temp layers...')
     removeScratchLayers(tempLayers)
@@ -150,29 +126,23 @@ try:
 
     #### Set up log file path and start logging
     textFilePath = path.join(userWorkspace, f"{projectName}_log.txt")
-    logBasicSettings(textFilePath, userWorkspace, dataExtent, inputDEMs, zUnits, interval)
-    
+    logBasicSettings(textFilePath, userWorkspace, inputDEMs, zUnits)
+
 
     #### Create the projectAOI and projectAOI_B layers based on the choice selected by user input
     AddMsgAndPrint('\nBuffering selected extent...',0)
     SetProgressorLabel('Buffering selected extent...')
-    if dataExtent == 'Request Extent':
-        # Use the request extent to create buffers for use in data extraction
-        Buffer(projectExtent, projectAOI, bufferDist, 'FULL', '', 'ALL', '')
-        Buffer(projectExtent, projectAOI_B, bufferDistPlus, 'FULL', '', 'ALL', '')
-    else:
-        # Use the tract boundary to create the buffers for use in data extraction
-        Buffer(projectTract, projectAOI, bufferDist, 'FULL', '', 'ALL', '')
-        Buffer(projectTract, projectAOI_B, bufferDistPlus, 'FULL', '', 'ALL', '')
+    Buffer(projectTract, projectAOI, bufferDist, 'FULL', '', 'ALL', '')
+    Buffer(projectTract, projectAOI_B, bufferDistPlus, 'FULL', '', 'ALL', '')
 
 
     #### Remove existing project DEM related layers from the Pro maps
     AddMsgAndPrint('\nRemoving layers from project maps, if present...\n',0)
     SetProgressorLabel('Removing layers from project maps, if present...')
-    
+
     # Set starting layers to be removed
-    mapLayersToRemove = [contoursOut, demOut, depthOut, slopeOut, hillshadeOut]
-    
+    mapLayersToRemove = [demOut, hillshadeOut]
+
     # Remove the layers in the list
     try:
         for maps in aprx.listMaps():
@@ -188,7 +158,7 @@ try:
     SetProgressorLabel('Removing layers from project database, if present...')
 
     # Set starting datasets to remove
-    datasetsToRemove = [projectDEM, projectHillshade, projectDepths, projectSlope, projectContours]
+    datasetsToRemove = [projectDEM, projectHillshade]
 
     # Remove the datasets in the list
     for dataset in datasetsToRemove:
@@ -234,8 +204,6 @@ try:
         env.outputCoordinateSystem = cluSR
         if transform != '':
             env.geographicTransformations = transform
-        else:
-            env.geographicTransformations = 'WGS_1984_(ITRF00)_To_NAD_1983'
         
         # Clip out the DEMs that were entered
         AddMsgAndPrint('\tExtracting input DEM(s)...',0)
@@ -337,29 +305,8 @@ try:
     SetProgressorLabel('Clipping project DEM to buffered extent...')
     Clip_m(tempDEM, '', projectDEM, projectAOI, '', 'ClippingGeometry')
 
-    # Create a temporary smoothed DEM to use for creating a slope layer and a contours layer
-    AddMsgAndPrint('\tCreating a 3-meter pixel resolution version of the DEM for use in contours and slopes...',0)
-    SetProgressorLabel('Creating 3-meter resolution DEM...')
-    ProjectRaster(tempDEM, DEMagg, cluSR, 'BILINEAR', '3', '#', '#', '#')
 
-    AddMsgAndPrint('\tSmoothing the DEM with Focal Statistics...',0)
-    SetProgressorLabel('Smoothing DEM with Focal Stats...')
-    outFocalStats = FocalStatistics(DEMagg, 'RECTANGLE 3 3 CELL', 'MEAN', 'DATA')
-    outFocalStats.save(DEMsmooth)
-    AddMsgAndPrint('\tSuccessful',0)
-
-    # Create Slope Layer
-    # Use Zfactor to get accurate slope creation. Do not assume this Zfactor with contour processing later
-    AddMsgAndPrint('\nCreating Slope...',0)
-    SetProgressorLabel('Creating Slope...')
-    outSlope = Slope(DEMsmooth, 'PERCENT_RISE', Zfactor)
-    Clip_m(outSlope, '', projectSlope, projectAOI, '', 'ClippingGeometry')
-    AddMsgAndPrint('\tSuccessful',0)
-
-
-    #### Create contours
-    # Use an appropriate z factor to always get contour results in feet.
-    # Use a new variable, cZfactor (contours Z factor) to distinguish from Zfactor used for slope above
+    #### Create Hillshade and Depth Grid
     cZfactor = 0
     if zUnits == 'Meters':
         cZfactor = 3.28084
@@ -369,81 +316,11 @@ try:
         cZfactor = 0.0833333
     else:
         cZfactor = 1
-
-    # Create Contours
-    AddMsgAndPrint('\nCreating ' + str(interval) + ' foot Contours from DEM using a Z-factor of ' + str(cZfactor) + '...',0)
-    SetProgressorLabel('Creating contours...')
-    Contour(DEMsmooth, ContoursTemp, interval, '', cZfactor)
-    AddField(ContoursTemp, 'Index', 'DOUBLE', '', '', '', '', 'NULLABLE', 'NON_REQUIRED', '')
-
-    # Delete temporary feature layer of contours if it exists from previous runs
-    if Exists('ContourLYR'):
-        try:
-            Delete('ContourLYR')
-        except:
-            pass
-        
-    # Make the temporary contours feature layer for indexing calculations
-    MakeFeatureLayer(ContoursTemp,'ContourLYR','','','')
-
-    # every 5th contour will be indexed to 1
-    expression = "MOD( \"CONTOUR\"," + str(float(interval) * 5) + ") = 0"
-    SelectLayerByAttribute('ContourLYR', 'NEW_SELECTION', expression)
-    indexValue = 1
-    CalculateField('ContourLYR', 'Index', indexValue, 'PYTHON_9.3')
-
-    # All other contours will be indexed to 0
-    SelectLayerByAttribute('ContourLYR', 'SWITCH_SELECTION', '')
-    indexValue = 0
-    CalculateField('ContourLYR', 'Index', indexValue, 'PYTHON_9.3')
-
-    # Clear selection and write all contours to final feature class via a clip
-    SelectLayerByAttribute('ContourLYR','CLEAR_SELECTION','')
-    CopyFeatures('ContourLYR', extendedContours)
-    Clip_a(extendedContours, projectAOI, projectContours)
-
-    # Delete unwanted 'ID' remnant field
-    if len(ListFields(projectContours,'Id')) > 0:
-        try:
-            DeleteField(Contours,'Id')
-        except:
-            pass
-
-    Delete('ContourLYR')
-    
-    AddMsgAndPrint('\tSuccessful',0)
-
-
-    #### Create Hillshade and Depth Grid
     AddMsgAndPrint('\nCreating Hillshade...',0)
     SetProgressorLabel('Creating Hillshade...')
     outHillshade = Hillshade(projectDEM, '315', '45', '#', Zfactor)
     outHillshade.save(projectHillshade)
     AddMsgAndPrint('\tSuccessful',0)
-
-    AddMsgAndPrint('\nCreating Depth Grid...',0)
-    SetProgressorLabel('Creating Depth Grid...')
-    fill = False
-    try:
-        # Fills sinks in projectDEM to remove small imperfections in the data.
-        # Convert the projectDEM to a raster with z units in feet to create this layer
-        Temp_DEMbase = Times(projectDEM, cZfactor)
-        Fill_DEMaoi = Fill(Temp_DEMbase, '')
-        fill = True
-    except:
-        pass
-    
-    if fill:
-        FilMinus = Minus(Fill_DEMaoi, Temp_DEMbase)
-
-        # Create a Depth Grid whereby any pixel with a difference is written to a new raster
-        tempDepths = Con(FilMinus, FilMinus, '', 'VALUE > 0')
-        tempDepths.save(projectDepths)
-
-        # Delete temp data
-        del tempDepths
-
-        AddMsgAndPrint('\tSuccessful',0)
 
 
     #### Delete temp data
@@ -455,29 +332,8 @@ try:
     #### Add layers to Pro Map
     AddMsgAndPrint('\nAdding layers to map...',0)
     SetProgressorLabel('Adding layers to map...')
-    lyr_list = map.listLayers()
-    lyr_name_list = []
-    for lyr in lyr_list:
-        lyr_name_list.append(lyr.longName)
-
-    SetParameterAsText(11, projectContours)
-
-    if dgName not in lyr_name_list:
-        dgLyr_cp = dgLyr.connectionProperties
-        dgLyr_cp['connection_info']['database'] = basedataGDB_path
-        dgLyr_cp['dataset'] = dgName
-        dgLyr.updateConnectionProperties(dgLyr.connectionProperties, dgLyr_cp)
-        map.addLayer(dgLyr)
-
-    SetParameterAsText(13, projectDEM)
-    SetParameterAsText(14, projectHillshade)
-
-    if slpName not in lyr_name_list:
-        slpLyr_cp = slpLyr.connectionProperties
-        slpLyr_cp['connection_info']['database'] = basedataGDB_path
-        slpLyr_cp['dataset'] = slpName
-        slpLyr.updateConnectionProperties(slpLyr.connectionProperties, slpLyr_cp)
-        map.addLayer(slpLyr)
+    SetParameterAsText(9, projectDEM)
+    SetParameterAsText(10, projectHillshade)
 
 
     #### Clean up
@@ -496,7 +352,7 @@ try:
     env.workspace = startWorkspace
     del startWorkspace
 
-    
+
     #### Compact FGDB
     try:
         AddMsgAndPrint('\nCompacting File Geodatabase...' ,0)
@@ -511,4 +367,4 @@ except SystemExit:
     pass
 
 except:
-    errorMsg()
+    errorMsg('Prepare Site DEM')
