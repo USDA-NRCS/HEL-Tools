@@ -40,7 +40,7 @@ except:
 if CheckExtension('Spatial') == 'Available':
     CheckOutExtension('Spatial')
 else:
-    AddMsgAndPrint('Spatial Analyst Extension not enabled. Please enable Spatial Analyst from Project, Licensing, Configure licensing options. Exiting...\n', 2)
+    AddMsgAndPrint('Spatial Analyst Extension not enabled. Please enable Spatial Analyst from Project, Licensing, Configure licensing options. Exiting...', 2)
     exit()
 
 
@@ -130,14 +130,14 @@ try:
 
 
     #### Create the projectAOI and projectAOI_B layers based on the choice selected by user input
-    AddMsgAndPrint('\nBuffering selected extent...',0)
+    AddMsgAndPrint('\nBuffering selected extent...', textFilePath=textFilePath)
     SetProgressorLabel('Buffering selected extent...')
     Buffer(projectTract, projectAOI, bufferDist, 'FULL', '', 'ALL', '')
     Buffer(projectTract, projectAOI_B, bufferDistPlus, 'FULL', '', 'ALL', '')
 
 
     #### Remove existing project DEM related layers from the Pro maps
-    AddMsgAndPrint('\nRemoving layers from project maps, if present...\n',0)
+    AddMsgAndPrint('\nRemoving layers from project maps, if present...', textFilePath=textFilePath)
     SetProgressorLabel('Removing layers from project maps, if present...')
 
     # Set starting layers to be removed
@@ -154,7 +154,7 @@ try:
 
 
     #### Remove existing DEM related layers from the geodatabase
-    AddMsgAndPrint('\nRemoving layers from project database, if present...\n',0)
+    AddMsgAndPrint('\nRemoving layers from project database, if present...', textFilePath=textFilePath)
     SetProgressorLabel('Removing layers from project database, if present...')
 
     # Set starting datasets to remove
@@ -170,31 +170,31 @@ try:
 
 
     #### Process the input DEMs
-    AddMsgAndPrint('\nProcessing the input DEM(s)...',0)
+    AddMsgAndPrint('\nProcessing the input DEM(s)...', textFilePath=textFilePath)
     SetProgressorLabel('Processing the input DEM(s)...')
 
     # Extract and process the DEM if it's an image service
     if demFormat == 'NRCS Image Service':
         if sourceCellsize == '':
-            AddMsgAndPrint('\nAn output DEM cell size was not specified. Exiting...',2)
+            AddMsgAndPrint('\nAn output DEM cell size was not specified. Exiting...', 2, textFilePath)
             exit()
         else:
-            AddMsgAndPrint('\nProjecting AOI to match input DEM...',0)
+            AddMsgAndPrint('\nProjecting AOI to match input DEM...', textFilePath=textFilePath)
             SetProgressorLabel('Projecting AOI to match input DEM...')
             wgs_CS = demSR
             Project(projectAOI_B, wgs_AOI, wgs_CS)
             
-            AddMsgAndPrint('\nDownloading DEM data...',0)
+            AddMsgAndPrint('\nDownloading DEM data...', textFilePath=textFilePath)
             SetProgressorLabel('Downloading DEM data...')
             aoi_ext = Describe(wgs_AOI).extent
             xMin = aoi_ext.XMin
             yMin = aoi_ext.YMin
             xMax = aoi_ext.XMax
             yMax = aoi_ext.YMax
-            clip_ext = str(xMin) + ' ' + str(yMin) + ' ' + str(xMax) + ' ' + str(yMax)
+            clip_ext = f"{str(xMin)} {str(yMin)} {str(xMax)} {str(yMax)}"
             Clip_m(sourceService, clip_ext, WGS84_DEM, '', '', '', 'NO_MAINTAIN_EXTENT')
 
-            AddMsgAndPrint('\nProjecting downloaded DEM...',0)
+            AddMsgAndPrint('\nProjecting downloaded DEM...', textFilePath=textFilePath)
             SetProgressorLabel('Projecting downloaded DEM...')
             ProjectRaster(WGS84_DEM, tempDEM, cluSR, 'BILINEAR', sourceCellsize)
 
@@ -206,7 +206,7 @@ try:
             env.geographicTransformations = transform
         
         # Clip out the DEMs that were entered
-        AddMsgAndPrint('\tExtracting input DEM(s)...',0)
+        AddMsgAndPrint('\tExtracting input DEM(s)...', textFilePath=textFilePath)
         SetProgressorLabel('Extracting input DEM(s)...')
         x = 0
         DEMlist = []
@@ -223,19 +223,19 @@ try:
             elif units == 'Foot_US':
                 units = 'Feet'
             else:
-                AddMsgAndPrint('\nHorizontal units of one or more input DEMs do not appear to be feet or meters! Exiting...',2)
+                AddMsgAndPrint('\nHorizontal units of one or more input DEMs do not appear to be feet or meters! Exiting...', 2, textFilePath)
                 exit()
-            outClip = tempDEM + '_' + str(x)
+            outClip = f"{tempDEM}_{str(x)}"
             try:
                 extractedDEM = ExtractByMask(raster_path, projectAOI_B)
                 extractedDEM.save(outClip)
             except:
-                AddMsgAndPrint('\nOne or more input DEMs may have a problem! Please verify that the input DEMs cover the tract area and try to run again. Exiting...',2)
+                AddMsgAndPrint('\nOne or more input DEMs may have a problem! Please verify that the input DEMs cover the tract area and try to run again. Exiting...', 2, textFilePath)
                 exit()
             if x == 0:
-                mosaicInputs = '' + str(outClip) + ''
+                mosaicInputs = str(outClip)
             else:
-                mosaicInputs = mosaicInputs + ';' + str(outClip)
+                mosaicInputs = f"{mosaicInputs};{str(outClip)}"
             DEMlist.append(str(outClip))
             x += 1
             del sr
@@ -252,18 +252,18 @@ try:
 
         # Merge the DEMs
         if DEMcount > 1:
-            AddMsgAndPrint('\nMerging multiple input DEM(s)...',0)
+            AddMsgAndPrint('\nMerging multiple input DEM(s)...', textFilePath=textFilePath)
             SetProgressorLabel('Merging multiple input DEM(s)...')
             MosaicToNewRaster(mosaicInputs, scratchGDB, 'tempDEM', '#', '32_BIT_FLOAT', cellsize, '1', 'MEAN', '#')
 
         # Else just convert the one input DEM to become the tempDEM
         else:
-            AddMsgAndPrint('\nOnly one input DEM detected. Carrying extract forward for final DEM processing...',0)
+            AddMsgAndPrint('\nOnly one input DEM detected. Carrying extract forward for final DEM processing...', textFilePath=textFilePath)
             firstDEM = DEMlist[0]
             CopyRaster(firstDEM, tempDEM)
 
         # Delete clippedDEM files
-        AddMsgAndPrint('\nDeleting temp DEM file(s)...',0)
+        AddMsgAndPrint('\nDeleting temp DEM file(s)...', textFilePath=textFilePath)
         SetProgressorLabel('Deleting temp DEM file(s)...')
         for raster in DEMlist:
             Delete(raster)
@@ -287,21 +287,21 @@ try:
         elif zUnits == 'Centimeters':
             Zfactor = 0.01
         else:
-            AddMsgAndPrint('\nZunits were not selected at runtime....Exiting!',2)
+            AddMsgAndPrint('\nZunits were not selected at runtime....Exiting!', 2, textFilePath)
             exit()
 
-        AddMsgAndPrint('\tDEM Projection Name: ' + sr.Name,0)
-        AddMsgAndPrint('\tDEM XY Linear Units: ' + units,0)
-        AddMsgAndPrint('\tDEM Elevation Values (Z): ' + zUnits,0)
-        AddMsgAndPrint('\tZ-factor for Slope Modeling: ' + str(Zfactor),0)
-        AddMsgAndPrint('\tDEM Cell Size: ' + str(desc.MeanCellWidth) + ' x ' + str(desc.MeanCellHeight) + ' ' + units,0)
+        AddMsgAndPrint(f"\tDEM Projection Name: {sr.Name}", textFilePath=textFilePath)
+        AddMsgAndPrint(f"\tDEM XY Linear Units: {units}", textFilePath=textFilePath)
+        AddMsgAndPrint(f"\tDEM Elevation Values (Z): {zUnits}", textFilePath=textFilePath)
+        AddMsgAndPrint(f"\tZ-factor for Slope Modeling: {str(Zfactor)}", textFilePath=textFilePath)
+        AddMsgAndPrint(f"\tDEM Cell Size: {str(desc.MeanCellWidth)} x {str(desc.MeanCellHeight)} {units}", textFilePath=textFilePath)
 
     else:
-        AddMsgAndPrint('\n\n\t' + path.basename(tempDEM) + ' is not in a projected Coordinate System! Exiting...',2)
+        AddMsgAndPrint(f"\n\t{path.basename(tempDEM)} is not in a projected Coordinate System! Exiting...", 2, textFilePath)
         exit()
 
     # Clip out the DEM with extended buffer for temp processing and standard buffer for final DEM display
-    AddMsgAndPrint('\nClipping project DEM to buffered extent...',0)
+    AddMsgAndPrint('\nClipping project DEM to buffered extent...', textFilePath=textFilePath)
     SetProgressorLabel('Clipping project DEM to buffered extent...')
     Clip_m(tempDEM, '', projectDEM, projectAOI, '', 'ClippingGeometry')
 
@@ -316,21 +316,21 @@ try:
         cZfactor = 0.0833333
     else:
         cZfactor = 1
-    AddMsgAndPrint('\nCreating Hillshade...',0)
+    AddMsgAndPrint('\nCreating Hillshade...', textFilePath=textFilePath)
     SetProgressorLabel('Creating Hillshade...')
     outHillshade = Hillshade(projectDEM, '315', '45', '#', Zfactor)
     outHillshade.save(projectHillshade)
-    AddMsgAndPrint('\tSuccessful',0)
+    AddMsgAndPrint('\tSuccessful', textFilePath=textFilePath)
 
 
     #### Delete temp data
-    AddMsgAndPrint('\nDeleting temp data...' ,0)
+    AddMsgAndPrint('\nDeleting temp data...', textFilePath=textFilePath)
     SetProgressorLabel('Deleting temp data...')
     removeScratchLayers(tempLayers)
 
 
     #### Add layers to Pro Map
-    AddMsgAndPrint('\nAdding layers to map...',0)
+    AddMsgAndPrint('\nAdding layers to map...', textFilePath=textFilePath)
     SetProgressorLabel('Adding layers to map...')
     SetParameterAsText(9, projectDEM)
     SetParameterAsText(10, projectHillshade)
@@ -355,13 +355,13 @@ try:
 
     #### Compact FGDB
     try:
-        AddMsgAndPrint('\nCompacting File Geodatabase...' ,0)
+        AddMsgAndPrint('\nCompacting File Geodatabase...', textFilePath=textFilePath)
         SetProgressorLabel('Compacting File Geodatabase...')
         Compact(basedataGDB_path)
-        AddMsgAndPrint('\tSuccessful',0)
     except:
         pass
 
+    AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
 
 except SystemExit:
     pass
