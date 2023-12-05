@@ -251,7 +251,6 @@ try:
                 helSummaryDict[row[0]] += acres
 
             cursor.updateRow(row)
-            del acres
 
     # No PHEL values were found; Bypass geoprocessing and populate form
     if 'PHEL' not in helSummaryDict:
@@ -268,8 +267,6 @@ try:
         for wrongVal in set(wrongHELvalues):
             AddMsgAndPrint(f"\t\t{wrongVal}", 2, textFilePath)
         exit()
-
-    del dissovleFlds, nullHEL, wrongHELvalues
 
     # Report HEl Layer Summary by field
     AddMsgAndPrint('\n\tSummary by CLU:', textFilePath=textFilePath)
@@ -365,7 +362,6 @@ try:
                 firstSpace = ' ' * (4-len(pivotFields[i]))                                    # PHEL has 4 characters
                 secondSpace = ' ' * (len(str(maxAcreLength[0])) - len(str(acres)))            # Number of spaces
                 msgList.append(str(f"\t\t\t{pivotFields[i]}{firstSpace} -- {str(acres)}{secondSpace} .ac -- {str(pct)} %"))
-                del acres, pct, firstSpace, secondSpace
 
             # Skip geoprocessing if HEL >=33.33% or NHEL > 66.67%
             if bSkipGeoprocessing:
@@ -380,9 +376,6 @@ try:
             for msg in msgList:
                 AddMsgAndPrint(msg, textFilePath=textFilePath)
 
-            del og_cluHELrating, og_cluHELacresList, og_cluHELpctList, msgList, cluAcres
-
-    del stats, caseField, sumHELacreFld, pivotFields, numOfhelValues, maxAcreLength
 
     # No PHEL Values Found
     # If there are no PHEL Values add helSummary and fieldDetermination layers to ArcMap and prepare 1026 form. Skip geoprocessing.
@@ -445,7 +438,6 @@ try:
                 pct = (row[0] / cluAcres) * 100
                 if pct > 100.0: pct = 100.0
                 row[3] = pct
-                del cluAcres,pct
                 cursor.updateRow(row)
 
         # Add output layers to map and gracefully exit script
@@ -514,8 +506,6 @@ try:
         AddMsgAndPrint('\nThe input DEM may have null data within the input CLU fields. Please review the \ninput DEM for coverage of the site, as well as the results layers, to determine \nif they are reasonable to use for this determination. If the DEM is insufficient \nfor the site, this determination should be made onsite. \n\nA DEM with a few missing pixels is usually sufficient, but a DEM with large null areas is not.', 1, textFilePath)
     else:
         AddMsgAndPrint('\nDEM values in site extent are not null. Continuing...', textFilePath=textFilePath)
-
-    del fields, cursor, nd_warning
 
     # Create Slope Layer
     # Perform a minor fill to reduce LiDAR data noise and minor irregularities. Try to use a max fill height of no more than 1 foot, based on input zUnits.
@@ -786,7 +776,6 @@ try:
             deleteFlds.append(fld)
 
     DeleteField(finalHELSummary, deleteFlds)
-    del zoneFld, finalHELSummaryFlds, tabulateFields, newFields, validFlds
 
     # Determine if field is HEL/NHEL. Add 3 fields to fieldDetermination layer
     fieldList = ['HEL_YES', 'HEL_Acres', 'HEL_Pct']
@@ -839,12 +828,11 @@ try:
             helPct = float('%.1f' %(helPct))       # Strictly for formatting
             nhelAcres = float('%.1f' %(nhelAcres)) # Strictly for formatting
             nhelPct = float('%.1f' %(nhelPct))     # Strictly for formatting
-
-            cluDict[clu] = (helAcres, len(str(helAcres)), helPct, nhelAcres, len(str(nhelAcres)), nhelPct, row[0]) #  {8: (25.3, 4, 45.1, 30.8, 4, 54.9, 'HEL')}
-            del helAcres, helPct, nhelAcres, nhelPct, clu
+            # {8: (25.3, 4, 45.1, 30.8, 4, 54.9, 'HEL')}
+            cluDict[clu] = (helAcres, len(str(helAcres)), helPct, nhelAcres, len(str(nhelAcres)), nhelPct, row[0])
 
             cursor.updateRow(row)
-    del cursor
+
 
     # Strictly for formatting and printing
     maxHelAcreLength = sorted([cluinfo[1] for clu, cluinfo in cluDict.items()], reverse=True)[0]
@@ -862,9 +850,7 @@ try:
         AddMsgAndPrint(f"\t\tHEL Acres:  {str(helAcres)}{firstSpace} .ac -- {str(helPct)} %", textFilePath=textFilePath)
         AddMsgAndPrint(f"\t\tNHEL Acres: {str(nHelAcres)}{secondSpace} .ac -- {str(nHelPct)} %", textFilePath=textFilePath)
         AddMsgAndPrint(f"\t\tHEL Determination: {yesOrNo}\n", textFilePath=textFilePath)
-        del firstSpace, secondSpace, helAcres, helPct, nHelAcres, nHelPct, yesOrNo
 
-    del fieldList, cluDict, maxHelAcreLength, maxNHelAcreLength
 
     # Add output layers to map and symbolize
     SetProgressorLabel('Adding output layers to map...')
@@ -876,9 +862,16 @@ try:
     addLyrxByConnectionProperties(map, lyr_name_list, field_determination_lyrx, helc_gdb)
     cluLayer.setSelectionSet(method='NEW')
 
+    SetProgressorLabel('Cleaning up scratch layers...')
+    AddMsgAndPrint('\nCleaning up scratch layers...')
+    removeScratchLayers(scratchLayers)
+
     AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
 
 except NoProcesingExit:
+    SetProgressorLabel('Cleaning up scratch layers...')
+    AddMsgAndPrint('\nCleaning up scratch layers...')
+    removeScratchLayers(scratchLayers)
     AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
 
 except:
@@ -886,7 +879,3 @@ except:
         AddMsgAndPrint(errorMsg('HEL Determination'), 2, textFilePath)
     except FileNotFoundError:
         AddMsgAndPrint(errorMsg('HEL Determination'), 2)
-
-finally:
-    SetProgressorLabel('Cleaning up scratch layers...')
-    removeScratchLayers(scratchLayers)
