@@ -146,7 +146,7 @@ try:
         admin_data['zip'] = row[20] if row[20] else ''
 except:
     AddMsgAndPrint('\nFailed while retrieving Admin Table data. Exiting...', 2, textFilePath)
-    AddMsgAndPrint(errorMsg(), 2, textFilePath)
+    AddMsgAndPrint(errorMsg('Create Form, Letter, Report'), 2, textFilePath)
     exit()
 
 
@@ -169,7 +169,7 @@ try:
         nrcs_address['fax'] = row[6] if row[6] else ''
 except:
     AddMsgAndPrint('\nFailed while retrieving NRCS Address Table data.\nYou may need to run tool F.Import Office Addresses and then try this tool again. Exiting...', 2, textFilePath)
-    AddMsgAndPrint(errorMsg(), 2, textFilePath)
+    AddMsgAndPrint(errorMsg('Create Form, Letter, Report'), 2, textFilePath)
     exit()
 
 
@@ -193,7 +193,7 @@ try:
         fsa_address['county'] = row[7] if row[7] else ''
 except:
     AddMsgAndPrint('\nFailed while retrieving FSA Address Table data.\nYou may need to run tool F.Import Office Addresses and then try this tool again. Exiting...', 2, textFilePath)
-    AddMsgAndPrint(errorMsg(), 2, textFilePath)
+    AddMsgAndPrint(errorMsg('Create Form, Letter, Report'), 2, textFilePath)
     exit()
 
 
@@ -218,7 +218,7 @@ try:
         nad_address['fax'] = row[9] if row[9] else ''
 except:
     AddMsgAndPrint('\nFailed while retrieving NAD Address Table data.\nYou may need to run tool F.Import Office Addresses and then try this tool again. Exiting...', 2, textFilePath)
-    AddMsgAndPrint(errorMsg(), 2, textFilePath)
+    AddMsgAndPrint(errorMsg('Create Form, Letter, Report'), 2, textFilePath)
     exit()
 
 
@@ -242,7 +242,7 @@ except PermissionError:
     exit()
 except:
     AddMsgAndPrint('\nFailed to create HELC_Letter.docx. Exiting...', 2, textFilePath)
-    AddMsgAndPrint(errorMsg(), 2, textFilePath)
+    AddMsgAndPrint(errorMsg('Create Form, Letter, Report'), 2, textFilePath)
     exit()
 
 
@@ -255,7 +255,7 @@ try:
     AddMsgAndPrint('\nAdded CLU integer field and created sorted table...', textFilePath=textFilePath)
 except:
     AddMsgAndPrint('\nFailed to create sorted table by CLU. Exiting...', 2, textFilePath)
-    AddMsgAndPrint(errorMsg(), 2, textFilePath)
+    AddMsgAndPrint(errorMsg('Create Form, Letter, Report'), 2, textFilePath)
     exit()
 
 
@@ -275,51 +275,63 @@ if consolidate_by_clu:
         where_clause = """{0}='NHEL' and {1}='No'""".format(AddFieldDelimiters(site_gdb, 'HEL_YES'), AddFieldDelimiters(site_gdb, 'sodbust'))
         MakeFeatureLayer(field_det_sorted_lyr_path, 'table1_lyr', where_clause)
         Statistics('table1_lyr', table_NHEL_No, stats_fields, case_fields, ', ')
-        with SearchCursor(table_NHEL_No, ['CONCATENATE_clu_number', 'SUM_clu_calculated_acreage']) as cursor:
-            row = cursor.next()
-            row_data = {}
-            row_data['clu'] = row[0]
-            row_data['hel'] = 'NHEL'
-            row_data['sodbust'] = 'No'
-            row_data['acres'] = f'{row[1]:.2f}'
-            consolidated_table_data.append(row_data)
+        try:
+            with SearchCursor(table_NHEL_No, ['CONCATENATE_clu_number', 'SUM_clu_calculated_acreage']) as cursor:
+                row = cursor.next()
+                row_data = {}
+                row_data['clu'] = row[0]
+                row_data['hel'] = 'NHEL'
+                row_data['sodbust'] = 'No'
+                row_data['acres'] = f'{row[1]:.2f}'
+                consolidated_table_data.append(row_data)
+        except StopIteration:
+            pass
 
         # Table 2: NHEL/Yes
         where_clause = """{0}='NHEL' and {1}='Yes'""".format(AddFieldDelimiters(site_gdb, 'HEL_YES'), AddFieldDelimiters(site_gdb, 'sodbust'))
         MakeFeatureLayer(field_det_sorted_lyr_path, 'table2_lyr', where_clause)
         Statistics('table2_lyr', table_NHEL_Yes, stats_fields, case_fields, ', ')
-        with SearchCursor(table_NHEL_Yes, ['CONCATENATE_clu_number', 'SUM_clu_calculated_acreage']) as cursor:
-            row = cursor.next()
-            row_data = {}
-            row_data['clu'] = row[0]
-            row_data['hel'] = 'NHEL'
-            row_data['sodbust'] = 'Yes'
-            row_data['acres'] = f'{row[1]:.2f}'
-            consolidated_table_data.append(row_data)
+        try:
+            with SearchCursor(table_NHEL_Yes, ['CONCATENATE_clu_number', 'SUM_clu_calculated_acreage']) as cursor:
+                row = cursor.next()
+                row_data = {}
+                row_data['clu'] = row[0]
+                row_data['hel'] = 'NHEL'
+                row_data['sodbust'] = 'Yes'
+                row_data['acres'] = f'{row[1]:.2f}'
+                consolidated_table_data.append(row_data)
+        except StopIteration:
+            pass
 
         # Table 3: HEL/No
         where_clause = """{0}='HEL' and {1}='No'""".format(AddFieldDelimiters(site_gdb, 'HEL_YES'), AddFieldDelimiters(site_gdb, 'sodbust'))
         MakeFeatureLayer(field_det_sorted_lyr_path, 'table3_lyr', where_clause)
         Statistics('table3_lyr', table_HEL_No, stats_fields, case_fields, ', ')
-        with SearchCursor(table_HEL_No, ['CONCATENATE_clu_number', 'SUM_clu_calculated_acreage']) as cursor:
-            row = cursor.next()
-            row_data = {}
-            row_data['clu'] = row[0]
-            row_data['hel'] = 'HEL'
-            row_data['sodbust'] = 'No'
-            row_data['acres'] = f'{row[1]:.2f}'
-            consolidated_table_data.append(row_data)
-
-        # Append HEL/Yes as separate records
-        where_clause = """{0}='HEL' and {1}='Yes'""".format(AddFieldDelimiters(site_gdb, 'HEL_YES'), AddFieldDelimiters(site_gdb, 'sodbust'))
-        with SearchCursor(field_det_sorted_lyr_path, ['clu_number', 'clu_calculated_acreage'], where_clause) as cursor:
-            for row in cursor:
+        try:
+            with SearchCursor(table_HEL_No, ['CONCATENATE_clu_number', 'SUM_clu_calculated_acreage']) as cursor:
+                row = cursor.next()
                 row_data = {}
                 row_data['clu'] = row[0]
                 row_data['hel'] = 'HEL'
-                row_data['sodbust'] = 'Yes'
+                row_data['sodbust'] = 'No'
                 row_data['acres'] = f'{row[1]:.2f}'
                 consolidated_table_data.append(row_data)
+        except StopIteration:
+            pass
+
+        # Append HEL/Yes as separate records
+        where_clause = """{0}='HEL' and {1}='Yes'""".format(AddFieldDelimiters(site_gdb, 'HEL_YES'), AddFieldDelimiters(site_gdb, 'sodbust'))
+        try:
+            with SearchCursor(field_det_sorted_lyr_path, ['clu_number', 'clu_calculated_acreage'], where_clause) as cursor:
+                for row in cursor:
+                    row_data = {}
+                    row_data['clu'] = row[0]
+                    row_data['hel'] = 'HEL'
+                    row_data['sodbust'] = 'Yes'
+                    row_data['acres'] = f'{row[1]:.2f}'
+                    consolidated_table_data.append(row_data)
+        except StopIteration:
+            pass
 
         # Delete Statistics Tables
         for table in stats_tables:
@@ -330,7 +342,7 @@ if consolidate_by_clu:
         AddMsgAndPrint('\nConsolidated determination data by CLU...', textFilePath=textFilePath)
     except:
         AddMsgAndPrint('\nFailed to consolidate determination data by CLU. Exiting...', 2, textFilePath)
-        AddMsgAndPrint(errorMsg(), 2, textFilePath)
+        AddMsgAndPrint(errorMsg('Create Form, Letter, Report'), 2, textFilePath)
         exit()
 
 
@@ -349,7 +361,7 @@ else:
                 data_026.append(row_data)
     except:
         AddMsgAndPrint('\nFailed while retrieving CLU Determination table data. Exiting...', 2, textFilePath)
-        AddMsgAndPrint(errorMsg(), 2, textFilePath)
+        AddMsgAndPrint(errorMsg('Create Form, Letter, Report'), 2, textFilePath)
         exit()
 
 
@@ -373,7 +385,7 @@ except PermissionError:
     exit()
 except:
     AddMsgAndPrint('\nFailed to create pages 1 and 2 of NRCS-CPA-026-HELC-Form.docx. Exiting...', 2, textFilePath)
-    AddMsgAndPrint(errorMsg(), 2, textFilePath)
+    AddMsgAndPrint(errorMsg('Create Form, Letter, Report'), 2, textFilePath)
     exit()
 
 
@@ -387,7 +399,7 @@ try:
     AddMsgAndPrint('\nCreated Final HEL Summary Statistics table...', textFilePath=textFilePath)
 except:
     AddMsgAndPrint('\nFailed to create Final HEL Summary Statistics table. Exiting...', 2, textFilePath)
-    AddMsgAndPrint(errorMsg(), 2, textFilePath)
+    AddMsgAndPrint(errorMsg('Create Form, Letter, Report'), 2, textFilePath)
     exit()
 
 
@@ -398,7 +410,7 @@ try:
     AddMsgAndPrint('\nCalculated percentage of field in Final HEL Summary Statistics table...', textFilePath=textFilePath)
 except:
     AddMsgAndPrint('\nFailed to add field and calculate percentage in Final HEL Summary Statistics table. Exiting...', 2, textFilePath)
-    AddMsgAndPrint(errorMsg(), 2, textFilePath)
+    AddMsgAndPrint(errorMsg('Create Form, Letter, Report'), 2, textFilePath)
     exit()
 
 
@@ -434,7 +446,7 @@ except PermissionError:
     exit()
 except:
     AddMsgAndPrint('\nFailed to create Planner_Summary.docx. Exiting...', 2, textFilePath)
-    AddMsgAndPrint(errorMsg(), 2, textFilePath)
+    AddMsgAndPrint(errorMsg('Create Form, Letter, Report'), 2, textFilePath)
     exit()
 
 
@@ -489,4 +501,4 @@ try:
     startfile(planner_summary_output)
 except:
     AddMsgAndPrint('\nFailed to open finished forms in Microsoft Word. End of script.', 1, textFilePath)
-    AddMsgAndPrint(errorMsg(), 1, textFilePath)
+    AddMsgAndPrint(errorMsg('Create Form, Letter, Report'), 1, textFilePath)
