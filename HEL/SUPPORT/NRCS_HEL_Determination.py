@@ -862,20 +862,17 @@ try:
     addLyrxByConnectionProperties(map, lyr_name_list, field_determination_lyrx, helc_gdb)
     cluLayer.setSelectionSet(method='NEW')
 
-    SetProgressorLabel('Cleaning up scratch layers...')
-    AddMsgAndPrint('\nCleaning up scratch layers...')
-    removeScratchLayers(scratchLayers)
-
-    AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
 
 except NoProcesingExit:
-    SetProgressorLabel('Cleaning up scratch layers...')
-    AddMsgAndPrint('\nCleaning up scratch layers...')
-    removeScratchLayers(scratchLayers)
-    AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
+    pass
 
 except:
     try:
         AddMsgAndPrint(errorMsg('HEL Determination'), 2, textFilePath)
     except FileNotFoundError:
         AddMsgAndPrint(errorMsg('HEL Determination'), 2)
+
+finally:
+    SetProgressorLabel('Cleaning up scratch layers...')
+    AddMsgAndPrint('\nCleaning up scratch layers...')
+    removeScratchLayers(scratchLayers)
