@@ -2,13 +2,13 @@ from os import path
 
 from arcpy import CreateScratchName, Describe, env, SetProgressorLabel, SpatialReference
 from arcpy.analysis import Buffer
-from arcpy.management import Clip as Clip_m, Delete, ProjectRaster
+from arcpy.management import Clip, Delete, ProjectRaster
 
 from hel_utils import AddMsgAndPrint, errorMsg
 
 
 def extractDEMfromImageService(demSource, fieldDetermination, scratchWS, cluLayer, zFactorList, unitLookUpDict, zUnits):
-    """ This function will extract a DEM from a Web Image Service that is in WGS. The CLU will be buffered to 410 meters
+    """ This function will extract a DEM from a Web Image Service that is in WGS. The CLU will be buffered to 500 Feet
         and set to WGS84 GCS in order to clip the DEM. The clipped DEM will then be projected to the same coordinate system as the CLU.
         Eventually code will be added to determine the approximate cell size  of the image service using y-distances from the center of the cells.
         Cell size from a WGS84 service is difficult to calculate. Clip is the fastest however it doesn't honor cellsize so a project is required.
@@ -27,9 +27,9 @@ def extractDEMfromImageService(demSource, fieldDetermination, scratchWS, cluLaye
         env.geographicTransformations = 'WGS_1984_(ITRF00)_To_NAD_1983'
         env.outputCoordinateSystem = SpatialReference(4326)
 
-        # Buffer CLU by 410 Meters. Output buffer will be in GCS
+        # Buffer CLU by 500 Feet. Output buffer will be in GCS
         cluBuffer = path.join('in_memory', path.basename(CreateScratchName('cluBuffer_GCS', data_type='FeatureClass', workspace=scratchWS)))
-        Buffer(fieldDetermination, cluBuffer, '410 Meters', 'FULL', '', 'ALL', '')
+        Buffer(fieldDetermination, cluBuffer, '500 Feet', 'FULL', '', 'ALL', '')
 
         # Use the WGS 1984 AOI to clip/extract the DEM from the service
         cluExtent = Describe(cluBuffer).extent
@@ -39,7 +39,7 @@ def extractDEMfromImageService(demSource, fieldDetermination, scratchWS, cluLaye
         AddMsgAndPrint(f"\n\tDownloading DEM from {desc.baseName} Image Service")
 
         demClip = path.join('in_memory', path.basename(CreateScratchName('demClipIS', data_type='RasterDataset', workspace=scratchWS)))
-        Clip_m(demSource, clipExtent, demClip, '', '', '', 'NO_MAINTAIN_EXTENT')
+        Clip(demSource, clipExtent, demClip, '', '', '', 'NO_MAINTAIN_EXTENT')
 
         # Project DEM subset from WGS84 to CLU coord system
         outputCS = Describe(cluLayer).SpatialReference
@@ -67,11 +67,11 @@ def extractDEMfromImageService(demSource, fieldDetermination, scratchWS, cluLaye
         return newLinearUnits, newZfactor, demProject
 
     except:
-        AddMsgAndPrint(errorMsg(), 2)
+        AddMsgAndPrint(errorMsg('extract_DEM_by_CLU.py'), 2)
 
 
 def extractDEM(cluLayer, inputDEM, fieldDetermination, scratchWS, zFactorList, unitLookUpDict, zUnits):
-    """ This function will return a DEM that has the same extent as the CLU selected fields buffered to 410 Meters. The DEM can be a local
+    """ This function will return a DEM that has the same extent as the CLU selected fields buffered to 500 Feet. The DEM can be a local
         raster layer or a web image server. Datum must be in WGS84 or NAD83 and linear units must be in Meters or Feet otherwise it will exit.
         If the cell size is finer than 3M then the DEM will be resampled. The resampling will happen using the Project Raster tool regardless
         of an actual coordinate system change. If the cell size is 3M then the DEM will be clipped using the buffered CLU. Environment settings
@@ -154,9 +154,9 @@ def extractDEM(cluLayer, inputDEM, fieldDetermination, scratchWS, zFactorList, u
         AddMsgAndPrint(f"\tZ-Factor: {str(zFactor)}")
 
         # Extract DEM
-        SetProgressorLabel('Buffering AOI by 410 Meters')
+        SetProgressorLabel('Buffering AOI by 500 Feet')
         cluBuffer = path.join('in_memory', path.basename(CreateScratchName('cluBuffer', data_type='FeatureClass', workspace=scratchWS)))
-        Buffer(fieldDetermination, cluBuffer, '410 Meters', 'FULL', 'ROUND')
+        Buffer(fieldDetermination, cluBuffer, '500 Feet', 'FULL', 'ROUND')
         env.extent = cluBuffer
 
         # CLU clip extents
@@ -168,7 +168,7 @@ def extractDEM(cluLayer, inputDEM, fieldDetermination, scratchWS, zFactorList, u
             SetProgressorLabel(f"Changing resolution from {str(cellSize)} {linearUnits} to 3 Meters")
             AddMsgAndPrint(f"\n\tChanging resolution from {str(cellSize)} {linearUnits} to 3 Meters")
             demClip = path.join('in_memory', path.basename(CreateScratchName('demClip_resample', data_type='RasterDataset', workspace=scratchWS)))
-            Clip_m(inputDEM, clipExtent, demClip, '', '', '', 'NO_MAINTAIN_EXTENT')
+            Clip(inputDEM, clipExtent, demClip, '', '', '', 'NO_MAINTAIN_EXTENT')
             demExtract = path.join('in_memory', path.basename(CreateScratchName('demClip_project', data_type='RasterDataset', workspace=scratchWS)))
             ProjectRaster(demClip, demExtract, env.outputCoordinateSystem, env.resamplingMethod, outputCellSize, '#', '#', sr)
             Delete(demClip)
@@ -178,7 +178,7 @@ def extractDEM(cluLayer, inputDEM, fieldDetermination, scratchWS, zFactorList, u
             SetProgressorLabel('Clipping DEM using buffered CLU')
             AddMsgAndPrint('\n\tClipping DEM using buffered CLU')
             demExtract = path.join('in_memory', path.basename(CreateScratchName('demClip', data_type='RasterDataset', workspace=scratchWS)))
-            Clip_m(inputDEM, clipExtent, demExtract, '', '', '', 'NO_MAINTAIN_EXTENT')
+            Clip(inputDEM, clipExtent, demExtract, '', '', '', 'NO_MAINTAIN_EXTENT')
 
         # Report any new DEM properties
         desc = Describe(demExtract)
@@ -198,5 +198,5 @@ def extractDEM(cluLayer, inputDEM, fieldDetermination, scratchWS, zFactorList, u
         return newLinearUnits, newZfactor, demExtract
 
     except:
-        AddMsgAndPrint(errorMsg(), 2)
+        AddMsgAndPrint(errorMsg('extract_DEM_by_CLU.py'), 2)
         return False, False, False
