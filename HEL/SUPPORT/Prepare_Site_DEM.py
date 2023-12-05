@@ -6,7 +6,7 @@ from time import ctime
 from arcpy import CheckExtension, CheckOutExtension, Describe, env, Exists, GetParameterAsText, ListDatasets, \
     SetParameterAsText, SetProgressorLabel
 from arcpy.analysis import Buffer
-from arcpy.management import Clip as Clip_m, Compact, CopyRaster, Delete, MosaicToNewRaster, Project, ProjectRaster
+from arcpy.management import Clip, Compact, CopyRaster, Delete, MosaicToNewRaster, Project, ProjectRaster
 from arcpy.mp import ArcGISProject
 from arcpy.da import Editor
 from arcpy.sa import ExtractByMask, Hillshade
@@ -105,20 +105,12 @@ try:
     wgs_AOI = path.join(scratchGDB, 'AOI_WGS84')
     WGS84_DEM = path.join(scratchGDB, 'WGS84_DEM')
     tempDEM = path.join(scratchGDB, 'tempDEM')
-    tempDEM2 = path.join(scratchGDB, 'tempDEM2')
-    DEMagg = path.join(scratchGDB, 'aggDEM')
-    DEMsmooth = path.join(scratchGDB, 'DEMsmooth')
-    ContoursTemp = path.join(scratchGDB, 'ContoursTemp')
-    extendedContours = path.join(scratchGDB, 'extendedContours')
-    Temp_DEMbase = path.join(scratchGDB, 'Temp_DEMbase')
-    Fill_DEMaoi = path.join(scratchGDB, 'Fill_DEMaoi')
-    FilMinus = path.join(scratchGDB, 'FilMinus')
 
     demOut = 'Site_DEM'
     hillshadeOut = 'Site_Hillshade'
 
     # Temp layers list for cleanup at the start and at the end
-    tempLayers = [wgs_AOI, WGS84_DEM, tempDEM, tempDEM2, DEMagg, DEMsmooth, ContoursTemp, extendedContours, Temp_DEMbase, Fill_DEMaoi, FilMinus]
+    tempLayers = [wgs_AOI, WGS84_DEM, tempDEM]
     AddMsgAndPrint('Deleting Temp layers...')
     SetProgressorLabel('Deleting Temp layers...')
     removeScratchLayers(tempLayers)
@@ -158,15 +150,7 @@ try:
     SetProgressorLabel('Removing layers from project database, if present...')
 
     # Set starting datasets to remove
-    datasetsToRemove = [projectDEM, projectHillshade]
-
-    # Remove the datasets in the list
-    for dataset in datasetsToRemove:
-        if Exists(dataset):
-            try:
-                Delete(dataset)
-            except:
-                pass
+    removeScratchLayers([projectDEM, projectHillshade])
 
 
     #### Process the input DEMs
@@ -192,7 +176,7 @@ try:
             xMax = aoi_ext.XMax
             yMax = aoi_ext.YMax
             clip_ext = f"{str(xMin)} {str(yMin)} {str(xMax)} {str(yMax)}"
-            Clip_m(sourceService, clip_ext, WGS84_DEM, '', '', '', 'NO_MAINTAIN_EXTENT')
+            Clip(sourceService, clip_ext, WGS84_DEM, '', '', '', 'NO_MAINTAIN_EXTENT')
 
             AddMsgAndPrint('\nProjecting downloaded DEM...', textFilePath=textFilePath)
             SetProgressorLabel('Projecting downloaded DEM...')
@@ -238,7 +222,6 @@ try:
                 mosaicInputs = f"{mosaicInputs};{str(outClip)}"
             DEMlist.append(str(outClip))
             x += 1
-            del sr
 
         cellsize = 0
         # Determine largest cell size
@@ -248,7 +231,6 @@ try:
             cellwidth = desc.MeanCellWidth
             if cellwidth > cellsize:
                 cellsize = cellwidth
-            del sr
 
         # Merge the DEMs
         if DEMcount > 1:
@@ -303,7 +285,7 @@ try:
     # Clip out the DEM with extended buffer for temp processing and standard buffer for final DEM display
     AddMsgAndPrint('\nClipping project DEM to buffered extent...', textFilePath=textFilePath)
     SetProgressorLabel('Clipping project DEM to buffered extent...')
-    Clip_m(tempDEM, '', projectDEM, projectAOI, '', 'ClippingGeometry')
+    Clip(tempDEM, '', projectDEM, projectAOI, '', 'ClippingGeometry')
 
 
     #### Create Hillshade and Depth Grid
@@ -350,7 +332,6 @@ try:
             except:
                 pass
     env.workspace = startWorkspace
-    del startWorkspace
 
 
     #### Compact FGDB
@@ -367,4 +348,7 @@ except SystemExit:
     pass
 
 except:
-    errorMsg('Prepare Site DEM')
+    try:
+        AddMsgAndPrint(errorMsg('Prepare Site DEM'), 2, textFilePath)
+    except FileNotFoundError:
+        AddMsgAndPrint(errorMsg('Prepare Site DEM'), 2)
