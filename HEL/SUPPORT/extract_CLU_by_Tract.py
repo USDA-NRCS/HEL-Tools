@@ -52,7 +52,7 @@ def getPortalTokenInfo(portalURL):
                 return tokenInfo
 
     except:
-        AddMsgAndPrint(errorMsg(), 2)
+        AddMsgAndPrint(errorMsg('extract_CLU_by_Tract.py'), 2)
         return False
 
 
@@ -134,7 +134,7 @@ def submitFSquery(url, INparams):
             AddMsgAndPrint(f"HTTP ERROR = {str(e.code)}", 2)
 
     except:
-        AddMsgAndPrint(errorMsg(), 2)
+        AddMsgAndPrint(errorMsg('extract_CLU_by_Tract.py'), 2)
         return False
 
 
@@ -235,7 +235,7 @@ def createOutputFC(metadata, outputWS, shape='POLYGON'):
 
     except:
         AddMsgAndPrint(f"\tFailed to create scratch {newFC} Feature Class", 2)
-        AddMsgAndPrint(errorMsg(), 2)
+        AddMsgAndPrint(errorMsg('extract_CLU_by_Tract.py'), 2)
         return False
 
 
@@ -312,7 +312,7 @@ def getCLUgeometryByTractQuery(sqlQuery, fc, RESTurl):
         try: del cur
         except: pass
 
-        AddMsgAndPrint(errorMsg(), 2)
+        AddMsgAndPrint(errorMsg('extract_CLU_by_Tract.py'), 2)
         return False
 
 
@@ -479,4 +479,4 @@ def start(state, county, trctNmbr, outSR, outWS, addCLUtoSoftware=False):
             return cluFC
 
     except:
-        AddMsgAndPrint(errorMsg(), 2)
+        AddMsgAndPrint(errorMsg('extract_CLU_by_Tract.py'), 2)
