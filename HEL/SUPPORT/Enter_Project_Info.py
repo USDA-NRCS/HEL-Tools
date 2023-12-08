@@ -194,5 +194,5 @@ except SystemExit:
 except:
     try:
         AddMsgAndPrint(errorMsg('Enter Project Info'), 2, textFilePath)
-    except FileNotFoundError:
+    except:
         AddMsgAndPrint(errorMsg('Enter Project Info'), 2)

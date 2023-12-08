@@ -390,5 +390,5 @@ except SystemExit:
 except:
     try:
         AddMsgAndPrint(errorMsg('Export HEL Determination Map'), 2, textFilePath)
-    except FileNotFoundError:
+    except:
         AddMsgAndPrint(errorMsg('Export HEL Determination Map'), 2)

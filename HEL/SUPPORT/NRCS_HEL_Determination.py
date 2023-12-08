@@ -868,7 +868,7 @@ except NoProcesingExit:
 except:
     try:
         AddMsgAndPrint(errorMsg('HEL Determination'), 2, textFilePath)
-    except FileNotFoundError:
+    except:
         AddMsgAndPrint(errorMsg('HEL Determination'), 2)
 
 finally:

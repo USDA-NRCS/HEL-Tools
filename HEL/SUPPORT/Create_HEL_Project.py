@@ -405,5 +405,5 @@ except SystemExit:
 except:
     try:
         AddMsgAndPrint(errorMsg('Create HEL Project'), 2, textFilePath)
-    except FileNotFoundError:
+    except:
         AddMsgAndPrint(errorMsg('Create HEL Project'), 2)

@@ -350,5 +350,5 @@ except SystemExit:
 except:
     try:
         AddMsgAndPrint(errorMsg('Prepare Site DEM'), 2, textFilePath)
-    except FileNotFoundError:
+    except:
         AddMsgAndPrint(errorMsg('Prepare Site DEM'), 2)
