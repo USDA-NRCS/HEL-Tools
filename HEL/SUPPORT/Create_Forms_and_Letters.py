@@ -21,7 +21,6 @@ from python_packages.docxcompose.composer import Composer
 from python_packages.docxtpl import DocxTemplate
 
 
-textFilePath = ''
 def logBasicSettings(textFilePath, hel_map_units, where_completed, nrcs_office, fsa_county, fsa_office, consolidate_by_clu):
     with open(textFilePath, 'a+') as f:
         f.write('\n######################################################################\n')

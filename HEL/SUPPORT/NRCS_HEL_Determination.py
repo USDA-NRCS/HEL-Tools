@@ -27,7 +27,6 @@ class NoProcesingExit(Exception):
     pass
 
 
-textFilePath = ''
 def logBasicSettings(textFilePath, helLayer, inputDEM, zUnits, use_runoff_ls):
     with open(textFilePath, 'a+') as f:
         f.write('\n######################################################################\n')

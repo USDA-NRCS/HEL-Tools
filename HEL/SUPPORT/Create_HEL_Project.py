@@ -20,7 +20,6 @@ from extract_CLU_by_Tract import getPortalTokenInfo, start
 from hel_utils import addLyrxByConnectionProperties, AddMsgAndPrint, errorMsg
 
 
-textFilePath = ''
 def logBasicSettings(textFilePath, projectType, sourceState, sourceCounty, tractNumber, owFlag):
     with open(textFilePath, 'a+') as f:
         f.write('\n######################################################################\n')
