@@ -20,7 +20,7 @@ from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, Fo
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
 from extract_DEM_by_CLU import extractDEM
-from hel_utils import addLyrxByConnectionProperties, AddMsgAndPrint, errorMsg, removeScratchLayers
+from hel_utils import addLyrxByConnectionProperties, AddMsgAndPrint, deleteScratchLayers, errorMsg
 
 
 class NoProcesingExit(Exception):
@@ -97,7 +97,7 @@ if not Exists(scratch_gdb):
     CreateFileGDB(base_dir, 'scratch.gdb')
 
 output_layers = [fieldDetermination, helSummary, lidarHEL, finalHELSummary]
-removeScratchLayers(output_layers)
+deleteScratchLayers(output_layers)
 
 
 ### ESRI Environment Settings ###
@@ -875,4 +875,4 @@ except:
 finally:
     SetProgressorLabel('Cleaning up scratch layers...')
     AddMsgAndPrint('\nCleaning up scratch layers...')
-    removeScratchLayers(scratchLayers)
+    deleteScratchLayers(scratchLayers)

@@ -11,7 +11,7 @@ from arcpy.mp import ArcGISProject
 from arcpy.da import Editor
 from arcpy.sa import ExtractByMask, Hillshade
 
-from hel_utils import AddMsgAndPrint, errorMsg, removeScratchLayers
+from hel_utils import AddMsgAndPrint, deleteScratchLayers, errorMsg
 
 
 def logBasicSettings(textFilePath, userWorkspace, inputDEMs, zUnits):
@@ -113,7 +113,7 @@ try:
     tempLayers = [wgs_AOI, WGS84_DEM, tempDEM]
     AddMsgAndPrint('Deleting Temp layers...')
     SetProgressorLabel('Deleting Temp layers...')
-    removeScratchLayers(tempLayers)
+    deleteScratchLayers(tempLayers)
 
 
     #### Set up log file path and start logging
@@ -150,7 +150,7 @@ try:
     SetProgressorLabel('Removing layers from project database, if present...')
 
     # Set starting datasets to remove
-    removeScratchLayers([projectDEM, projectHillshade])
+    deleteScratchLayers([projectDEM, projectHillshade])
 
 
     #### Process the input DEMs
@@ -308,7 +308,7 @@ try:
     #### Delete temp data
     AddMsgAndPrint('\nDeleting temp data...', textFilePath=textFilePath)
     SetProgressorLabel('Deleting temp data...')
-    removeScratchLayers(tempLayers)
+    deleteScratchLayers(tempLayers)
 
 
     #### Add layers to Pro Map

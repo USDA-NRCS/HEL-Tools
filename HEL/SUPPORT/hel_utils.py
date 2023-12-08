@@ -33,6 +33,15 @@ def AddMsgAndPrint(msg, severity=0, textFilePath=None):
         AddError(msg)
 
 
+def deleteScratchLayers(scratchLayers):
+    ''' Delete layers in a given list.'''
+    for lyr in scratchLayers:
+        try:
+            Delete(lyr)
+        except:
+            continue
+
+
 def errorMsg(tool_name):
     ''' Return exception details for logging, ignore sys.exit exceptions.'''
     exc_type, exc_value, exc_traceback = exc_info()
@@ -41,12 +50,3 @@ def errorMsg(tool_name):
         pass
     else:
         return f"\n\t------------------------- {tool_name} Tool Error -------------------------\n{exc_message}"
-
-
-def removeScratchLayers(scratchLayers):
-    ''' Delete layers in a given list.'''
-    for lyr in scratchLayers:
-        try:
-            Delete(lyr)
-        except:
-            continue
