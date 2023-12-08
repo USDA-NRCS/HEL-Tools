@@ -90,12 +90,10 @@ try:
     basedataFD = path.join(basedataGDB_path, basedataFD_name)
     userWorkspace = path.dirname(basedataGDB_path)
     projectName = path.basename(userWorkspace).replace(' ', '_')
-    wetDir = path.join(userWorkspace, 'Wetlands')
 
     projectTract = path.join(basedataFD, 'Site_Tract')
     projectAOI = path.join(basedataFD, 'Site_AOI')
     projectAOI_B = path.join(basedataFD, 'project_AOI_B')
-    projectExtent = path.join(basedataFD, 'Request_Extent')
     bufferDist = '500 Feet'
     bufferDistPlus = '550 Feet'
 
