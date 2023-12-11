@@ -281,9 +281,9 @@ try:
         exit()
 
     # Clip out the DEM with extended buffer for temp processing and standard buffer for final DEM display
-    AddMsgAndPrint('\nClipping project DEM to buffered extent...', textFilePath=textFilePath)
-    SetProgressorLabel('Clipping project DEM to buffered extent...')
-    Clip(tempDEM, '', projectDEM, projectAOI, '', 'ClippingGeometry')
+    AddMsgAndPrint('\nCopying out final DEM...', textFilePath=textFilePath)
+    SetProgressorLabel('Copying out final DEM...')
+    CopyRaster(tempDEM, projectDEM)
 
 
     #### Create Hillshade and Depth Grid
