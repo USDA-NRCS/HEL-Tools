@@ -8,4 +8,5 @@ venv/
 .backups/
 .vscode/
 *.lock
+.pyHistory
 test.py
