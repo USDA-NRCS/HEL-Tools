@@ -441,7 +441,7 @@ try:
                 row[3] = pct
                 cursor.updateRow(row)
 
-        # Add output layers to map and gracefully exit script
+        # Add output layers to map and clear Site Prepare selection
         SetProgressorLabel('Adding output layers to map...')
         AddMsgAndPrint('\nAdding output layers to map...', textFilePath=textFilePath)
         lyr_name_list = [lyr.longName for lyr in map.listLayers()]
@@ -450,7 +450,9 @@ try:
         addLyrxByConnectionProperties(map, lyr_name_list, final_hel_summary_lyrx, helc_gdb, visible=False)
         addLyrxByConnectionProperties(map, lyr_name_list, field_determination_lyrx, helc_gdb)
         cluLayer.setSelectionSet(method='NEW')
+        map.listLayers('Site_Prepare_HELC')[0].visible = False
         
+        # Gracefully exit script when no geoprocessing is required
         raise(NoProcesingExit)
 
 
@@ -862,6 +864,7 @@ try:
     addLyrxByConnectionProperties(map, lyr_name_list, final_hel_summary_lyrx, helc_gdb, visible=False)
     addLyrxByConnectionProperties(map, lyr_name_list, field_determination_lyrx, helc_gdb)
     cluLayer.setSelectionSet(method='NEW')
+    map.listLayers('Site_Prepare_HELC')[0].visible = False
 
 
 except NoProcesingExit:
