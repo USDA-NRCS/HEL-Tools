@@ -13,6 +13,7 @@
       "sourceModifiedTime" : {
         "type" : "TimeInstant"
       },
+      "metadataURI" : "CIMPATH=Metadata/05901e9de549c86bc70b7526435ab779.xml",
       "useSourceMetadata" : true,
       "description" : "Final_HEL_Summary",
       "layerElevation" : {
@@ -22,7 +23,7 @@
       "expanded" : true,
       "layerType" : "Operational",
       "showLegends" : true,
-      "visibility" : true,
+      "visibility" : false,
       "displayCacheType" : "Permanent",
       "maxDisplayCacheAge" : 5,
       "showPopups" : true,
@@ -235,11 +236,10 @@
           "timeIntervalUnits" : "esriTimeUnitsHours",
           "timeOffsetUnits" : "esriTimeUnitsYears"
         },
-        "selectionSetURI" : "CIMPATH=ObjectIdentifierSet/8a778361987d9273fe86c3fef03d357e.dat",
         "dataConnection" : {
           "type" : "CIMFeatureDatasetDataConnection",
           "featureDataset" : "HELC_Data",
-          "workspaceConnectionString" : "DATABASE=..\\..\\..\\..\\..\\..\\..\\..\\Determinations\\in091_t0012564_2023_08\\HEL\\in091_t0012564_2023_08_HELC.gdb",
+          "workspaceConnectionString" : "DATABASE=..\\..\\..\\..\\..\\..\\..\\..\\Determinations\\in091_t0000812_2023_12\\HEL\\in091_t0000812_2023_12_HELC.gdb",
           "workspaceFactory" : "FileGDB",
           "dataset" : "Final_HEL_Summary",
           "datasetType" : "esriDTFeatureClass"
@@ -750,8 +750,8 @@
   "binaryReferences" : [
     {
       "type" : "CIMBinaryReference",
-      "uRI" : "CIMPATH=ObjectIdentifierSet/8a778361987d9273fe86c3fef03d357e.dat",
-      "data" : "CgMKAQE="
+      "uRI" : "CIMPATH=Metadata/05901e9de549c86bc70b7526435ab779.xml",
+      "data" : "<?xml version=\"1.0\"?>\r\n<metadata xml:lang=\"en\"><Esri><CreaDate>20231211</CreaDate><CreaTime>11253800</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce></Esri><dataIdInfo><idCitation><resTitle>Final_HEL_Summary</resTitle></idCitation><idAbs>Final_HEL_Summary</idAbs><idCredit></idCredit><idPurp></idPurp><resConst><Consts><useLimit></useLimit></Consts></resConst></dataIdInfo></metadata>\r\n"
     }
   ],
   "rGBColorProfile" : "sRGB IEC61966-2.1",
