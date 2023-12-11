@@ -282,7 +282,7 @@
         "dataConnection" : {
           "type" : "CIMFeatureDatasetDataConnection",
           "featureDataset" : "HELC_Data",
-          "workspaceConnectionString" : "DATABASE=..\\..\\..\\..\\..\\..\\..\\..\\Determinations\\in091_t0000813_2023_11\\HEL\\in091_t0000813_2023_11_HELC.gdb",
+          "workspaceConnectionString" : "DATABASE=..\\..\\..\\..\\Determinations\\in091_t0012564_2023_12\\HEL\\in091_t0012564_2023_12_HELC.gdb",
           "workspaceFactory" : "FileGDB",
           "dataset" : "Field_Determination",
           "datasetType" : "esriDTFeatureClass"
@@ -455,6 +455,33 @@
             "symbol" : {
               "type" : "CIMTextSymbol",
               "blockProgression" : "TTB",
+              "callout" : {
+                "type" : "CIMSimpleLineCallout",
+                "lineSymbol" : {
+                  "type" : "CIMLineSymbol",
+                  "symbolLayers" : [
+                    {
+                      "type" : "CIMSolidStroke",
+                      "enable" : true,
+                      "capStyle" : "Round",
+                      "joinStyle" : "Round",
+                      "lineStyle3D" : "Strip",
+                      "miterLimit" : 4,
+                      "width" : 0.5,
+                      "color" : {
+                        "type" : "CIMRGBColor",
+                        "values" : [
+                          255,
+                          255,
+                          255,
+                          100
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "autoSnap" : true
+              },
               "compatibilityMode" : true,
               "depth3D" : 1,
               "drawSoftHyphen" : true,
@@ -519,6 +546,13 @@
                   }
                 ],
                 "angleAlignment" : "Map"
+              },
+              "symbol3DProperties" : {
+                "type" : "CIM3DSymbolProperties",
+                "dominantSizeAxis3D" : "Z",
+                "rotationOrder3D" : "YXZ",
+                "scaleZ" : 1,
+                "scaleY" : 1
               },
               "textCase" : "Normal",
               "textDirection" : "LTR",
