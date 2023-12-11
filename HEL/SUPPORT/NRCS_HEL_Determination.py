@@ -4,18 +4,14 @@ from os import path
 from sys import exit
 from time import ctime
 
-from arcpy import CreateScratchName, Describe, env, Exists, GetParameter, GetParameterAsText, ListFields, \
-    Reclassify_3d, SetProgressorLabel
-
-from arcpy.analysis import Clip as Clip_a, Intersect, Statistics
+from arcpy import CheckExtension, CheckOutExtension, CreateScratchName, Describe, env, Exists, GetParameter, \
+    GetParameterAsText, ListFields, Reclassify_3d, SetProgressorLabel
+from arcpy.analysis import Clip, Intersect, Statistics
 from arcpy.conversion import FeatureToRaster, RasterToPolygon
 from arcpy.da import SearchCursor, UpdateCursor
-
 from arcpy.management import AddField, CalculateField, CopyFeatures, CreateFileGDB, Delete, DeleteField, \
     Dissolve, JoinField, MultipartToSinglepart, PivotTable
-
 from arcpy.mp import ArcGISProject, LayerFile
-
 from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, FocalStatistics, IsNull, NbrRectangle, \
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
@@ -46,6 +42,12 @@ try:
     map = aprx.listMaps('HEL Determination')[0]
 except:
     AddMsgAndPrint('This tool must be run from an ArcGIS Pro project that was developed from the template distributed with this toolbox. Exiting!', 2)
+    exit()
+
+if CheckExtension('Spatial') == 'Available':
+    CheckOutExtension('Spatial')
+else:
+    AddMsgAndPrint('Spatial Analyst Extension not enabled. Please enable Spatial Analyst from Project, Licensing, Configure licensing options. Exiting...', 2)
     exit()
 
 
@@ -489,7 +491,7 @@ try:
     Delete(demNull)
 
     # Clip the IsNull vector layer by the field determination layer
-    Clip_a(vectorNull, fieldDetermination, demCheck)
+    Clip(vectorNull, fieldDetermination, demCheck)
     scratchLayers.append(demCheck)
 
     # Search for any values of 1 in the demCheck layer and issue a warning to the user if present
