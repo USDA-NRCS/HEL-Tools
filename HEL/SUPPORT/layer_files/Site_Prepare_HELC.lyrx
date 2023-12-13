@@ -36,7 +36,7 @@
       "featureElevationExpression" : "0",
       "featureTable" : {
         "type" : "CIMFeatureTable",
-        "displayField" : "admin_state_name",
+        "displayField" : "clu_number",
         "editable" : true,
         "fieldDescriptions" : [
           {
