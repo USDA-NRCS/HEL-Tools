@@ -13,7 +13,7 @@ from arcpy.mp import ArcGISProject
 from hel_utils import AddMsgAndPrint, errorMsg
 
 
-def logBasicSettings(textFilePath, zoom_type, imagery, show_location, overwrite_layout):
+def logBasicSettings(textFilePath, zoom_type, imagery, show_location, plss_method, overwrite_layout):
     with open(textFilePath, 'a+') as f:
         f.write('\n######################################################################\n')
         f.write('Executing Tool: Export HEL Determination Map\n')
@@ -24,6 +24,7 @@ def logBasicSettings(textFilePath, zoom_type, imagery, show_location, overwrite_
         f.write(f"\tImagery Layer: {imagery}\n")
         if show_location:
             f.write('\tShow PLSS Location Text Box: True\n')
+            f.write(f"\tMethod to include PLSS information: {plss_method}\n")
         else:
             f.write('\tShow PLSS Location Text Box: False\n')
         if overwrite_layout:
@@ -149,8 +150,9 @@ field_determination_lyr = GetParameterAsText(0)
 imagery = GetParameterAsText(1)
 zoom_type = GetParameterAsText(2)
 show_location = GetParameter(3)
-plss_point = GetParameterAsText(4)
-overwrite_layout = GetParameter(5)
+plss_method = GetParameterAsText(4)
+plss_point = GetParameterAsText(5)
+overwrite_layout = GetParameter(6)
 
 if '\\' in imagery:
     imagery = imagery.split('\\')[-1]
@@ -182,7 +184,7 @@ if edit.isEditing:
     exit()
 
 # Start logging to text file
-logBasicSettings(textFilePath, zoom_type, imagery, show_location, overwrite_layout)
+logBasicSettings(textFilePath, zoom_type, imagery, show_location, plss_method, overwrite_layout)
 
 ### Main Procedure ###
 try:
@@ -223,7 +225,7 @@ try:
     display_dm_location = False
     dm_plss_text = ''
         
-    if show_location:
+    if show_location and plss_method == 'Digitize a Point':
         AddMsgAndPrint('\nShow location selected for Determination Map. Processing reference location...', textFilePath=textFilePath)
         SetProgressorLabel('Retrieving PLSS Location...')
         dm_plss_text = getPLSS(plss_point)
@@ -233,8 +235,8 @@ try:
                
     # If any part of the PLSS query failed, or if show location was not enabled, then do not show the Location text box
     if display_dm_location == False:
-        AddMsgAndPrint('\nEither the Show Location parameter was not enabled or the PLSS query failed...', 1, textFilePath)
-        AddMsgAndPrint('\nTown, Range, Section text box will not be shown on the Determination Map...', 1, textFilePath)
+        AddMsgAndPrint('\nEither the Show Location parameter was not enabled or the PLSS query failed...', textFilePath=textFilePath)
+        AddMsgAndPrint('\nTown, Range, Section text box will not be shown on the Determination Map...', textFilePath=textFilePath)
             
 
     ### Gather Data for Header from Project Table ###
@@ -276,6 +278,9 @@ try:
 
     if dm_plss_text != '' and display_dm_location:
         location_element.text = dm_plss_text
+        location_element.visible = True
+    elif plss_method == 'Manual Entry':
+        AddMsgAndPrint('\nThe Location text box will be included in the map for manual PLSS entry...', textFilePath=textFilePath)
         location_element.visible = True
     else:
         location_element.visible = False
