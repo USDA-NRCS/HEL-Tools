@@ -24,7 +24,7 @@ from python_packages.docxtpl import DocxTemplate
 def logBasicSettings(textFilePath, hel_map_units, where_completed, nrcs_office, fsa_county, fsa_office, consolidate_by_clu):
     with open(textFilePath, 'a+') as f:
         f.write('\n######################################################################\n')
-        f.write('Executing Tool: Create Forms and Letters\n')
+        f.write('Executing Tool: Create Form, Letter, Report\n')
         f.write(f"User Name: {getuser()}\n")
         f.write(f"Date Executed: {ctime()}\n")
         f.write('User Parameters:\n')

@@ -384,7 +384,7 @@ try:
     try:
         startfile(outPDF)
     except:
-        AddMsgAndPrint('\nWARNING: Failed to open PDF file in default PDF viewer...', 1, textFilePath=textFilePath)
+        AddMsgAndPrint('\nWARNING: Failed to open PDF file in default PDF viewer...', 1, textFilePath)
 
 
     AddMsgAndPrint('\nScript completed successfully', textFilePath=textFilePath)
