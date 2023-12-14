@@ -379,7 +379,6 @@ try:
 
 
     # No PHEL Values Found
-    # If there are no PHEL Values add helSummary and fieldDetermination layers to ArcMap and prepare 1026 form. Skip geoprocessing.
     if bNoPHELvalues or bSkipGeoprocessing:
         if bNoPHELvalues:
             AddMsgAndPrint('\n\tThere are no PHEL values in HEL layer...', 1, textFilePath)
