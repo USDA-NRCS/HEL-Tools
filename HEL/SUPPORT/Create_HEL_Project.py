@@ -5,8 +5,8 @@ from sys import argv, exit
 from time import ctime
 from uuid import uuid4
 
-from arcpy import AddFieldDelimiters, Describe, env, Exists, GetParameter, GetParameterAsText, \
-    ListFields, SetProgressorLabel, SpatialReference
+from arcpy import AddFieldDelimiters, Describe, env, Exists, GetInstallInfo, GetParameter, \
+    GetParameterAsText, ListFields, SetProgressorLabel, SpatialReference
 
 from arcpy.conversion import FeatureClassToFeatureClass
 from arcpy.da import SearchCursor, UpdateCursor
@@ -179,9 +179,15 @@ try:
     sitePrepareCLU = path.join(helcFD, sitePrepareCLU_name)
     scratchGDB = path.join(path.dirname(argv[0]), 'SCRATCH.gdb')
     jobid = uuid4()
-    site_prepare_lyrx = LayerFile(path.join(path.join(path.dirname(argv[0]), 'layer_files'), 'Site_Prepare_HELC.lyrx')).listLayers()[0]
-    site_clu_lyrx = LayerFile(path.join(path.join(path.dirname(argv[0]), 'layer_files'), 'Site_CLU.lyrx')).listLayers()[0]
 
+    ### Set LayerFiles Based on Pro Version ###
+    pro_version = GetInstallInfo()['Version']
+    if pro_version[0] == '3':
+        site_prepare_lyrx = LayerFile(path.join(path.join(path.dirname(argv[0]), 'layer_files'), 'Site_Prepare_HELC.lyrx')).listLayers()[0]
+        site_clu_lyrx = LayerFile(path.join(path.join(path.dirname(argv[0]), 'layer_files'), 'Site_CLU.lyrx')).listLayers()[0]
+    if pro_version[0] == '2':
+        site_prepare_lyrx = LayerFile(path.join(path.join(path.dirname(argv[0]), 'layer_files'), 'Site_Prepare_HELC_2.lyrx')).listLayers()[0]
+        site_clu_lyrx = LayerFile(path.join(path.join(path.dirname(argv[0]), 'layer_files'), 'Site_CLU_2.lyrx')).listLayers()[0]
 
     ### Create Project Folders and Contents ###
     AddMsgAndPrint('\nChecking project directories...')

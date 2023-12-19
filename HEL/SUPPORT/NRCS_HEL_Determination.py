@@ -4,8 +4,8 @@ from os import path
 from sys import exit
 from time import ctime
 
-from arcpy import CheckExtension, CheckOutExtension, CreateScratchName, Describe, env, Exists, GetParameter, \
-    GetParameterAsText, ListFields, Reclassify_3d, SetProgressorLabel
+from arcpy import CheckExtension, CheckOutExtension, CreateScratchName, Describe, env, Exists, GetInstallInfo, \
+    GetParameter, GetParameterAsText, ListFields, Reclassify_3d, SetProgressorLabel
 from arcpy.analysis import Clip, Intersect, Statistics
 from arcpy.conversion import FeatureToRaster, RasterToPolygon
 from arcpy.da import SearchCursor, UpdateCursor
@@ -68,11 +68,19 @@ scratch_gdb = path.join(base_dir, 'scratch.gdb')
 support_gdb = path.join(base_dir, 'SUPPORT.gdb')
 lu_table = path.join(support_gdb, 'lut_census_fips')
 
+### Set LayerFiles Based on Pro Version ###
+pro_version = GetInstallInfo()['Version']
 layer_files_dir = path.join(base_dir, 'layer_files')
-field_determination_lyrx = LayerFile(path.join(layer_files_dir, 'Field_Determination.lyrx')).listLayers()[0]
-final_hel_summary_lyrx = LayerFile(path.join(layer_files_dir, 'Final_HEL_Summary.lyrx')).listLayers()[0]
-initial_hel_summary_lyrx = LayerFile(path.join(layer_files_dir, 'Initial_HEL_Summary.lyrx')).listLayers()[0]
-lidar_hel_summary_lyrx = LayerFile(path.join(layer_files_dir, 'LiDAR_HEL_Summary.lyrx')).listLayers()[0]
+if pro_version[0] == '3':
+    field_determination_lyrx = LayerFile(path.join(layer_files_dir, 'Field_Determination.lyrx')).listLayers()[0]
+    final_hel_summary_lyrx = LayerFile(path.join(layer_files_dir, 'Final_HEL_Summary.lyrx')).listLayers()[0]
+    initial_hel_summary_lyrx = LayerFile(path.join(layer_files_dir, 'Initial_HEL_Summary.lyrx')).listLayers()[0]
+    lidar_hel_summary_lyrx = LayerFile(path.join(layer_files_dir, 'LiDAR_HEL_Summary.lyrx')).listLayers()[0]
+if pro_version[0] == '2':
+    field_determination_lyrx = LayerFile(path.join(layer_files_dir, 'Field_Determination_2.lyrx')).listLayers()[0]
+    final_hel_summary_lyrx = LayerFile(path.join(layer_files_dir, 'Final_HEL_Summary_2.lyrx')).listLayers()[0]
+    initial_hel_summary_lyrx = LayerFile(path.join(layer_files_dir, 'Initial_HEL_Summary_2.lyrx')).listLayers()[0]
+    lidar_hel_summary_lyrx = LayerFile(path.join(layer_files_dir, 'LiDAR_HEL_Summary_2.lyrx')).listLayers()[0]
 
 helc_fd = path.dirname(Describe(cluLayer).catalogPath)
 helc_gdb = path.dirname(helc_fd)
