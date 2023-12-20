@@ -433,8 +433,8 @@ try:
     planner_summary_template = DocxTemplate(planner_summary_template_path)
     context = {
         'today_date': date.today().strftime('%A, %B %d, %Y'),
-        'farm_number': 821,
-        'tract_number': 12564,
+        'farm_number': admin_data['farm_number'],
+        'tract_number': admin_data['tract_number'],
         'data': planner_summary_data
     }
     planner_summary_template.render(context, autoescape=True)
