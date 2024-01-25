@@ -59,14 +59,34 @@ zUnits = GetParameterAsText(3)
 use_runoff_ls = GetParameter(4)
 
 
-### Set Local Variables and Paths ###
-helFld = 'MUHELCL'
-scratchLayers = list()
+### Set Variables for Soil Data Fields and Validate ###
+for field in ListFields(helLayer):
+    # Required Fields:
+    if field.name.lower() == 'muhelcl':
+        hel_field = field.name
+    if field.name.lower() == 'musym':
+        musym_field = field.name
+    if field.name.lower() == 'k':
+        k_field = field.name
+    if field.name.lower() == 't':
+        t_field = field.name
+    if field.name.lower() == 'r':
+        r_field = field.name
+    # Optional Fields:
+    muname_field = field.name if field.name.lower() == 'muname' else None
+    muwat_field = field.name if field.name.lower() == 'muwathel' else None
+    muwnd_field = field.name if field.name.lower() == 'muwndhel' else None
 
+if not hel_field or not musym_field or not k_field or not t_field or not r_field:
+    AddMsgAndPrint('\Missing one or more required fields in input soil layer. Exiting...', 2)
+    exit()
+
+### Set Local Variables and Paths ###
 base_dir = path.abspath(path.dirname(__file__)) #\SUPPORT
 scratch_gdb = path.join(base_dir, 'scratch.gdb')
 support_gdb = path.join(base_dir, 'SUPPORT.gdb')
 lu_table = path.join(support_gdb, 'lut_census_fips')
+scratchLayers = list()
 
 ### Set LayerFiles Based on Pro Version ###
 pro_version = GetInstallInfo()['Version']
@@ -194,7 +214,7 @@ try:
 
     # Dissolve intersection output by the following fields -> helSummary
     cluNumberFld = 'clu_number'
-    dissovleFlds = [cluNumberFld, 'tract_number', 'farm_number', 'county_code', 'clu_calculated_acres', helFld]
+    dissovleFlds = [cluNumberFld, 'tract_number', 'farm_number', 'county_code', 'clu_calculated_acres', hel_field]
 
     # Dissolve the finalHELSummary to report input summary
     Dissolve(finalHELSummary, helSummary, dissovleFlds, '', 'MULTI_PART', 'DISSOLVE_LINES')
@@ -222,7 +242,7 @@ try:
     bNoPHELvalues = False       ## Boolean flag to indicate PHEL values are missing
 
     # HEL Field, Og_HELcode, Og_HEL_Acres, Og_HEL_AcrePct, "SHAPE@AREA", "clu_calculated_acres"
-    with UpdateCursor(helSummary, [helFld, HELrasterCode, HELacres, HELacrePct, 'SHAPE@AREA', calcAcreFld]) as cursor:
+    with UpdateCursor(helSummary, [hel_field, HELrasterCode, HELacres, HELacrePct, 'SHAPE@AREA', calcAcreFld]) as cursor:
         for row in cursor:
             # Update HEL value field; Continue if NULL HEL value
             if row[0] is None or row[0] == '' or len(row[0]) == 0:
@@ -285,13 +305,13 @@ try:
     ogHelSummaryStatsPivot = path.join('in_memory', path.basename(CreateScratchName('ogHELSummaryStatsPivot', data_type='ArcInfoTable', workspace=scratch_gdb)))
 
     stats = [[HELacres, 'SUM']]
-    caseField = [cluNumberFld, helFld]
+    caseField = [cluNumberFld, hel_field]
     Statistics(helSummary, ogHelSummaryStats, stats, caseField)
     sumHELacreFld = [fld.name for fld in ListFields(ogHelSummaryStats, '*' + HELacres)][0]
     scratchLayers.append(ogHelSummaryStats)
 
     # Pivot table will have clu_number & any HEL values present (HEL,NHEL,PHEL)
-    PivotTable(ogHelSummaryStats, cluNumberFld, helFld, sumHELacreFld, ogHelSummaryStatsPivot)
+    PivotTable(ogHelSummaryStats, cluNumberFld, hel_field, sumHELacreFld, ogHelSummaryStatsPivot)
     scratchLayers.append(ogHelSummaryStatsPivot)
 
     pivotFields = [fld.name for fld in ListFields(ogHelSummaryStatsPivot)][1:]  # ['clu_number','HEL','NHEL','PHEL']
@@ -424,7 +444,7 @@ try:
                     AddField(finalHELSummary, 'Final_HEL_Value', 'TEXT', '', '', 5)
                 else:
                     AddField(finalHELSummary, fld, 'DOUBLE')
-        newFields.append(helFld)
+        newFields.append(hel_field)
         newFields.append(cluNumberFld)
         newFields.append('SHAPE@AREA')
 
@@ -633,17 +653,17 @@ try:
     # 12 Convert KFactor to raster
     SetProgressorLabel('Converting K Factor field to a raster...')
     AddMsgAndPrint('\tConverting K Factor field to a raster...', textFilePath=textFilePath)
-    FeatureToRaster(finalHELSummary, 'K', kFactor, cellSize)
+    FeatureToRaster(finalHELSummary, k_field, kFactor, cellSize)
 
     # 13 Convert TFactor to raster
     SetProgressorLabel('Converting T Factor field to a raster...')
     AddMsgAndPrint('\tConverting T Factor field to a raster...', textFilePath=textFilePath)
-    FeatureToRaster(finalHELSummary, 'T', tFactor, cellSize)
+    FeatureToRaster(finalHELSummary, t_field, tFactor, cellSize)
 
     # 14 Convert RFactor to raster
     SetProgressorLabel('Converting R Factor field to a raster...')
     AddMsgAndPrint('\tConverting R Factor field to a raster...', textFilePath=textFilePath)
-    FeatureToRaster(finalHELSummary, 'R', rFactor, cellSize)
+    FeatureToRaster(finalHELSummary, r_field, rFactor, cellSize)
 
     SetProgressorLabel('Converting HEL Value field to a raster...')
     AddMsgAndPrint('\tConverting HEL Value field to a raster...', textFilePath=textFilePath)
@@ -777,7 +797,7 @@ try:
 
     # Delete unwanted fields from the finalHELSummary Layer
     newFields.remove('VALUE_2')
-    validFlds = [cluNumberFld, 'state_code', 'tract_number', 'farm_number', 'county_code', 'clu_calculated_acres', helFld, 'MUSYM', 'MUNAME', 'MUWATHEL', 'MUWNDHEL'] + newFields
+    validFlds = [cluNumberFld, 'state_code', 'tract_number', 'farm_number', 'county_code', 'clu_calculated_acres', hel_field, musym_field, muname_field, muwat_field, muwnd_field] + newFields
 
     deleteFlds = list()
     for fld in [f.name for f in ListFields(finalHELSummary)]:
