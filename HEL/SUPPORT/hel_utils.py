@@ -50,3 +50,13 @@ def errorMsg(tool_name):
         pass
     else:
         return f"\n\t------------------------- {tool_name} Tool Error -------------------------\n{exc_message}"
+
+
+def removeMapLayers(map, map_layers):
+    ''' Remove layers from the active map for a given list of lyr objects.'''
+    for lyr in map.listLayers():
+        try:
+            if lyr.name in map_layers:
+                map.removeLayer(lyr)
+        except:
+            continue

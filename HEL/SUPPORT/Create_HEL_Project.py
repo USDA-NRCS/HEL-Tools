@@ -17,7 +17,7 @@ from arcpy.management import AddField, AlterDomain, Append, CalculateField, Comp
 from arcpy.mp import ArcGISProject, LayerFile
 
 from extract_CLU_by_Tract import getPortalTokenInfo, start
-from hel_utils import addLyrxByConnectionProperties, AddMsgAndPrint, errorMsg
+from hel_utils import addLyrxByConnectionProperties, AddMsgAndPrint, errorMsg, removeMapLayers
 
 
 def logBasicSettings(textFilePath, projectType, sourceState, sourceCounty, tractNumber, owFlag):
@@ -89,6 +89,10 @@ owFlag = GetParameter(5)
 
 
 try:
+    # Remove output layers from map - Handles case when different sites run in same APRX
+    output_layer_names = ['Field_Determination', 'Initial_HEL_Summary', 'Final_HEL_Summary', 'LiDAR_HEL_Summary']
+    removeMapLayers(map, output_layer_names)
+
     workspacePath = 'C:\Determinations'
     # Check Inputs for existence and create FIPS code variables
     # Search for FIPS codes to give to the Extract CLU Tool/Function. Break after the first row (should only find one row in any case).
