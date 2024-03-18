@@ -16,7 +16,7 @@ from arcpy.sa import ATan, Con, Cos, Divide, Fill, FlowDirection, FlowLength, Fo
     Power, SetNull, Slope, Sin, TabulateArea, Times
 
 from extract_DEM_by_CLU import extractDEM
-from hel_utils import addLyrxByConnectionProperties, AddMsgAndPrint, deleteScratchLayers, errorMsg
+from hel_utils import addLyrxByConnectionProperties, AddMsgAndPrint, deleteScratchLayers, errorMsg, removeMapLayers
 
 
 class NoProcesingExit(Exception):
@@ -128,6 +128,9 @@ if not Exists(scratch_gdb):
 output_layers = [fieldDetermination, helSummary, lidarHEL, finalHELSummary]
 deleteScratchLayers(output_layers)
 
+# Remove output layers from map - Handles case when different sites run in same APRX
+output_layer_names = ['Field_Determination', 'Initial_HEL_Summary', 'Final_HEL_Summary', 'LiDAR_HEL_Summary']
+removeMapLayers(map, output_layer_names)
 
 ### ESRI Environment Settings ###
 env.scratchWorkspace = scratch_gdb
