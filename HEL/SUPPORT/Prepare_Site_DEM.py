@@ -11,7 +11,7 @@ from arcpy.mp import ArcGISProject
 from arcpy.da import Editor
 from arcpy.sa import ExtractByMask, Hillshade
 
-from hel_utils import AddMsgAndPrint, deleteScratchLayers, errorMsg
+from hel_utils import AddMsgAndPrint, deleteScratchLayers, errorMsg, removeMapLayers
 
 
 def logBasicSettings(textFilePath, userWorkspace, inputDEMs, zUnits):
@@ -55,12 +55,13 @@ sourceCLU = GetParameterAsText(0)
 demFormat = GetParameterAsText(1)
 inputDEMs = GetParameterAsText(2).split(';')
 DEMcount = len(inputDEMs)
-sourceService = GetParameterAsText(3)
-sourceCellsize = GetParameterAsText(4)
-zUnits = GetParameterAsText(5)
-demSR = GetParameterAsText(6)
-cluSR = GetParameterAsText(7)
-transform = GetParameterAsText(8)
+nrcsService = GetParameterAsText(3)
+externalService = GetParameterAsText(4)
+sourceCellsize = GetParameterAsText(5)
+zUnits = GetParameterAsText(6)
+demSR = GetParameterAsText(7)
+cluSR = GetParameterAsText(8)
+transform = GetParameterAsText(9)
 
 
 try:
@@ -85,6 +86,7 @@ try:
 
     #### Define Variables
     scratchGDB = path.join(path.dirname(argv[0]), 'SCRATCH.gdb')
+    referenceLayers = path.join(path.dirname(path.dirname(argv[0])), 'Reference_Layers')
     basedataGDB_name = path.basename(basedataGDB_path)
     basedataFD_name = 'Layers'
     basedataFD = path.join(basedataGDB_path, basedataFD_name)
@@ -95,7 +97,7 @@ try:
     projectAOI = path.join(basedataFD, 'Site_AOI')
     projectAOI_B = path.join(basedataFD, 'project_AOI_B')
     bufferDist = '500 Feet'
-    bufferDistPlus = '550 Feet'
+    bufferDistPlus = '500 Feet'
 
     projectDEM = path.join(basedataGDB_path, 'Site_DEM')
     projectHillshade = path.join(basedataGDB_path, 'Site_Hillshade')
@@ -104,8 +106,18 @@ try:
     WGS84_DEM = path.join(scratchGDB, 'WGS84_DEM')
     tempDEM = path.join(scratchGDB, 'tempDEM')
 
-    demOut = 'Site_DEM'
-    hillshadeOut = 'Site_Hillshade'
+
+    # If NRCS Image Service selected, set path to lyrx file
+    if '0.5m' in nrcsService:
+        sourceService = path.join(referenceLayers, 'NRCS Bare Earth 0.5m.lyrx')
+    elif '1m' in nrcsService:
+        sourceService = path.join(referenceLayers, 'NRCS Bare Earth 1m.lyrx')
+    elif '2m' in nrcsService:
+        sourceService = path.join(referenceLayers, 'NRCS Bare Earth 2m.lyrx')
+    elif '3m' in nrcsService:
+        sourceService = path.join(referenceLayers, 'NRCS Bare Earth 3m.lyrx')
+    elif externalService != '':
+        sourceService = externalService
 
     # Temp layers list for cleanup at the start and at the end
     tempLayers = [wgs_AOI, WGS84_DEM, tempDEM]
@@ -126,29 +138,10 @@ try:
     Buffer(projectTract, projectAOI_B, bufferDistPlus, 'FULL', '', 'ALL', '')
 
 
-    #### Remove existing project DEM related layers from the Pro maps
+    #### Remove existing project DEM and Hillshade if present in map
     AddMsgAndPrint('\nRemoving layers from project maps, if present...', textFilePath=textFilePath)
     SetProgressorLabel('Removing layers from project maps, if present...')
-
-    # Set starting layers to be removed
-    mapLayersToRemove = [demOut, hillshadeOut]
-
-    # Remove the layers in the list
-    try:
-        for maps in aprx.listMaps():
-            for lyr in maps.listLayers():
-                if lyr.longName in mapLayersToRemove:
-                    maps.removeLayer(lyr)
-    except:
-        pass
-
-
-    #### Remove existing DEM related layers from the geodatabase
-    AddMsgAndPrint('\nRemoving layers from project database, if present...', textFilePath=textFilePath)
-    SetProgressorLabel('Removing layers from project database, if present...')
-
-    # Set starting datasets to remove
-    deleteScratchLayers([projectDEM, projectHillshade])
+    removeMapLayers(map, ['Site_DEM', 'Site_Hillshade'])
 
 
     #### Process the input DEMs
@@ -156,7 +149,7 @@ try:
     SetProgressorLabel('Processing the input DEM(s)...')
 
     # Extract and process the DEM if it's an image service
-    if demFormat == 'NRCS Image Service':
+    if demFormat in ['NRCS Image Service', 'External Image Service']:
         if sourceCellsize == '':
             AddMsgAndPrint('\nAn output DEM cell size was not specified. Exiting...', 2, textFilePath)
             exit()
@@ -312,8 +305,8 @@ try:
     #### Add layers to Pro Map
     AddMsgAndPrint('\nAdding layers to map...', textFilePath=textFilePath)
     SetProgressorLabel('Adding layers to map...')
-    SetParameterAsText(9, projectDEM)
-    SetParameterAsText(10, projectHillshade)
+    SetParameterAsText(10, projectDEM)
+    SetParameterAsText(11, projectHillshade)
 
 
     #### Clean up
