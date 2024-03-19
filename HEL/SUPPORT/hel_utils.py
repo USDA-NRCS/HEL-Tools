@@ -1,7 +1,7 @@
 from sys import exc_info
 from traceback import format_exception
 
-from arcpy import AddError, AddMessage, AddWarning
+from arcpy import AddError, AddMessage, AddWarning, GetActivePortalURL, GetSigninToken, ListPortalURLs
 from arcpy.management import Delete
 
 
@@ -50,6 +50,49 @@ def errorMsg(tool_name):
         pass
     else:
         return f"\n\t------------------------- {tool_name} Tool Error -------------------------\n{exc_message}"
+
+
+def getPortalTokenInfo(portalURL):
+    try:
+        # i.e. 'https://gis.sc.egov.usda.gov/portal/'
+        activePortal = GetActivePortalURL()
+
+        # targeted portal is NOT set as default
+        if activePortal != portalURL:
+            # List of managed portals
+            managedPortals = ListPortalURLs()
+
+            # portalURL is available in managed list
+            if activePortal in managedPortals:
+                AddMsgAndPrint(f"\nYour Active portal is set to: {activePortal}", 2)
+                AddMsgAndPrint(f"Set your active portal and sign into: {portalURL}", 2)
+                return False
+
+            # portalURL must first be added to list of managed portals
+            else:
+                AddMsgAndPrint(f"\nYou must add {portalURL} to your list of managed portals", 2)
+                AddMsgAndPrint('Open the Portals Tab to manage portal connections', 2)
+                AddMsgAndPrint('For more information visit the following ArcGIS Pro documentation:', 2)
+                AddMsgAndPrint('https://pro.arcgis.com/en/pro-app/help/projects/manage-portal-connections-from-arcgis-pro.htm', 2)
+                return False
+
+        # targeted Portal is correct; try to generate token
+        else:
+            # Get Token information
+            tokenInfo = GetSigninToken()
+
+            # Not signed in.  Token results are empty
+            if not tokenInfo:
+                AddMsgAndPrint(f"\nYou are not signed into: {portalURL}", 2)
+                return False
+
+            # Token generated successfully
+            else:
+                return tokenInfo
+
+    except:
+        errorMsg()
+        return False
 
 
 def removeMapLayers(map, map_layers):
