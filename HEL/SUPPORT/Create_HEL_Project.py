@@ -16,8 +16,8 @@ from arcpy.management import AddField, AlterDomain, Append, CalculateField, Comp
 
 from arcpy.mp import ArcGISProject, LayerFile
 
-from extract_CLU_by_Tract import getPortalTokenInfo, start
-from hel_utils import addLyrxByConnectionProperties, AddMsgAndPrint, errorMsg, removeMapLayers
+from extract_CLU_by_Tract import extract_CLU
+from hel_utils import addLyrxByConnectionProperties, AddMsgAndPrint, errorMsg, getPortalTokenInfo, removeMapLayers
 
 
 def logBasicSettings(textFilePath, projectType, sourceState, sourceCounty, tractNumber, owFlag):
@@ -276,7 +276,7 @@ try:
     if not Exists(projectCLU):
         AddMsgAndPrint('\nDownloading latest CLU data...', textFilePath=textFilePath)
         SetProgressorLabel('Downloading latest CLU data...')
-        cluTempPath = start(adminState, adminCounty, tractNumber, mapSR, basedataGDB_path)
+        cluTempPath = extract_CLU(adminState, adminCounty, tractNumber, basedataGDB_path, mapSR)
 
         # Convert feature class to the projectTempCLU layer in the project's feature dataset
         # This should work because the input CLU feature class coming from the download should have the same spatial reference as the target feature dataset
